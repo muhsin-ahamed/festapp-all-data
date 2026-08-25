@@ -13,6 +13,7 @@ import '../../data/models/program_model.dart';
 import '../../data/models/result_model.dart';
 import '../../data/models/venue_model.dart';
 import '../../data/models/announcement_model.dart';
+import '../../data/models/user_model.dart';
 import '../../services/excel_service.dart';
 
 class ControllerPortalScreen extends ConsumerStatefulWidget {
