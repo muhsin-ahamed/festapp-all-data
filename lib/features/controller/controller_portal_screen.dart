@@ -540,13 +540,30 @@ class _ControllerPortalScreenState extends ConsumerState<ControllerPortalScreen>
                   return;
                 }
 
+                final teamId = 'team_${const Uuid().v4()}';
+                final cleanUser = name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+                final leaderUsername = cleanUser.isEmpty ? 'team_${code.toLowerCase()}' : cleanUser;
+                final leaderPassword = '${leaderUsername}123';
+
                 final team = Team(
-                  id: 'team_${const Uuid().v4()}',
+                  id: teamId,
                   teamName: name,
                   teamCode: code,
                 );
 
                 await ref.read(teamRepositoryProvider).addTeam(team);
+
+                // Auto-generate Team Leader user login
+                final leaderUser = User(
+                  id: 'usr_leader_$teamId',
+                  username: leaderUsername,
+                  password: leaderPassword,
+                  name: '$name Leader',
+                  role: UserRole.teamLeader,
+                  teamId: teamId,
+                );
+                await ref.read(userRepositoryProvider).saveUser(leaderUser);
+
                 triggerDataRefresh(ref);
 
                 _teamNameController.clear();
@@ -555,7 +572,11 @@ class _ControllerPortalScreenState extends ConsumerState<ControllerPortalScreen>
                 if (mounted) Navigator.pop(context);
 
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Team "$name" ($code) created successfully!'), backgroundColor: Colors.green),
+                  SnackBar(
+                    content: Text('Team "$name" ($code) created! Leader Login - User: $leaderUsername | Pass: $leaderPassword'),
+                    backgroundColor: Colors.green,
+                    duration: const Duration(seconds: 5),
+                  ),
                 );
               },
               child: const Text('Save Team'),
