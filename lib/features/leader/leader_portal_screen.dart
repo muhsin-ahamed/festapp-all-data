@@ -123,7 +123,7 @@ class _LeaderPortalScreenState extends ConsumerState<LeaderPortalScreen> with Si
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Welcome, Leader of ${team.teamName} (${team.teamCode})', style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.bold)),
+          Text('Welcome, Leader of ${team.teamName}', style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.bold)),
           const SizedBox(height: 16),
           LayoutBuilder(
             builder: (context, constraints) {

@@ -158,7 +158,8 @@ class TvPortalScreen extends ConsumerWidget {
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Text(t.teamName, style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
-                                Text(t.teamCode, style: GoogleFonts.inter(fontSize: 14, color: Colors.grey)),
+                                if (t.leaderName != null && t.leaderName!.isNotEmpty)
+                                  Text('Leader: ${t.leaderName}', style: GoogleFonts.inter(fontSize: 14, color: Colors.grey)),
                               ],
                             ),
                           ),

@@ -609,7 +609,7 @@ class _ControllerPortalScreenState extends ConsumerState<ControllerPortalScreen>
                             backgroundColor: AppTheme.primaryColor,
                             child: Text('#${idx + 1}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                           ),
-                          title: Text('${t.teamName} (${t.teamCode})'),
+                          title: Text(t.teamName),
                           subtitle: Text('Mentor: $mentorStr • Leader: $leaderStr • Asst: $asstStr'),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -644,7 +644,7 @@ class _ControllerPortalScreenState extends ConsumerState<ControllerPortalScreen>
       builder: (context) {
         return AlertDialog(
           title: const Text('Confirm Team Deletion'),
-          content: Text('Are you sure you want to delete team "${team.teamName}" (${team.teamCode})? This action cannot be undone.'),
+          content: Text('Are you sure you want to delete team "${team.teamName}"? This action cannot be undone.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -1467,7 +1467,7 @@ class _ControllerPortalScreenState extends ConsumerState<ControllerPortalScreen>
                         children: [
                           Chip(
                             avatar: const Icon(Icons.shield, size: 14, color: Colors.indigo),
-                            label: Text(team != null ? '${team.teamName} (${team.teamCode})' : 'Unassigned Team', style: const TextStyle(fontSize: 12)),
+                            label: Text(team != null ? team.teamName : 'Unassigned Team', style: const TextStyle(fontSize: 12)),
                             visualDensity: VisualDensity.compact,
                           ),
                           const SizedBox(width: 8),
@@ -1725,7 +1725,7 @@ class _ControllerPortalScreenState extends ConsumerState<ControllerPortalScreen>
                       AppDropdown<String>(
                         label: 'Select Team',
                         value: _selectedLeaderTeamId,
-                        items: teams.map((t) => DropdownMenuItem(value: t.id, child: Text('${t.teamName} (${t.teamCode})'))).toList(),
+                        items: teams.map((t) => DropdownMenuItem(value: t.id, child: Text(t.teamName))).toList(),
                         onChanged: (val) => setDialogState(() => _selectedLeaderTeamId = val),
                       ),
                       const SizedBox(height: 12),

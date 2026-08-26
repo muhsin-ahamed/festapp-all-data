@@ -338,7 +338,7 @@ class TeamScoreCard extends StatelessWidget {
     super.key,
     required this.rank,
     required this.teamName,
-    required this.teamCode,
+    this.teamCode = '',
     this.leaderName,
     required this.points,
     this.isHighlight = false,
@@ -351,7 +351,7 @@ class TeamScoreCard extends StatelessWidget {
     if (rank == 2) rankColor = const Color(0xFFC0C0C0); // Silver
     if (rank == 3) rankColor = const Color(0xFFCD7F32); // Bronze
 
-    final leaderText = (leaderName != null && leaderName!.isNotEmpty) ? ' • Leader: $leaderName' : '';
+    final leaderText = (leaderName != null && leaderName!.isNotEmpty) ? 'Leader: $leaderName' : '';
 
     return AppCard(
       color: isHighlight ? AppTheme.primaryColor.withOpacity(0.08) : null,
@@ -382,10 +382,11 @@ class TeamScoreCard extends StatelessWidget {
                   teamName,
                   style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
-                Text(
-                  '$teamCode$leaderText',
-                  style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[600]),
-                ),
+                if (leaderText.isNotEmpty)
+                  Text(
+                    leaderText,
+                    style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[600]),
+                  ),
               ],
             ),
           ),
