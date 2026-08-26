@@ -157,27 +157,32 @@ class ExcelService {
       total++;
 
       try {
-        final code = row[0]?.value?.toString().trim() ?? '';
-        final name = row[1]?.value?.toString().trim() ?? '';
-        final leaderName = row.length > 2 ? row[2]?.value?.toString().trim() : null;
+        final name = row[0]?.value?.toString().trim() ?? '';
+        final mentorName = row.length > 1 ? (row[1]?.value?.toString().trim() ?? '') : '';
+        final leaderName = row.length > 2 ? (row[2]?.value?.toString().trim() ?? '') : '';
+        final assistantLeaderName = row.length > 3 ? (row[3]?.value?.toString().trim() ?? '') : '';
 
-        if (code.isEmpty || name.isEmpty) {
+        if (name.isEmpty) {
           invalid++;
-          errors.add('Row ${i + 1}: Missing team code or name.');
+          errors.add('Row ${i + 1}: Missing team name.');
           continue;
         }
 
+        final code = 'T-${name.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '')}';
+
         if (existingCodes.contains(code.toLowerCase())) {
           duplicate++;
-          errors.add('Row ${i + 1}: Duplicate team code "$code".');
+          errors.add('Row ${i + 1}: Duplicate team "$name".');
           continue;
         }
 
         final team = Team(
           id: 'team_${const Uuid().v4()}',
-          teamCode: code.toUpperCase(),
+          teamCode: code,
           teamName: name,
-          leaderName: (leaderName != null && leaderName.isNotEmpty) ? leaderName : null,
+          mentorName: mentorName.isNotEmpty ? mentorName : null,
+          leaderName: leaderName.isNotEmpty ? leaderName : null,
+          assistantLeaderName: assistantLeaderName.isNotEmpty ? assistantLeaderName : null,
         );
 
         validTeams.add(team);

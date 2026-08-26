@@ -45,8 +45,9 @@ class _ControllerPortalScreenState extends ConsumerState<ControllerPortalScreen>
 
   // Team Form Controllers
   final _teamNameController = TextEditingController();
-  final _teamCodeController = TextEditingController();
+  final _teamMentorController = TextEditingController();
   final _teamLeaderNameController = TextEditingController();
+  final _teamAssistantLeaderController = TextEditingController();
 
   // Program Form Controllers
   final _progCodeController = TextEditingController();
@@ -77,8 +78,9 @@ class _ControllerPortalScreenState extends ConsumerState<ControllerPortalScreen>
     _resultMarksController.dispose();
     _resultGradeController.dispose();
     _teamNameController.dispose();
-    _teamCodeController.dispose();
+    _teamMentorController.dispose();
     _teamLeaderNameController.dispose();
+    _teamAssistantLeaderController.dispose();
     _progCodeController.dispose();
     _progNameController.dispose();
     _progDurationController.dispose();
@@ -569,10 +571,25 @@ class _ControllerPortalScreenState extends ConsumerState<ControllerPortalScreen>
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text('Registered Teams (${teams.length})', style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.bold)),
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.group_add),
-                      label: const Text('Add New Team'),
-                      onPressed: _showAddTeamDialog,
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.file_upload),
+                          label: const Text('Import Teams (Excel)'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primaryColor,
+                            foregroundColor: Colors.white,
+                          ),
+                          onPressed: _importTeamsFromExcel,
+                        ),
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.group_add),
+                          label: const Text('Add New Team'),
+                          onPressed: _showAddTeamDialog,
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -582,6 +599,9 @@ class _ControllerPortalScreenState extends ConsumerState<ControllerPortalScreen>
                     itemCount: teams.length,
                     itemBuilder: (context, idx) {
                       final t = teams[idx];
+                      final mentorStr = t.mentorName ?? '—';
+                      final leaderStr = t.leaderName ?? '—';
+                      final asstStr = t.assistantLeaderName ?? '—';
                       return Card(
                         margin: const EdgeInsets.only(bottom: 12),
                         child: ListTile(
@@ -590,7 +610,7 @@ class _ControllerPortalScreenState extends ConsumerState<ControllerPortalScreen>
                             child: Text('#${idx + 1}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                           ),
                           title: Text('${t.teamName} (${t.teamCode})'),
-                          subtitle: Text('Leader: ${t.leaderName ?? 'N/A'} • Score: ${t.totalPoints} PTS • Members: ${t.totalStudents}'),
+                          subtitle: Text('Mentor: $mentorStr • Leader: $leaderStr • Asst: $asstStr'),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -648,6 +668,32 @@ class _ControllerPortalScreenState extends ConsumerState<ControllerPortalScreen>
     );
   }
 
+  Future<void> _importTeamsFromExcel() async {
+    try {
+      final files = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['xlsx', 'xls'],
+      );
+
+      if (files.isNotEmpty) {
+        final bytes = await files.first.readAsBytes();
+        final excelService = ref.read(excelServiceProvider);
+        final importResult = await excelService.importTeams(bytes);
+        triggerDataRefresh(ref);
+
+        if (mounted) {
+          _showImportResultDialog('Teams Excel Import Summary', importResult);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to import Excel file: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   void _showAddTeamDialog() {
     showDialog(
       context: context,
@@ -661,19 +707,25 @@ class _ControllerPortalScreenState extends ConsumerState<ControllerPortalScreen>
                 AppTextField(
                   label: 'Team Name',
                   controller: _teamNameController,
-                  hint: 'e.g. Thunder Tigers',
+                  hint: 'e.g. Tigrees',
                 ),
                 const SizedBox(height: 12),
                 AppTextField(
-                  label: 'Team Code',
-                  controller: _teamCodeController,
-                  hint: 'e.g. T-THUNDER',
+                  label: 'Mentor Name',
+                  controller: _teamMentorController,
+                  hint: 'e.g. Dr. Alex',
                 ),
                 const SizedBox(height: 12),
                 AppTextField(
                   label: 'Leader Name',
                   controller: _teamLeaderNameController,
                   hint: 'e.g. John Doe',
+                ),
+                const SizedBox(height: 12),
+                AppTextField(
+                  label: 'Assistant Leader Name',
+                  controller: _teamAssistantLeaderController,
+                  hint: 'e.g. Sarah Smith',
                 ),
               ],
             ),
@@ -686,20 +738,23 @@ class _ControllerPortalScreenState extends ConsumerState<ControllerPortalScreen>
             ElevatedButton(
               onPressed: () async {
                 final name = _teamNameController.text.trim();
-                final code = _teamCodeController.text.trim().toUpperCase();
+                final mentor = _teamMentorController.text.trim();
                 final inputLeaderName = _teamLeaderNameController.text.trim();
+                final assistant = _teamAssistantLeaderController.text.trim();
 
-                if (name.isEmpty || code.isEmpty) {
+                if (name.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Team Name and Team Code are required!'), backgroundColor: Colors.red),
+                    const SnackBar(content: Text('Team Name is required!'), backgroundColor: Colors.red),
                   );
                   return;
                 }
 
+                final code = 'T-${name.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '')}';
+
                 final existing = await ref.read(teamRepositoryProvider).getByCode(code);
                 if (existing != null) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Team Code "$code" already exists!'), backgroundColor: Colors.red),
+                    SnackBar(content: Text('Team "$name" already exists!'), backgroundColor: Colors.red),
                   );
                   return;
                 }
@@ -715,8 +770,10 @@ class _ControllerPortalScreenState extends ConsumerState<ControllerPortalScreen>
                   id: teamId,
                   teamName: name,
                   teamCode: code,
-                  leaderId: leaderId,
+                  mentorName: mentor.isNotEmpty ? mentor : null,
                   leaderName: leaderName,
+                  assistantLeaderName: assistant.isNotEmpty ? assistant : null,
+                  leaderId: leaderId,
                 );
 
                 await ref.read(teamRepositoryProvider).addTeam(team);
@@ -747,14 +804,15 @@ class _ControllerPortalScreenState extends ConsumerState<ControllerPortalScreen>
                 triggerDataRefresh(ref);
 
                 _teamNameController.clear();
-                _teamCodeController.clear();
+                _teamMentorController.clear();
                 _teamLeaderNameController.clear();
+                _teamAssistantLeaderController.clear();
 
                 if (mounted) Navigator.pop(context);
 
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Team "$name" ($code) with Leader "$leaderName" created! User: $leaderUsername | Pass: $leaderPassword'),
+                    content: Text('Team "$name" created! Leader Login - User: $leaderUsername | Pass: $leaderPassword'),
                     backgroundColor: Colors.green,
                     duration: const Duration(seconds: 5),
                   ),
