@@ -3,6 +3,7 @@ class Team {
   final String teamName;
   final String teamCode;
   final String? leaderId;
+  final String? leaderName;
   final String? section;
   final String? logo;
   final int totalStudents;
@@ -16,6 +17,7 @@ class Team {
     required this.teamName,
     required this.teamCode,
     this.leaderId,
+    this.leaderName,
     this.section,
     this.logo,
     this.totalStudents = 0,
@@ -30,6 +32,7 @@ class Team {
     String? teamName,
     String? teamCode,
     String? leaderId,
+    String? leaderName,
     String? section,
     String? logo,
     int? totalStudents,
@@ -43,6 +46,7 @@ class Team {
       teamName: teamName ?? this.teamName,
       teamCode: teamCode ?? this.teamCode,
       leaderId: leaderId ?? this.leaderId,
+      leaderName: leaderName ?? this.leaderName,
       section: section ?? this.section,
       logo: logo ?? this.logo,
       totalStudents: totalStudents ?? this.totalStudents,
@@ -59,6 +63,7 @@ class Team {
       'teamName': teamName,
       'teamCode': teamCode,
       'leaderId': leaderId,
+      'leaderName': leaderName,
       'section': section,
       'logo': logo,
       'totalStudents': totalStudents,
@@ -75,6 +80,7 @@ class Team {
       teamName: map['teamName'] ?? '',
       teamCode: map['teamCode'] ?? '',
       leaderId: map['leaderId'],
+      leaderName: map['leaderName'],
       section: map['section'],
       logo: map['logo'],
       totalStudents: map['totalStudents'] ?? 0,

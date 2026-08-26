@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/student_model.dart';
 import '../../data/models/team_model.dart';
+import '../../data/models/team_leader_model.dart';
+import '../../data/models/jury_model.dart';
 import '../../data/models/program_model.dart';
 import '../../data/models/registration_model.dart';
 import '../../data/models/result_model.dart';
@@ -131,6 +133,21 @@ final schedulesProvider = FutureProvider<List<Schedule>>((ref) async {
 final announcementsProvider = FutureProvider<List<Announcement>>((ref) async {
   ref.watch(dataRefreshSignalProvider);
   return ref.watch(announcementRepositoryProvider).getAnnouncements();
+});
+
+final usersProvider = FutureProvider<List<User>>((ref) async {
+  ref.watch(dataRefreshSignalProvider);
+  return ref.watch(userRepositoryProvider).getUsers();
+});
+
+final leadersProvider = FutureProvider<List<TeamLeader>>((ref) async {
+  ref.watch(dataRefreshSignalProvider);
+  return ref.watch(leaderRepositoryProvider).getLeaders();
+});
+
+final juriesProvider = FutureProvider<List<Jury>>((ref) async {
+  ref.watch(dataRefreshSignalProvider);
+  return ref.watch(juryRepositoryProvider).getJuries();
 });
 
 final currentUserProvider = StateProvider<User?>((ref) => null);

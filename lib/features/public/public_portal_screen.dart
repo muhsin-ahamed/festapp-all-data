@@ -204,6 +204,7 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen> with Si
                     rank: firstTeam.rank > 0 ? firstTeam.rank : 1,
                     teamName: firstTeam.teamName,
                     teamCode: firstTeam.teamCode,
+                    leaderName: firstTeam.leaderName,
                     points: firstTeam.totalPoints,
                     isHighlight: true,
                   ),
@@ -229,6 +230,7 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen> with Si
                               rank: team.rank > 0 ? team.rank : index + 2,
                               teamName: team.teamName,
                               teamCode: team.teamCode,
+                              leaderName: team.leaderName,
                               points: team.totalPoints,
                               isHighlight: false,
                             );

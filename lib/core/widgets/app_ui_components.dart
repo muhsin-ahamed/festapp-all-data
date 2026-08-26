@@ -330,6 +330,7 @@ class TeamScoreCard extends StatelessWidget {
   final int rank;
   final String teamName;
   final String teamCode;
+  final String? leaderName;
   final int points;
   final bool isHighlight;
 
@@ -338,6 +339,7 @@ class TeamScoreCard extends StatelessWidget {
     required this.rank,
     required this.teamName,
     required this.teamCode,
+    this.leaderName,
     required this.points,
     this.isHighlight = false,
   });
@@ -348,6 +350,8 @@ class TeamScoreCard extends StatelessWidget {
     if (rank == 1) rankColor = const Color(0xFFFFD700); // Gold
     if (rank == 2) rankColor = const Color(0xFFC0C0C0); // Silver
     if (rank == 3) rankColor = const Color(0xFFCD7F32); // Bronze
+
+    final leaderText = (leaderName != null && leaderName!.isNotEmpty) ? ' • Leader: $leaderName' : '';
 
     return AppCard(
       color: isHighlight ? AppTheme.primaryColor.withOpacity(0.08) : null,
@@ -379,7 +383,7 @@ class TeamScoreCard extends StatelessWidget {
                   style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
                 Text(
-                  teamCode,
+                  '$teamCode$leaderText',
                   style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[600]),
                 ),
               ],

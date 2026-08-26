@@ -72,12 +72,12 @@ class DemoDataService {
 
     // 2. Seed 6 Teams
     final teamData = [
-      {'id': 'team_alpha', 'code': 'T-ALPHA', 'name': 'Alpha Tigers'},
-      {'id': 'team_beta', 'code': 'T-BETA', 'name': 'Beta Eagles'},
-      {'id': 'team_gamma', 'code': 'T-GAMMA', 'name': 'Gamma Lions'},
-      {'id': 'team_delta', 'code': 'T-DELTA', 'name': 'Delta Falcons'},
-      {'id': 'team_omega', 'code': 'T-OMEGA', 'name': 'Omega Warriors'},
-      {'id': 'team_phoenix', 'code': 'T-PHOENIX', 'name': 'Phoenix Rises'},
+      {'id': 'team_alpha', 'code': 'T-ALPHA', 'name': 'Alpha Tigers', 'leader': 'Alex Johnson'},
+      {'id': 'team_beta', 'code': 'T-BETA', 'name': 'Beta Eagles', 'leader': 'Beth Smith'},
+      {'id': 'team_gamma', 'code': 'T-GAMMA', 'name': 'Gamma Lions', 'leader': 'George Davis'},
+      {'id': 'team_delta', 'code': 'T-DELTA', 'name': 'Delta Falcons', 'leader': 'Diana Prince'},
+      {'id': 'team_omega', 'code': 'T-OMEGA', 'name': 'Omega Warriors', 'leader': 'Oscar Isaac'},
+      {'id': 'team_phoenix', 'code': 'T-PHOENIX', 'name': 'Phoenix Rises', 'leader': 'Peter Parker'},
     ];
 
     List<Team> teams = [];
@@ -85,11 +85,12 @@ class DemoDataService {
       final tMap = teamData[i];
       final teamId = tMap['id']!;
       final leaderId = 'leader_${i + 1}';
+      final leaderName = tMap['leader']!;
       final username = i == 0 ? 'leader1' : 'leader${i + 1}';
 
       final leader = TeamLeader(
         id: leaderId,
-        name: '${tMap['name']} Leader',
+        name: leaderName,
         phone: '+1 555-010${i + 1}',
         email: 'leader${i + 1}@fest.com',
         username: username,
@@ -102,7 +103,7 @@ class DemoDataService {
         id: 'usr_$leaderId',
         username: username,
         password: leader.password,
-        name: leader.name,
+        name: leaderName,
         role: UserRole.teamLeader,
         teamId: teamId,
       );
@@ -113,6 +114,7 @@ class DemoDataService {
         teamName: tMap['name']!,
         teamCode: tMap['code']!,
         leaderId: leaderId,
+        leaderName: leaderName,
         totalStudents: 10,
       );
       await teamRepository.addTeam(team);

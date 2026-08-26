@@ -40,6 +40,7 @@ abstract class TeamLeaderRepository {
   Future<TeamLeader?> getByTeamId(String teamId);
   Future<void> addLeader(TeamLeader leader);
   Future<void> updateLeader(TeamLeader leader);
+  Future<void> deleteLeader(String id);
 }
 
 abstract class ProgramRepository {
@@ -98,6 +99,7 @@ abstract class JuryRepository {
   Future<Jury?> getByUsername(String username);
   Future<void> addJury(Jury jury);
   Future<void> updateJury(Jury jury);
+  Future<void> deleteJury(String id);
 }
 
 abstract class AnnouncementRepository {
@@ -115,6 +117,7 @@ abstract class UserRepository {
   Future<List<User>> getUsers();
   Future<User?> getByUsername(String username);
   Future<void> saveUser(User user);
+  Future<void> deleteUser(String id);
 }
 
 abstract class AuditLogRepository {

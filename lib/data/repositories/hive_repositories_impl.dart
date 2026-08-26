@@ -165,6 +165,11 @@ class HiveTeamLeaderRepository implements TeamLeaderRepository {
   Future<void> updateLeader(TeamLeader leader) async {
     await box.put(leader.id, leader.toMap());
   }
+
+  @override
+  Future<void> deleteLeader(String id) async {
+    await box.delete(id);
+  }
 }
 
 class HiveProgramRepository implements ProgramRepository {
@@ -441,6 +446,11 @@ class HiveJuryRepository implements JuryRepository {
   Future<void> updateJury(Jury jury) async {
     await box.put(jury.id, jury.toMap());
   }
+
+  @override
+  Future<void> deleteJury(String id) async {
+    await box.delete(id);
+  }
 }
 
 class HiveAnnouncementRepository implements AnnouncementRepository {
@@ -505,6 +515,11 @@ class HiveUserRepository implements UserRepository {
   @override
   Future<void> saveUser(User user) async {
     await box.put(user.id, user.toMap());
+  }
+
+  @override
+  Future<void> deleteUser(String id) async {
+    await box.delete(id);
   }
 }
 

@@ -88,11 +88,19 @@ class ExcelService {
         // Resolve Team
         String teamId = '';
         if (teamStr.isNotEmpty) {
-          final matchedTeam = teams.firstWhere(
-            (t) => t.teamCode.toLowerCase() == teamStr.toLowerCase() || t.teamName.toLowerCase() == teamStr.toLowerCase(),
-            orElse: () => Team(id: 'team_${const Uuid().v4()}', teamName: teamStr, teamCode: teamStr.toUpperCase()),
-          );
-          teamId = matchedTeam.id;
+          Team? matched;
+          for (final t in teams) {
+            if (t.teamCode.toLowerCase() == teamStr.toLowerCase() || t.teamName.toLowerCase() == teamStr.toLowerCase()) {
+              matched = t;
+              break;
+            }
+          }
+          if (matched == null) {
+            matched = Team(id: 'team_${const Uuid().v4()}', teamName: teamStr, teamCode: teamStr.toUpperCase());
+            teams.add(matched);
+            await teamRepository.addTeam(matched);
+          }
+          teamId = matched.id;
         }
 
         final student = Student(
@@ -156,6 +164,7 @@ class ExcelService {
       try {
         final code = row[0]?.value?.toString().trim() ?? '';
         final name = row[1]?.value?.toString().trim() ?? '';
+        final leaderName = row.length > 2 ? row[2]?.value?.toString().trim() : null;
 
         if (code.isEmpty || name.isEmpty) {
           invalid++;
@@ -173,6 +182,7 @@ class ExcelService {
           id: 'team_${const Uuid().v4()}',
           teamCode: code.toUpperCase(),
           teamName: name,
+          leaderName: (leaderName != null && leaderName.isNotEmpty) ? leaderName : null,
         );
 
         validTeams.add(team);
@@ -307,6 +317,37 @@ class ExcelService {
         TextCellValue(s.schoolName),
       ]);
     }
+
+    return Uint8List.fromList(excel.save() ?? []);
+  }
+
+  Uint8List generateStudentTemplate() {
+    final excel = Excel.createExcel();
+    final sheet = excel['Students_Template'];
+
+    sheet.appendRow([
+      TextCellValue('Chase Number'),
+      TextCellValue('Name'),
+      TextCellValue('Gender'),
+      TextCellValue('Date of Birth'),
+      TextCellValue('Section'),
+      TextCellValue('Team Code/Name'),
+      TextCellValue('Phone'),
+      TextCellValue('Class'),
+      TextCellValue('School'),
+    ]);
+
+    sheet.appendRow([
+      TextCellValue('101'),
+      TextCellValue('John Doe'),
+      TextCellValue('Male'),
+      TextCellValue('2010-05-15'),
+      TextCellValue('Junior'),
+      TextCellValue('T-ALPHA'),
+      TextCellValue('+1 555-0199'),
+      TextCellValue('10'),
+      TextCellValue('Central School'),
+    ]);
 
     return Uint8List.fromList(excel.save() ?? []);
   }
