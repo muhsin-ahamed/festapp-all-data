@@ -65,13 +65,8 @@ class ExcelService {
       try {
         final chaseNumber = row[0]?.value?.toString().trim() ?? '';
         final name = row[1]?.value?.toString().trim() ?? '';
-        final gender = row[2]?.value?.toString().trim() ?? 'Male';
-        final dob = row[3]?.value?.toString().trim() ?? '2010-01-01';
-        final sectionStr = row[4]?.value?.toString().trim() ?? 'Junior';
-        final teamStr = row[5]?.value?.toString().trim() ?? '';
-        final phone = row[6]?.value?.toString().trim() ?? '';
-        final className = row[7]?.value?.toString().trim() ?? '10';
-        final schoolName = row[8]?.value?.toString().trim() ?? 'Central School';
+        final sectionStr = row.length > 2 ? (row[2]?.value?.toString().trim() ?? 'Junior') : 'Junior';
+        final teamStr = row.length > 3 ? (row[3]?.value?.toString().trim() ?? '') : '';
 
         if (chaseNumber.isEmpty || name.isEmpty) {
           invalid++;
@@ -107,13 +102,13 @@ class ExcelService {
           id: const Uuid().v4(),
           chaseNumber: chaseNumber,
           name: name,
-          gender: gender,
-          dateOfBirth: dob,
+          gender: 'Male',
+          dateOfBirth: '2010-01-01',
           section: FestSection.fromString(sectionStr),
           teamId: teamId.isNotEmpty ? teamId : 'default_team',
-          phone: phone,
-          className: className,
-          schoolName: schoolName,
+          phone: '',
+          className: '',
+          schoolName: '',
           qrCode: chaseNumber,
         );
 
@@ -295,26 +290,16 @@ class ExcelService {
     sheet.appendRow([
       TextCellValue('Chase Number'),
       TextCellValue('Name'),
-      TextCellValue('Gender'),
-      TextCellValue('Date of Birth'),
       TextCellValue('Section'),
-      TextCellValue('Team'),
-      TextCellValue('Phone'),
-      TextCellValue('Class'),
-      TextCellValue('School'),
+      TextCellValue('Team Name'),
     ]);
 
     for (final s in students) {
       sheet.appendRow([
         TextCellValue(s.chaseNumber),
         TextCellValue(s.name),
-        TextCellValue(s.gender),
-        TextCellValue(s.dateOfBirth),
         TextCellValue(s.section.label),
         TextCellValue(teamNameMap[s.teamId] ?? s.teamId),
-        TextCellValue(s.phone),
-        TextCellValue(s.className),
-        TextCellValue(s.schoolName),
       ]);
     }
 
@@ -328,25 +313,15 @@ class ExcelService {
     sheet.appendRow([
       TextCellValue('Chase Number'),
       TextCellValue('Name'),
-      TextCellValue('Gender'),
-      TextCellValue('Date of Birth'),
       TextCellValue('Section'),
-      TextCellValue('Team Code/Name'),
-      TextCellValue('Phone'),
-      TextCellValue('Class'),
-      TextCellValue('School'),
+      TextCellValue('Team Name'),
     ]);
 
     sheet.appendRow([
       TextCellValue('101'),
       TextCellValue('John Doe'),
-      TextCellValue('Male'),
-      TextCellValue('2010-05-15'),
       TextCellValue('Junior'),
-      TextCellValue('T-ALPHA'),
-      TextCellValue('+1 555-0199'),
-      TextCellValue('10'),
-      TextCellValue('Central School'),
+      TextCellValue('Tigrees'),
     ]);
 
     return Uint8List.fromList(excel.save() ?? []);

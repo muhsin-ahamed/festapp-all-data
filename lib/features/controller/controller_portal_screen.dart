@@ -496,11 +496,9 @@ class _ControllerPortalScreenState extends ConsumerState<ControllerPortalScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                AppTextField(label: 'Chase Number', controller: _studentChaseController, hint: 'e.g. CHASE-1099'),
+                AppTextField(label: 'Chase Number', controller: _studentChaseController, hint: 'e.g. 101'),
                 const SizedBox(height: 10),
                 AppTextField(label: 'Full Name', controller: _studentNameController),
-                const SizedBox(height: 10),
-                AppTextField(label: 'Phone', controller: _studentPhoneController),
                 const SizedBox(height: 10),
                 AppDropdown<FestSection>(
                   label: 'Section',
@@ -532,12 +530,12 @@ class _ControllerPortalScreenState extends ConsumerState<ControllerPortalScreen>
                   chaseNumber: _studentChaseController.text.trim(),
                   name: _studentNameController.text.trim(),
                   gender: 'Male',
-                  dateOfBirth: '2008-01-01',
+                  dateOfBirth: '2010-01-01',
                   section: _studentSection,
                   teamId: _studentTeamId ?? (teams.isNotEmpty ? teams.first.id : 'default'),
-                  phone: _studentPhoneController.text.trim(),
-                  className: 'Class 10',
-                  schoolName: 'Fest Academy',
+                  phone: '',
+                  className: '',
+                  schoolName: '',
                   qrCode: _studentChaseController.text.trim(),
                 );
                 await ref.read(studentRepositoryProvider).addStudent(student);
