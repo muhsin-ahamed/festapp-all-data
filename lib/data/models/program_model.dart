@@ -72,35 +72,35 @@ class Program {
       'category': category.name,
       'isStageProgram': isStageProgram,
       'isGeneral': isGeneral,
-      'maxParticipants': maxParticipants,
       'duration': duration,
       'venueId': venueId,
       'scheduleId': scheduleId,
-      'rules': rules,
       'status': status,
     };
   }
 
   factory Program.fromMap(Map<String, dynamic> map) {
-    final sec = FestSection.fromString(map['section'] ?? 'junior');
-    final cat = ProgramCategory.fromString(map['category'] ?? 'stage');
-    final isStage = map['isStageProgram'] ?? (cat == ProgramCategory.stage);
-    final isGen = map['isGeneral'] ?? (sec == FestSection.general);
+    final sec = FestSection.fromString((map['section'] ?? map['fest_section'] ?? 'subJunior').toString());
+    final cat = ProgramCategory.fromString((map['category'] ?? map['program_category'] ?? 'stage').toString());
+    final rawIsStage = map['isStageProgram'] ?? map['is_stage_program'];
+    final isStage = rawIsStage is bool ? rawIsStage : (rawIsStage?.toString() == 'true' || cat == ProgramCategory.stage);
+    final rawIsGen = map['isGeneral'] ?? map['is_general'];
+    final isGen = rawIsGen is bool ? rawIsGen : (rawIsGen?.toString() == 'true' || sec == FestSection.general || cat == ProgramCategory.general);
 
     return Program(
-      id: map['id'] ?? '',
-      programCode: map['programCode'] ?? '',
-      programName: map['programName'] ?? '',
+      id: (map['id'] ?? '').toString(),
+      programCode: (map['programCode'] ?? map['program_code'] ?? '').toString(),
+      programName: (map['programName'] ?? map['program_name'] ?? '').toString(),
       section: sec,
       category: cat,
       isStageProgram: isStage,
       isGeneral: isGen,
-      maxParticipants: map['maxParticipants'] ?? 1,
-      duration: map['duration'] ?? '30 mins',
-      venueId: map['venueId'],
-      scheduleId: map['scheduleId'],
-      rules: map['rules'],
-      status: map['status'] ?? 'UPCOMING',
+      maxParticipants: int.tryParse((map['maxParticipants'] ?? map['max_participants'] ?? 1).toString()) ?? 1,
+      duration: (map['duration'] ?? '30 mins').toString(),
+      venueId: map['venueId']?.toString() ?? map['venue_id']?.toString(),
+      scheduleId: map['scheduleId']?.toString() ?? map['schedule_id']?.toString(),
+      rules: map['rules']?.toString(),
+      status: (map['status'] ?? 'UPCOMING').toString(),
     );
   }
 }

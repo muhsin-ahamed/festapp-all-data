@@ -30,23 +30,24 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authServiceProvider).currentUser;
-    final juriesAsync = ref.watch(juryRepositoryProvider).getJuries();
+    final juriesAsync = ref.watch(juriesProvider);
     final programsAsync = ref.watch(programsProvider);
     final studentsAsync = ref.watch(studentsProvider);
     final regsAsync = ref.watch(registrationsProvider);
 
     return Scaffold(
+      backgroundColor: AppTheme.cream,
       appBar: AppBar(
         title: Row(
           children: [
-            const Icon(Icons.rate_review, color: AppTheme.primaryColor),
+            const BrandMark(size: 26),
             const SizedBox(width: 10),
-            Text('JURY MARKING PORTAL', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 18)),
+            Text('JURY MARKING PORTAL', style: GoogleFonts.rye(fontSize: 18, color: AppTheme.ink)),
           ],
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.qr_code_scanner),
+            icon: const Icon(Icons.qr_code_scanner, color: AppTheme.ink),
             tooltip: 'Scan Program QR',
             onPressed: () {
               setState(() {
@@ -55,7 +56,7 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.logout, color: Colors.redAccent),
+            icon: const Icon(Icons.logout, color: AppTheme.red),
             onPressed: () {
               ref.read(authServiceProvider).logout();
               context.go('/public');
@@ -64,12 +65,28 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
           const SizedBox(width: 16),
         ],
       ),
-      body: FutureBuilder(
-        future: juriesAsync,
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-          final juries = snapshot.data!;
-          final currentJury = juries.firstWhere((j) => j.username == user?.username, orElse: () => juries.first);
+      body: Column(
+        children: [
+          const PatternStrip(height: 8),
+          Expanded(
+            child: juriesAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, stack) => Center(child: Text('Error loading jury data: $err')),
+        data: (juries) {
+          if (juries.isEmpty) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24.0),
+                child: Text(
+                  'No jury profiles found in the system.\nPlease create a jury profile in Controller settings.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 16),
+                ),
+              ),
+            );
+          }
+
+          final currentJury = juries.where((j) => j.id == user?.juryId || j.username == user?.username).firstOrNull ?? juries.first;
           final assignedProgIds = currentJury.assignedPrograms;
 
           final allPrograms = programsAsync.value ?? [];
@@ -85,11 +102,17 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
                   QRScannerWidget(
                     onScanned: (payload) {
                       final scanRes = QrService.parseQrPayload(payload);
-                      final prog = allPrograms.firstWhere((p) => p.id == scanRes.value || p.programCode == scanRes.value, orElse: () => allPrograms.first);
-                      setState(() {
-                        _selectedProgram = prog;
-                        _isScanningProgramQr = false;
-                      });
+                      final prog = allPrograms.where((p) => p.id == scanRes.value || p.programCode == scanRes.value).firstOrNull;
+                      if (prog != null) {
+                        setState(() {
+                          _selectedProgram = prog;
+                          _isScanningProgramQr = false;
+                        });
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Program "${scanRes.value}" not found.')),
+                        );
+                      }
                     },
                   ),
                 ],
@@ -140,7 +163,10 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
           );
         },
       ),
-    );
+    ),
+  ],
+),
+);
   }
 
   Widget _buildMarkingForm(Program program, List<Student> allStudents, List<dynamic> allRegs, String juryId) {
@@ -183,32 +209,52 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
                       children: [
                         Text('${stud.name} (${stud.chaseNumber})', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16)),
                         const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: AppTextField(label: 'Marks', controller: _marksControllers[stud.id]!, keyboardType: TextInputType.number),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: AppTextField(label: 'Grade', controller: _gradeControllers[stud.id]!),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: AppDropdown<int>(
-                                label: 'Position',
-                                value: _positions[stud.id],
-                                items: const [
-                                  DropdownMenuItem(value: 1, child: Text('1st Place')),
-                                  DropdownMenuItem(value: 2, child: Text('2nd Place')),
-                                  DropdownMenuItem(value: 3, child: Text('3rd Place')),
-                                  DropdownMenuItem(value: 0, child: Text('Participant')),
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final isCompact = constraints.maxWidth < 480;
+                            final marksField = AppTextField(label: 'Marks', controller: _marksControllers[stud.id]!, keyboardType: TextInputType.number);
+                            final gradeField = AppTextField(label: 'Grade', controller: _gradeControllers[stud.id]!);
+                            final posDropdown = AppDropdown<int>(
+                              label: 'Position',
+                              value: _positions[stud.id],
+                              items: const [
+                                DropdownMenuItem(value: 1, child: Text('1st Place')),
+                                DropdownMenuItem(value: 2, child: Text('2nd Place')),
+                                DropdownMenuItem(value: 3, child: Text('3rd Place')),
+                                DropdownMenuItem(value: 0, child: Text('Participant')),
+                              ],
+                              onChanged: (v) {
+                                if (v != null) setState(() => _positions[stud.id] = v);
+                              },
+                            );
+
+                            if (isCompact) {
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(child: marksField),
+                                      const SizedBox(width: 10),
+                                      Expanded(child: gradeField),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 10),
+                                  posDropdown,
                                 ],
-                                onChanged: (v) {
-                                  if (v != null) setState(() => _positions[stud.id] = v);
-                                },
-                              ),
-                            ),
-                          ],
+                              );
+                            }
+
+                            return Row(
+                              children: [
+                                Expanded(child: marksField),
+                                const SizedBox(width: 10),
+                                Expanded(child: gradeField),
+                                const SizedBox(width: 10),
+                                Expanded(child: posDropdown),
+                              ],
+                            );
+                          },
                         ),
                       ],
                     ),
@@ -244,6 +290,7 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
                   }
 
                   triggerDataRefresh(ref);
+                  if (!mounted) return;
                   setState(() => _selectedProgram = null);
 
                   ScaffoldMessenger.of(context).showSnackBar(

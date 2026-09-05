@@ -20,6 +20,7 @@ abstract class StudentRepository {
   Future<List<Student>> getByTeam(String teamId);
   Future<List<Student>> getBySection(FestSection section);
   Future<void> addStudent(Student student);
+  Future<void> addStudents(List<Student> students);
   Future<void> updateStudent(Student student);
   Future<void> deleteStudent(String id);
 }
@@ -29,6 +30,7 @@ abstract class TeamRepository {
   Future<Team?> getById(String id);
   Future<Team?> getByCode(String code);
   Future<void> addTeam(Team team);
+  Future<void> addTeams(List<Team> teams);
   Future<void> updateTeam(Team team);
   Future<void> deleteTeam(String id);
 }
@@ -49,6 +51,7 @@ abstract class ProgramRepository {
   Future<Program?> getByCode(String code);
   Future<List<Program>> getBySection(FestSection section);
   Future<void> addProgram(Program program);
+  Future<void> addPrograms(List<Program> programs);
   Future<void> updateProgram(Program program);
   Future<void> deleteProgram(String id);
 }
@@ -80,8 +83,10 @@ abstract class VenueRepository {
   Future<List<Venue>> getVenues();
   Future<Venue?> getById(String id);
   Future<void> addVenue(Venue venue);
+  Future<void> addVenues(List<Venue> venues);
   Future<void> updateVenue(Venue venue);
   Future<void> deleteVenue(String id);
+  Future<void> clearVenues();
 }
 
 abstract class ScheduleRepository {
@@ -89,8 +94,10 @@ abstract class ScheduleRepository {
   Future<Schedule?> getById(String id);
   Future<List<Schedule>> getByVenue(String venueId);
   Future<void> addSchedule(Schedule schedule);
+  Future<void> addSchedules(List<Schedule> schedules);
   Future<void> updateSchedule(Schedule schedule);
   Future<void> deleteSchedule(String id);
+  Future<void> clearSchedules();
 }
 
 abstract class JuryRepository {

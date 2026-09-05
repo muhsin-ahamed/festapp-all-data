@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/constants/app_constants.dart';
-import 'data/hive/hive_service.dart';
 import 'core/routing/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/providers/app_providers.dart';
@@ -9,8 +9,15 @@ import 'core/providers/app_providers.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1. Initialize Hive Local Database
-  await HiveService.init();
+  // Initialize Supabase Client
+  try {
+    await Supabase.initialize(
+      url: 'https://vkhjgrjntdgwsktjxnrm.supabase.co',
+      publishableKey: 'sb_publishable_Q-kwFn0SWM01AvvrEW-l4w_RUzKcwHK',
+    );
+  } catch (e) {
+    debugPrint('Supabase initialization error: $e');
+  }
 
   runApp(
     const ProviderScope(

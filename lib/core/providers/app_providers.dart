@@ -11,27 +11,75 @@ import '../../data/models/schedule_model.dart';
 import '../../data/models/announcement_model.dart';
 import '../../data/models/user_model.dart';
 import '../../data/repositories/app_repositories.dart';
-import '../../data/repositories/hive_repositories_impl.dart';
+import '../../data/repositories/supabase_repositories_impl.dart';
+import '../../data/repositories/api_repositories_impl.dart';
 import '../../services/auth_service.dart';
 import '../../services/scoring_service.dart';
 import '../../services/excel_service.dart';
 import '../../services/tv_service.dart';
 import '../../services/demo_data_service.dart';
 
+// --- Database Configuration Flags ---
+// Enforce Node.js REST API Backend Architecture (Flutter -> Node.js -> Supabase)
+final useNodeBackendProvider = StateProvider<bool>((ref) => true);
+
 // --- Repositories ---
-final studentRepositoryProvider = Provider<StudentRepository>((ref) => HiveStudentRepository());
-final teamRepositoryProvider = Provider<TeamRepository>((ref) => HiveTeamRepository());
-final leaderRepositoryProvider = Provider<TeamLeaderRepository>((ref) => HiveTeamLeaderRepository());
-final programRepositoryProvider = Provider<ProgramRepository>((ref) => HiveProgramRepository());
-final registrationRepositoryProvider = Provider<RegistrationRepository>((ref) => HiveRegistrationRepository());
-final resultRepositoryProvider = Provider<ResultRepository>((ref) => HiveResultRepository());
-final venueRepositoryProvider = Provider<VenueRepository>((ref) => HiveVenueRepository());
-final scheduleRepositoryProvider = Provider<ScheduleRepository>((ref) => HiveScheduleRepository());
-final juryRepositoryProvider = Provider<JuryRepository>((ref) => HiveJuryRepository());
-final announcementRepositoryProvider = Provider<AnnouncementRepository>((ref) => HiveAnnouncementRepository());
-final tvSettingsRepositoryProvider = Provider<TvSettingsRepository>((ref) => HiveTvSettingsRepository());
-final userRepositoryProvider = Provider<UserRepository>((ref) => HiveUserRepository());
-final auditLogRepositoryProvider = Provider<AuditLogRepository>((ref) => HiveAuditLogRepository());
+final studentRepositoryProvider = Provider<StudentRepository>((ref) {
+  final useNodeBackend = ref.watch(useNodeBackendProvider);
+  return useNodeBackend ? ApiStudentRepository() : SupabaseStudentRepository();
+});
+
+final teamRepositoryProvider = Provider<TeamRepository>((ref) {
+  final useNodeBackend = ref.watch(useNodeBackendProvider);
+  return useNodeBackend ? ApiTeamRepository() : SupabaseTeamRepository();
+});
+
+final leaderRepositoryProvider = Provider<TeamLeaderRepository>((ref) {
+  return SupabaseTeamLeaderRepository();
+});
+
+final programRepositoryProvider = Provider<ProgramRepository>((ref) {
+  final useNodeBackend = ref.watch(useNodeBackendProvider);
+  return useNodeBackend ? ApiProgramRepository() : SupabaseProgramRepository();
+});
+
+final registrationRepositoryProvider = Provider<RegistrationRepository>((ref) {
+  final useNodeBackend = ref.watch(useNodeBackendProvider);
+  return useNodeBackend ? ApiRegistrationRepository() : SupabaseRegistrationRepository();
+});
+
+final resultRepositoryProvider = Provider<ResultRepository>((ref) {
+  final useNodeBackend = ref.watch(useNodeBackendProvider);
+  return useNodeBackend ? ApiResultRepository() : SupabaseResultRepository();
+});
+
+final venueRepositoryProvider = Provider<VenueRepository>((ref) {
+  return SupabaseVenueRepository();
+});
+
+final scheduleRepositoryProvider = Provider<ScheduleRepository>((ref) {
+  return SupabaseScheduleRepository();
+});
+
+final juryRepositoryProvider = Provider<JuryRepository>((ref) {
+  return SupabaseJuryRepository();
+});
+
+final announcementRepositoryProvider = Provider<AnnouncementRepository>((ref) {
+  return SupabaseAnnouncementRepository();
+});
+
+final tvSettingsRepositoryProvider = Provider<TvSettingsRepository>((ref) {
+  return SupabaseTvSettingsRepository();
+});
+
+final userRepositoryProvider = Provider<UserRepository>((ref) {
+  return SupabaseUserRepository();
+});
+
+final auditLogRepositoryProvider = Provider<AuditLogRepository>((ref) {
+  return SupabaseAuditLogRepository();
+});
 
 // --- Services ---
 final authServiceProvider = Provider<AuthService>((ref) {
@@ -84,70 +132,138 @@ final dataRefreshSignalProvider = StateProvider<int>((ref) => 0);
 
 void triggerDataRefresh(WidgetRef ref) {
   ref.read(dataRefreshSignalProvider.notifier).state++;
+  ref.invalidate(programsProvider);
+  ref.invalidate(studentsProvider);
+  ref.invalidate(teamsProvider);
+  ref.invalidate(registrationsProvider);
+  ref.invalidate(resultsProvider);
+  ref.invalidate(publishedResultsProvider);
+  ref.invalidate(venuesProvider);
+  ref.invalidate(schedulesProvider);
+  ref.invalidate(announcementsProvider);
+  ref.invalidate(usersProvider);
+  ref.invalidate(leadersProvider);
+  ref.invalidate(juriesProvider);
 }
 
 // --- Dynamic Data Stream / Future Providers ---
 final studentsProvider = FutureProvider<List<Student>>((ref) async {
   ref.watch(dataRefreshSignalProvider);
-  return ref.watch(studentRepositoryProvider).getStudents();
+  try {
+    return await ref.watch(studentRepositoryProvider).getStudents();
+  } catch (_) {
+    return [];
+  }
 });
 
 final teamsProvider = FutureProvider<List<Team>>((ref) async {
   ref.watch(dataRefreshSignalProvider);
-  final repo = ref.watch(teamRepositoryProvider);
-  final teams = await repo.getTeams();
-  teams.sort((a, b) => b.totalPoints.compareTo(a.totalPoints));
-  return teams;
+  try {
+    final repo = ref.watch(teamRepositoryProvider);
+    var teams = await repo.getTeams();
+    if (teams.isEmpty) {
+      teams = await SupabaseTeamRepository().getTeams();
+    }
+    teams.sort((a, b) => b.totalPoints.compareTo(a.totalPoints));
+    return teams;
+  } catch (_) {
+    try {
+      final teams = await SupabaseTeamRepository().getTeams();
+      teams.sort((a, b) => b.totalPoints.compareTo(a.totalPoints));
+      return teams;
+    } catch (_) {
+      return [];
+    }
+  }
 });
 
 final programsProvider = FutureProvider<List<Program>>((ref) async {
   ref.watch(dataRefreshSignalProvider);
-  return ref.watch(programRepositoryProvider).getPrograms();
+  final repo = ref.watch(programRepositoryProvider);
+  final list = await repo.getPrograms();
+  print('[Flutter Provider] programsProvider loaded count: ${list.length}');
+  return list;
 });
 
 final registrationsProvider = FutureProvider<List<Registration>>((ref) async {
   ref.watch(dataRefreshSignalProvider);
-  return ref.watch(registrationRepositoryProvider).getRegistrations();
+  try {
+    return await ref.watch(registrationRepositoryProvider).getRegistrations();
+  } catch (_) {
+    return [];
+  }
 });
 
 final resultsProvider = FutureProvider<List<Result>>((ref) async {
   ref.watch(dataRefreshSignalProvider);
-  return ref.watch(resultRepositoryProvider).getResults();
+  try {
+    return await ref.watch(resultRepositoryProvider).getResults();
+  } catch (_) {
+    return [];
+  }
 });
 
 final publishedResultsProvider = FutureProvider<List<Result>>((ref) async {
   ref.watch(dataRefreshSignalProvider);
-  return ref.watch(resultRepositoryProvider).getPublishedResults();
+  try {
+    return await ref.watch(resultRepositoryProvider).getPublishedResults();
+  } catch (_) {
+    return [];
+  }
 });
 
 final venuesProvider = FutureProvider<List<Venue>>((ref) async {
   ref.watch(dataRefreshSignalProvider);
-  return ref.watch(venueRepositoryProvider).getVenues();
+  try {
+    return await ref.watch(venueRepositoryProvider).getVenues();
+  } catch (_) {
+    return [];
+  }
 });
 
 final schedulesProvider = FutureProvider<List<Schedule>>((ref) async {
   ref.watch(dataRefreshSignalProvider);
-  return ref.watch(scheduleRepositoryProvider).getSchedules();
+  try {
+    return await ref.watch(scheduleRepositoryProvider).getSchedules();
+  } catch (_) {
+    return [];
+  }
 });
 
 final announcementsProvider = FutureProvider<List<Announcement>>((ref) async {
   ref.watch(dataRefreshSignalProvider);
-  return ref.watch(announcementRepositoryProvider).getAnnouncements();
+  try {
+    return await ref.watch(announcementRepositoryProvider).getAnnouncements();
+  } catch (_) {
+    return [];
+  }
 });
 
 final usersProvider = FutureProvider<List<User>>((ref) async {
   ref.watch(dataRefreshSignalProvider);
-  return ref.watch(userRepositoryProvider).getUsers();
+  try {
+    return await ref.watch(userRepositoryProvider).getUsers();
+  } catch (_) {
+    return [];
+  }
 });
 
 final leadersProvider = FutureProvider<List<TeamLeader>>((ref) async {
   ref.watch(dataRefreshSignalProvider);
-  return ref.watch(leaderRepositoryProvider).getLeaders();
+  try {
+    return await ref.watch(leaderRepositoryProvider).getLeaders();
+  } catch (_) {
+    return [];
+  }
 });
 
 final juriesProvider = FutureProvider<List<Jury>>((ref) async {
   ref.watch(dataRefreshSignalProvider);
-  return ref.watch(juryRepositoryProvider).getJuries();
+  try {
+    return await ref.watch(juryRepositoryProvider).getJuries();
+  } catch (_) {
+    return [];
+  }
 });
 
 final currentUserProvider = StateProvider<User?>((ref) => null);

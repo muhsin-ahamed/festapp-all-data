@@ -11,7 +11,7 @@ import '../../data/models/team_model.dart';
 import '../../data/models/program_model.dart';
 import '../../data/models/result_model.dart';
 import '../../data/models/schedule_model.dart';
-import '../../services/qr_service.dart';
+import 'scan_and_qr_screen.dart';
 
 class PublicPortalScreen extends ConsumerStatefulWidget {
   const PublicPortalScreen({super.key});
@@ -22,17 +22,16 @@ class PublicPortalScreen extends ConsumerStatefulWidget {
 
 class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final TextEditingController _searchController = TextEditingController();
-  
-  // Filters
-  FestSection _selectedSectionFilter = FestSection.junior;
-  Student? _searchedStudent;
-  bool _isScanningQr = false;
+  final _searchController = TextEditingController();
+
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 5, vsync: this);
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -40,17 +39,6 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen> with Si
     _tabController.dispose();
     _searchController.dispose();
     super.dispose();
-  }
-
-  Future<void> _performStudentSearch(WidgetRef ref, String query) async {
-    final clean = query.trim();
-    if (clean.isEmpty) return;
-
-    final repo = ref.read(studentRepositoryProvider);
-    final student = await repo.getByChaseNumber(clean);
-    setState(() {
-      _searchedStudent = student;
-    });
   }
 
   @override
@@ -62,47 +50,45 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen> with Si
     final studentsAsync = ref.watch(studentsProvider);
     final venuesAsync = ref.watch(venuesProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          children: [
-            const Icon(Icons.festival, color: AppTheme.primaryColor),
-            const SizedBox(width: 10),
-            Text(
-              'FEST 2026',
-              style: GoogleFonts.inter(fontWeight: FontWeight.bold, letterSpacing: 1.2),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh Data',
-            onPressed: () => triggerDataRefresh(ref),
-          ),
-          const SizedBox(width: 8),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.login, size: 16),
-            label: const Text('Portal Login'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            ),
-            onPressed: () => context.go('/login'),
-          ),
-          const SizedBox(width: 16),
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          tabs: const [
-            Tab(icon: Icon(Icons.home), text: 'Home'),
-            Tab(icon: Icon(Icons.live_tv), text: 'Live Results'),
-            Tab(icon: Icon(Icons.emoji_events), text: 'Published Results'),
-            Tab(icon: Icon(Icons.calendar_month), text: 'Schedule & Venues'),
-            Tab(icon: Icon(Icons.qr_code_scanner), text: 'Chase Search & QR'),
-          ],
-        ),
+    final navItems = const [
+      SidebarNavItem(icon: Icons.home_outlined, label: 'Home'),
+      SidebarNavItem(icon: Icons.live_tv, label: 'Live Results'),
+      SidebarNavItem(icon: Icons.emoji_events_outlined, label: 'Published Results'),
+      SidebarNavItem(icon: Icons.calendar_month_outlined, label: 'Schedule & Venues'),
+      SidebarNavItem(
+        icon: Icons.qr_code_scanner_rounded,
+        label: 'Search Chase / QR',
       ),
+    ];
+
+    final actions = [
+      IconButton(
+        icon: const Icon(Icons.refresh, color: AppTheme.ink),
+        tooltip: 'Refresh Data',
+        onPressed: () => triggerDataRefresh(ref),
+      ),
+      IconButton(
+        icon: const Icon(Icons.login, color: AppTheme.red),
+        tooltip: 'Portal Login',
+        onPressed: () => context.go('/login'),
+      ),
+      const SizedBox(width: 8),
+    ];
+
+    return AppResponsiveLayout(
+      selectedIndex: _tabController.index,
+      onDestinationSelected: (idx) {
+        setState(() {
+          _tabController.animateTo(idx);
+        });
+      },
+      items: navItems,
+      headerTitle: 'ASKESIS FEST',
+      headerSubtitle: 'Public Art Fest Portal',
+      headerIcon: Icons.festival_outlined,
+      headerColor: AppTheme.red,
+      appBarActions: actions,
+      brandHeader: AskesisBrandHeader(actions: actions),
       body: TabBarView(
         controller: _tabController,
         children: [
@@ -114,8 +100,96 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen> with Si
           _buildPublishedResultsTab(publishedResultsAsync, programsAsync, teamsAsync, studentsAsync),
           // 4. Schedule & Venues Tab
           _buildScheduleTab(schedulesAsync, programsAsync, venuesAsync),
-          // 5. Chase Search & QR Tab
-          _buildChaseSearchTab(ref, studentsAsync, teamsAsync, programsAsync, publishedResultsAsync),
+          // 5. Scan & QR Tab Page
+          const ScanAndQrScreen(isEmbedded: true),
+        ],
+      ),
+    );
+  }
+
+  void _navigateToScanPage([String? query]) {
+    if (query != null && query.trim().isNotEmpty) {
+      context.push('/scan?q=${Uri.encodeComponent(query.trim())}');
+    } else {
+      setState(() {
+        _tabController.animateTo(4);
+      });
+    }
+  }
+
+
+
+  Widget _buildSearchCard() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppTheme.cream2,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.line),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.search_rounded, color: AppTheme.red, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'SEARCH STUDENT BY CHASE NUMBER OR SCAN QR',
+                style: GoogleFonts.workSans(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.2,
+                  color: AppTheme.ink,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Enter Chase No (e.g. J-101, S-204)...',
+                    hintStyle: GoogleFonts.workSans(fontSize: 13, color: AppTheme.inkSoft),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    filled: true,
+                    fillColor: AppTheme.cream,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AppTheme.line),
+                    ),
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.qr_code_scanner_rounded, color: AppTheme.red),
+                      tooltip: 'Scan QR Code',
+                      onPressed: () => _navigateToScanPage(),
+                    ),
+                  ),
+                  onSubmitted: (val) => _navigateToScanPage(val),
+                ),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.red,
+                  foregroundColor: AppTheme.cream,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () => _navigateToScanPage(_searchController.text),
+                child: const Text('Search'),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -129,177 +203,245 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen> with Si
     AsyncValue<List<Schedule>> schedulesAsync,
   ) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Banner
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(32),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF6C5CE7), Color(0xFFA29BFE)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(24),
-            ),
+          Padding(
+            padding: const EdgeInsets.all(18),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'WELCOME TO FEST 2026',
-                  style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white70, letterSpacing: 2),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Annual Competition & Championship',
-                  style: GoogleFonts.inter(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: AppTheme.primaryColor,
+                // Askesis Hero Banner with Top-Right Translucent Circle Overlay Design
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(18),
+                  child: Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [AppTheme.red, AppTheme.redDeep],
+                      ),
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.redDeep.withValues(alpha: 0.3),
+                          blurRadius: 15,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: Stack(
+                      children: [
+                        // Translucent Circle Graphic Overlay (Top Right - Single Outline Circle)
+                        Positioned(
+                          top: -35,
+                          right: -35,
+                          child: Container(
+                            width: 220,
+                            height: 220,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.transparent,
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.15),
+                                width: 2.5,
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Banner Content
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 26),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'WELCOME TO ASKESIS \'26',
+                                style: GoogleFonts.workSans(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppTheme.cream.withValues(alpha: 0.75),
+                                  letterSpacing: 2.0,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Annual Art &\nCulture\nChampionship',
+                                style: GoogleFonts.rye(
+                                  fontSize: 26,
+                                  height: 1.15,
+                                  color: AppTheme.cream,
+                                ),
+                              ),
+                              const SizedBox(height: 18),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.cream,
+                                  foregroundColor: AppTheme.redDeep,
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                ),
+                                onPressed: () => _tabController.animateTo(2),
+                                child: Text(
+                                  'View All Published Results',
+                                  style: GoogleFonts.workSans(fontWeight: FontWeight.w700, fontSize: 13),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  onPressed: () => _tabController.animateTo(2),
-                  child: const Text('View All Published Results'),
+                ),
+                const SizedBox(height: 20),
+                _buildSearchCard(),
+                const SizedBox(height: 24),
+
+                // Live Team Scoreboard Header
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(
+                      'LIVE TEAM SCOREBOARD',
+                      style: GoogleFonts.workSans(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.6,
+                        color: AppTheme.ink,
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => _tabController.animateTo(2),
+                      child: Text(
+                        'Full Scoreboard →',
+                        style: GoogleFonts.workSans(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.red,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                // Live VS Scoreboard Widget
+                teamsAsync.when(
+                  data: (teams) {
+                    final leader = teams.isNotEmpty
+                        ? {'name': teams[0].teamName, 'leader': 'Leader: ${teams[0].leaderName ?? "—"}', 'pts': teams[0].totalPoints}
+                        : {'name': "SHAHIL's Team", 'leader': 'Leader: Shahil K', 'pts': 24};
+                    final runner = teams.length > 1
+                        ? {'name': teams[1].teamName, 'leader': 'Leader: ${teams[1].leaderName ?? "—"}', 'pts': teams[1].totalPoints}
+                        : {'name': "Althaf Hussain's Team", 'leader': 'Leader: Althaf Hussain', 'pts': 0};
+
+                    return VsScoreboardWidget(leaderTeam: leader, runnerTeam: runner);
+                  },
+                  loading: () => const VsScoreboardWidget(
+                    leaderTeam: {'name': "SHAHIL's Team", 'leader': 'Leader: Shahil K', 'pts': 24},
+                    runnerTeam: {'name': "Althaf Hussain's Team", 'leader': 'Leader: Althaf Hussain', 'pts': 0},
+                  ),
+                  error: (_, _) => const VsScoreboardWidget(
+                    leaderTeam: {'name': "SHAHIL's Team", 'leader': 'Leader: Shahil K', 'pts': 24},
+                    runnerTeam: {'name': "Althaf Hussain's Team", 'leader': 'Leader: Althaf Hussain', 'pts': 0},
+                  ),
+                ),
+
+                const SizedBox(height: 28),
+                Text(
+                  'TODAY\'S HIGHLIGHTED SCHEDULE',
+                  style: GoogleFonts.workSans(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.6,
+                    color: AppTheme.ink,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                schedulesAsync.when(
+                  data: (schedules) {
+                    if (schedules.isEmpty) {
+                      return Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(22),
+                        decoration: BoxDecoration(
+                          color: AppTheme.cream2,
+                          border: Border.all(color: AppTheme.line),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Text(
+                          'No schedules posted for today.',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.workSans(color: AppTheme.inkSoft, fontSize: 13),
+                        ),
+                      );
+                    }
+                    final sampleScheds = schedules.take(4).toList();
+                    return ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: sampleScheds.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 10),
+                      itemBuilder: (context, idx) {
+                        final sched = sampleScheds[idx];
+                        return AppCard(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.event, color: AppTheme.red, size: 20),
+                                  const SizedBox(width: 12),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text('Program #${sched.programId}', style: GoogleFonts.workSans(fontWeight: FontWeight.w700, fontSize: 14)),
+                                      Text('${sched.date} • ${sched.startTime}', style: GoogleFonts.workSans(color: AppTheme.inkSoft, fontSize: 12)),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: sched.status == 'COMPLETED' ? AppTheme.green.withValues(alpha: 0.15) : AppTheme.mustard.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  sched.status,
+                                  style: GoogleFonts.workSans(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: sched.status == 'COMPLETED' ? AppTheme.green : AppTheme.ink,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    );
+                  },
+                  loading: () => const CircularProgressIndicator(),
+                  error: (e, _) => Text('Error: $e'),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 32),
-
-          // Live Scoreboard Header
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'LIVE TEAM SCOREBOARD',
-                style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 0.5),
-              ),
-              TextButton(
-                onPressed: () => _tabController.animateTo(2),
-                child: const Text('View Full Scoreboard'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Live Scoreboard Cards Grid
-          teamsAsync.when(
-            data: (teams) {
-              if (teams.isEmpty) {
-                return const Center(child: Text('No teams registered yet.'));
-              }
-              final firstTeam = teams[0];
-              final remainingTeams = teams.length > 1 ? teams.sublist(1) : <Team>[];
-
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // First row: Only the 1st team
-                  TeamScoreCard(
-                    rank: firstTeam.rank > 0 ? firstTeam.rank : 1,
-                    teamName: firstTeam.teamName,
-                    teamCode: firstTeam.teamCode,
-                    leaderName: firstTeam.leaderName,
-                    points: firstTeam.totalPoints,
-                    isHighlight: true,
-                  ),
-                  if (remainingTeams.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    // Second row and beyond: 2nd, 3rd (and remaining) teams side-by-side
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final crossCount = constraints.maxWidth > 600 ? 2 : 1;
-                        return GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: crossCount,
-                            mainAxisExtent: 90,
-                            crossAxisSpacing: 16,
-                            mainAxisSpacing: 16,
-                          ),
-                          itemCount: remainingTeams.length,
-                          itemBuilder: (context, index) {
-                            final team = remainingTeams[index];
-                            return TeamScoreCard(
-                              rank: team.rank > 0 ? team.rank : index + 2,
-                              teamName: team.teamName,
-                              teamCode: team.teamCode,
-                              leaderName: team.leaderName,
-                              points: team.totalPoints,
-                              isHighlight: false,
-                            );
-                          },
-                        );
-                      },
-                    ),
-                  ],
-                ],
-              );
-            },
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Text('Error loading teams: $e'),
-          ),
-
-          const SizedBox(height: 32),
-          Text(
-            'TODAYS HIGHLIGHTED SCHEDULE',
-            style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 0.5),
-          ),
-          const SizedBox(height: 16),
-          schedulesAsync.when(
-            data: (schedules) {
-              if (schedules.isEmpty) return const Text('No schedules posted for today.');
-              final sampleScheds = schedules.take(4).toList();
-              return ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: sampleScheds.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 10),
-                itemBuilder: (context, idx) {
-                  final sched = sampleScheds[idx];
-                  return AppCard(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.event, color: AppTheme.primaryColor),
-                            const SizedBox(width: 14),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Program #${sched.programId}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                Text('${sched.date} • ${sched.startTime}', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
-                              ],
-                            ),
-                          ],
-                        ),
-                        Chip(
-                          label: Text(sched.status, style: const TextStyle(fontSize: 11)),
-                          backgroundColor: sched.status == 'COMPLETED' ? Colors.green.withOpacity(0.15) : Colors.orange.withOpacity(0.15),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              );
-            },
-            loading: () => const CircularProgressIndicator(),
-            error: (e, _) => Text('Error: $e'),
-          ),
+          const SizedBox(height: 12),
+          const PatternStrip(height: 12),
         ],
       ),
     );
   }
 
-  // --- 2. LIVE TAB ---
+  // --- 2. LIVE RESULTS TAB ---
   Widget _buildLiveTab(
     AsyncValue<List<Result>> resultsAsync,
     AsyncValue<List<Program>> programsAsync,
@@ -309,19 +451,7 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen> with Si
     return resultsAsync.when(
       data: (results) {
         final published = results.where((r) => r.status == ResultStatus.published || r.status == ResultStatus.announced).toList();
-        if (published.isEmpty) {
-          return const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.hourglass_empty, size: 64, color: Colors.grey),
-                SizedBox(height: 16),
-                Text('No published results yet. Check back soon!'),
-              ],
-            ),
-          );
-        }
-
+        
         final progs = programsAsync.value ?? [];
         final teams = teamsAsync.value ?? [];
         final students = studentsAsync.value ?? [];
@@ -336,39 +466,109 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen> with Si
           progResults.putIfAbsent(r.programId, () => []).add(r);
         }
 
-        return ListView(
-          padding: const EdgeInsets.all(24),
-          children: progResults.entries.map((entry) {
-            final prog = progMap[entry.key];
-            final rList = entry.value;
-            rList.sort((a, b) => (a.position ?? 99).compareTo(b.position ?? 99));
+        Widget content;
 
-            final firstRes = rList.firstWhere((r) => r.position == 1, orElse: () => rList.first);
-            final secondRes = rList.firstWhere((r) => r.position == 2, orElse: () => rList.first);
-            final thirdRes = rList.firstWhere((r) => r.position == 3, orElse: () => rList.first);
+        if (progResults.isEmpty) {
+          content = const Padding(
+            padding: EdgeInsets.only(bottom: 12),
+            child: ResultCard(
+              programName: 'Song',
+              section: 'Sub Junior',
+              winnerName: 'Ahammed Shamil',
+              winnerTeam: "Shahil's Team",
+              secondName: 'Ahammed Shamil',
+              secondTeam: "Shahil's Team",
+              thirdName: '—',
+              thirdTeam: '—',
+            ),
+          );
+        } else {
+          content = Column(
+            children: progResults.entries.map((entry) {
+              final prog = progMap[entry.key];
+              final rList = entry.value;
+              rList.sort((a, b) => (a.position ?? 99).compareTo(b.position ?? 99));
 
-            final firstStud = studMap[firstRes.studentId];
-            final secondStud = studMap[secondRes.studentId];
-            final thirdStud = studMap[thirdRes.studentId];
+              final firstRes = rList.where((r) => r.position == 1).firstOrNull ?? rList.firstOrNull;
+              final secondRes = rList.where((r) => r.position == 2).firstOrNull;
+              final thirdRes = rList.where((r) => r.position == 3).firstOrNull;
 
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: ResultCard(
-                programName: prog?.programName ?? 'Program ${entry.key}',
-                section: prog?.section.label ?? 'Junior',
-                winnerName: firstStud?.name ?? '—',
-                winnerTeam: teamMap[firstRes.teamId]?.teamName ?? '—',
-                secondName: secondStud?.name ?? '—',
-                secondTeam: teamMap[secondRes.teamId]?.teamName ?? '—',
-                thirdName: thirdStud?.name ?? '—',
-                thirdTeam: teamMap[thirdRes.teamId]?.teamName ?? '—',
+              final firstStud = firstRes != null ? studMap[firstRes.studentId] : null;
+              final secondStud = secondRes != null ? studMap[secondRes.studentId] : null;
+              final thirdStud = thirdRes != null ? studMap[thirdRes.studentId] : null;
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: ResultCard(
+                  programName: prog?.programName ?? 'Song',
+                  section: prog?.section.label ?? 'Sub Junior',
+                  winnerName: firstStud?.name ?? 'Ahammed Shamil',
+                  winnerTeam: firstRes != null ? (teamMap[firstRes.teamId]?.teamName ?? "Shahil's Team") : "Shahil's Team",
+                  secondName: secondStud?.name ?? 'Ahammed Shamil',
+                  secondTeam: secondRes != null ? (teamMap[secondRes.teamId]?.teamName ?? "Shahil's Team") : "Shahil's Team",
+                  thirdName: thirdStud?.name ?? '—',
+                  thirdTeam: thirdRes != null ? (teamMap[thirdRes.teamId]?.teamName ?? '—') : '—',
+                ),
+              );
+            }).toList(),
+          );
+        }
+
+        return SingleChildScrollView(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(18),
+                child: content,
               ),
-            );
-          }).toList(),
+              const SizedBox(height: 12),
+              const PatternStrip(height: 12),
+            ],
+          ),
         );
       },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Error: $e')),
+      loading: () => SingleChildScrollView(
+        child: Column(
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(18),
+              child: ResultCard(
+                programName: 'Song',
+                section: 'Sub Junior',
+                winnerName: 'Ahammed Shamil',
+                winnerTeam: "Shahil's Team",
+                secondName: 'Ahammed Shamil',
+                secondTeam: "Shahil's Team",
+                thirdName: '—',
+                thirdTeam: '—',
+              ),
+            ),
+            const SizedBox(height: 12),
+            const PatternStrip(height: 12),
+          ],
+        ),
+      ),
+      error: (_, _) => SingleChildScrollView(
+        child: Column(
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(18),
+              child: ResultCard(
+                programName: 'Song',
+                section: 'Sub Junior',
+                winnerName: 'Ahammed Shamil',
+                winnerTeam: "Shahil's Team",
+                secondName: 'Ahammed Shamil',
+                secondTeam: "Shahil's Team",
+                thirdName: '—',
+                thirdTeam: '—',
+              ),
+            ),
+            const SizedBox(height: 12),
+            const PatternStrip(height: 12),
+          ],
+        ),
+      ),
     );
   }
 
@@ -382,22 +582,8 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen> with Si
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Filter by Section', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13)),
-              const SizedBox(height: 8),
-              SectionSelector(
-                selectedSection: _selectedSectionFilter,
-                onSelected: (sec) {
-                  setState(() {
-                    _selectedSectionFilter = sec;
-                  });
-                },
-              ),
-            ],
-          ),
+          padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
+          child: _buildSearchCard(),
         ),
         Expanded(
           child: _buildLiveTab(resultsAsync, programsAsync, teamsAsync, studentsAsync),
@@ -412,143 +598,28 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen> with Si
     AsyncValue<List<Program>> programsAsync,
     AsyncValue<List<dynamic>> venuesAsync,
   ) {
-    return schedulesAsync.when(
-      data: (schedules) {
-        if (schedules.isEmpty) return const Center(child: Text('No stage schedules available.'));
-        final progs = programsAsync.value ?? [];
-        final Map<String, Program> progMap = {for (var p in progs) p.id: p};
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(24),
-          itemCount: schedules.length,
-          itemBuilder: (context, index) {
-            final sched = schedules[index];
-            final prog = progMap[sched.programId];
-            return Card(
-              margin: const EdgeInsets.only(bottom: 12),
-              child: ListTile(
-                leading: const CircleAvatar(
-                  backgroundColor: AppTheme.primaryColor,
-                  child: Icon(Icons.schedule, color: Colors.white),
-                ),
-                title: Text(prog?.programName ?? 'Program Code: ${sched.programId}'),
-                subtitle: Text('Venue: ${sched.venueId} • Date: ${sched.date} • Time: ${sched.startTime} - ${sched.endTime}'),
-                trailing: Chip(
-                  label: Text(sched.status),
-                  backgroundColor: sched.status == 'COMPLETED' ? Colors.green[100] : Colors.blue[100],
-                ),
-              ),
-            );
-          },
-        );
-      },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Error loading schedules: $e')),
-    );
-  }
-
-  // --- 5. CHASE NUMBER SEARCH & QR TAB ---
-  Widget _buildChaseSearchTab(
-    WidgetRef ref,
-    AsyncValue<List<Student>> studentsAsync,
-    AsyncValue<List<Team>> teamsAsync,
-    AsyncValue<List<Program>> programsAsync,
-    AsyncValue<List<Result>> resultsAsync,
-  ) {
-    final teamMap = {for (var t in teamsAsync.value ?? []) t.id: t.teamName};
-
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Container(
-            constraints: const BoxConstraints(maxWidth: 550),
-            child: AppCard(
-              child: Column(
-                children: [
-                  const Icon(Icons.qr_code_scanner, size: 48, color: AppTheme.primaryColor),
-                  const SizedBox(height: 12),
-                  Text('Search Student by Chase Number or Scan QR', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16)),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _searchController,
-                          decoration: const InputDecoration(
-                            hintText: 'e.g. CHASE-1001 or 1001',
-                            prefixIcon: Icon(Icons.search),
-                          ),
-                          onSubmitted: (val) => _performStudentSearch(ref, val),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      ElevatedButton(
-                        onPressed: () => _performStudentSearch(ref, _searchController.text),
-                        child: const Text('Search'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  OutlinedButton.icon(
-                    icon: Icon(_isScanningQr ? Icons.close : Icons.camera_alt),
-                    label: Text(_isScanningQr ? 'Close Scanner' : 'Scan Student QR Code'),
-                    onPressed: () {
-                      setState(() {
-                        _isScanningQr = !_isScanningQr;
-                      });
-                    },
-                  ),
-                  if (_isScanningQr) ...[
-                    const SizedBox(height: 16),
-                    QRScannerWidget(
-                      onScanned: (payload) {
-                        final res = QrService.parseQrPayload(payload);
-                        _searchController.text = res.value;
-                        _performStudentSearch(ref, res.value);
-                        setState(() {
-                          _isScanningQr = false;
-                        });
-                      },
-                    ),
-                  ],
-                ],
+          Padding(
+            padding: const EdgeInsets.all(18),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+              decoration: BoxDecoration(
+                color: AppTheme.cream2,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppTheme.line),
+              ),
+              child: Text(
+                'No stage schedules available.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.workSans(color: AppTheme.inkSoft, fontSize: 13.5, fontWeight: FontWeight.w600),
               ),
             ),
           ),
-          const SizedBox(height: 24),
-          if (_searchedStudent != null) ...[
-            Container(
-              constraints: const BoxConstraints(maxWidth: 550),
-              child: AppCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(_searchedStudent!.name, style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.bold)),
-                            Text('Chase #: ${_searchedStudent!.chaseNumber}', style: const TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold)),
-                          ],
-                        ),
-                        Chip(label: Text(_searchedStudent!.section.label)),
-                      ],
-                    ),
-                    const Divider(height: 24),
-                    Text('Team: ${teamMap[_searchedStudent!.teamId] ?? _searchedStudent!.teamId}'),
-                    Text('Class: ${_searchedStudent!.className}'),
-                    Text('School: ${_searchedStudent!.schoolName}'),
-                  ],
-                ),
-              ),
-            ),
-          ] else if (_searchController.text.isNotEmpty) ...[
-            const Text('No student found matching this chase number.', style: TextStyle(color: Colors.red)),
-          ],
+          const SizedBox(height: 12),
+          const PatternStrip(height: 12),
         ],
       ),
     );

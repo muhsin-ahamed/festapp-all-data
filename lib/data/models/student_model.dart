@@ -6,7 +6,7 @@ class Student {
   final String name;
   final String gender;
   final String dateOfBirth;
-  final FestSection section; // Junior, Sub Junior, Super Senior
+  final FestSection section; // Sub Junior, Senior, Super Senior
   final String teamId;
   final String phone;
   final String className;
@@ -94,7 +94,7 @@ class Student {
       name: map['name'] ?? '',
       gender: map['gender'] ?? '',
       dateOfBirth: map['dateOfBirth'] ?? '',
-      section: FestSection.fromString(map['section'] ?? 'junior'),
+      section: FestSection.fromString(map['section'] ?? '', map['chaseNumber']),
       teamId: map['teamId'] ?? '',
       phone: map['phone'] ?? '',
       className: map['className'] ?? '',

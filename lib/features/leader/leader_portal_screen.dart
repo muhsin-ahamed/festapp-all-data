@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:uuid/uuid.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:printing/printing.dart';
+import '../../services/excel_service.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_theme.dart';
@@ -25,7 +28,7 @@ class _LeaderPortalScreenState extends ConsumerState<LeaderPortalScreen> with Si
   final _studentNameController = TextEditingController();
   final _studentChaseController = TextEditingController();
   final _studentPhoneController = TextEditingController();
-  FestSection _studentSection = FestSection.junior;
+  FestSection _studentSection = FestSection.subJunior;
 
   String? _selectedStudentForReg;
   String? _selectedProgramForReg;
@@ -66,40 +69,43 @@ class _LeaderPortalScreenState extends ConsumerState<LeaderPortalScreen> with Si
     final publishedResults = resultsAsync.value ?? [];
     final myResults = publishedResults.where((r) => r.teamId == teamId).toList();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          children: [
-            const Icon(Icons.group, color: AppTheme.primaryColor),
-            const SizedBox(width: 10),
-            Text('${currentTeam.teamName} Leader Portal', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 18)),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () => triggerDataRefresh(ref),
-            tooltip: 'Refresh',
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.redAccent),
-            onPressed: () {
-              ref.read(authServiceProvider).logout();
-              context.go('/public');
-            },
-          ),
-          const SizedBox(width: 16),
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(icon: Icon(Icons.dashboard), text: 'Dashboard'),
-            Tab(icon: Icon(Icons.person_add), text: 'Team Students'),
-            Tab(icon: Icon(Icons.app_registration), text: 'Program Registration'),
-            Tab(icon: Icon(Icons.emoji_events), text: 'Team Results'),
-          ],
-        ),
+    final navItems = const [
+      SidebarNavItem(icon: Icons.dashboard_outlined, label: 'Dashboard'),
+      SidebarNavItem(icon: Icons.person_add_outlined, label: 'Team Students'),
+      SidebarNavItem(icon: Icons.app_registration_outlined, label: 'Program Registration'),
+      SidebarNavItem(icon: Icons.emoji_events_outlined, label: 'Team Results'),
+    ];
+
+    final actions = [
+      IconButton(
+        icon: const Icon(Icons.refresh, color: AppTheme.ink),
+        onPressed: () => triggerDataRefresh(ref),
+        tooltip: 'Refresh Data',
       ),
+      IconButton(
+        icon: const Icon(Icons.logout, color: AppTheme.red),
+        tooltip: 'Logout',
+        onPressed: () {
+          ref.read(authServiceProvider).logout();
+          context.go('/public');
+        },
+      ),
+      const SizedBox(width: 8),
+    ];
+
+    return AppResponsiveLayout(
+      selectedIndex: _tabController.index,
+      onDestinationSelected: (idx) {
+        setState(() {
+          _tabController.animateTo(idx);
+        });
+      },
+      items: navItems,
+      headerTitle: currentTeam.teamName.toUpperCase(),
+      headerSubtitle: 'Team Leader Portal',
+      headerIcon: Icons.groups_rounded,
+      headerColor: AppTheme.olive,
+      appBarActions: actions,
       body: TabBarView(
         controller: _tabController,
         children: [
@@ -153,43 +159,449 @@ class _LeaderPortalScreenState extends ConsumerState<LeaderPortalScreen> with Si
 
   // --- 1. TEAM STUDENTS ---
   Widget _buildStudentsTab(List<Student> myStudents, String teamId) {
+    final teams = ref.watch(teamsProvider).value ?? [];
+    final teamName = teams.firstWhere((t) => t.id == teamId, orElse: () => Team(id: teamId, teamName: 'My Team', teamCode: '')).teamName;
+
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
         icon: const Icon(Icons.add),
-        label: const Text('Add Team Student'),
+        label: const Text('Add Single Student'),
         onPressed: () => _showAddStudentDialog(teamId),
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('My Team Members (${myStudents.length})', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold)),
+            // Header Row with Title and Excel Action Buttons
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isCompact = constraints.maxWidth < 600;
+                return isCompact
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('My Team Members (${myStudents.length})', style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: _buildStudentActionButtons(teamId, myStudents, teamName),
+                          ),
+                        ],
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('My Team Members (${myStudents.length})', style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.bold)),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: _buildStudentActionButtons(teamId, myStudents, teamName),
+                          ),
+                        ],
+                      );
+              },
+            ),
             const SizedBox(height: 16),
-            Expanded(
-              child: ListView.builder(
-                itemCount: myStudents.length,
-                itemBuilder: (context, idx) {
-                  final s = myStudents[idx];
-                  return Card(
-                    child: ListTile(
-                      leading: CircleAvatar(child: Text(s.name.substring(0, 1))),
-                      title: Text('${s.name} (${s.chaseNumber})'),
-                      subtitle: Text('Section: ${s.section.label} • Class: ${s.className}'),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.qr_code),
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (_) => StudentQrDisplayDialog(studentName: s.name, chaseNumber: s.chaseNumber),
-                          );
-                        },
-                      ),
+
+            // Excel Format & Import Guidelines Banner Card
+            AppCard(
+              child: ExpansionTile(
+                leading: const Icon(Icons.file_upload_outlined, color: AppTheme.primaryColor),
+                title: Text('Excel Import Format & Instructions', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14)),
+                subtitle: const Text('Click to view required Excel column headers and sample format'),
+                childrenPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                children: [
+                  const Divider(),
+                  const SizedBox(height: 8),
+                  Text('Excel Sheet Column Format:', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13)),
+                  const SizedBox(height: 8),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Table(
+                      defaultColumnWidth: const IntrinsicColumnWidth(),
+                      border: TableBorder.all(color: Colors.grey.shade300, width: 1),
+                      children: [
+                        TableRow(
+                          decoration: BoxDecoration(color: Colors.grey.shade100),
+                          children: const [
+                            Padding(padding: EdgeInsets.all(8.0), child: Text('Col 1: Chase Number*', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                            Padding(padding: EdgeInsets.all(8.0), child: Text('Col 2: Name*', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                            Padding(padding: EdgeInsets.all(8.0), child: Text('Col 3: Section', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                            Padding(padding: EdgeInsets.all(8.0), child: Text('Col 4: Gender', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                            Padding(padding: EdgeInsets.all(8.0), child: Text('Col 5: Phone', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                            Padding(padding: EdgeInsets.all(8.0), child: Text('Col 6: Class', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                            Padding(padding: EdgeInsets.all(8.0), child: Text('Col 7: School', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                          ],
+                        ),
+                        const TableRow(
+                          children: [
+                            Padding(padding: EdgeInsets.all(8.0), child: Text('CHASE-101', style: TextStyle(fontSize: 12))),
+                            Padding(padding: EdgeInsets.all(8.0), child: Text('Muhammed Ali', style: TextStyle(fontSize: 12))),
+                            Padding(padding: EdgeInsets.all(8.0), child: Text('Sub-Junior', style: TextStyle(fontSize: 12))),
+                            Padding(padding: EdgeInsets.all(8.0), child: Text('Male', style: TextStyle(fontSize: 12))),
+                            Padding(padding: EdgeInsets.all(8.0), child: Text('9876543210', style: TextStyle(fontSize: 12))),
+                            Padding(padding: EdgeInsets.all(8.0), child: Text('Class 5', style: TextStyle(fontSize: 12))),
+                            Padding(padding: EdgeInsets.all(8.0), child: Text('Al-Huda Academy', style: TextStyle(fontSize: 12))),
+                          ],
+                        ),
+                      ],
                     ),
-                  );
-                },
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      const Icon(Icons.info_outline, size: 16, color: Colors.blue),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Note: Valid sections are "Sub Junior", "Senior", "Super Senior", "General". All imported students will be automatically assigned to your team.',
+                          style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
+            const SizedBox(height: 16),
+
+            // Students List
+            myStudents.isEmpty
+                ? Container(
+                    padding: const EdgeInsets.all(32),
+                    alignment: Alignment.center,
+                    child: Column(
+                      children: [
+                        Icon(Icons.people_outline, size: 48, color: Colors.grey.shade400),
+                        const SizedBox(height: 12),
+                        Text('No students added yet.', style: GoogleFonts.inter(color: AppTheme.inkSoft, fontSize: 15)),
+                        const SizedBox(height: 12),
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.upload_file),
+                          label: const Text('Import Students via Excel'),
+                          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor, foregroundColor: Colors.white),
+                          onPressed: () => _showExcelImportDialog(teamId),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: myStudents.length,
+                    itemBuilder: (context, idx) {
+                      final s = myStudents[idx];
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: AppTheme.olive.withValues(alpha: 0.1),
+                            child: Text(
+                              s.name.isNotEmpty ? s.name.substring(0, 1).toUpperCase() : 'S',
+                              style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.olive),
+                            ),
+                          ),
+                          title: Row(
+                            children: [
+                              Text(s.name, style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+                              const SizedBox(width: 8),
+                              Chip(
+                                label: Text(s.chaseNumber, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                backgroundColor: Colors.blue.shade50,
+                                visualDensity: VisualDensity.compact,
+                              ),
+                            ],
+                          ),
+                          subtitle: Text('Section: ${s.section.label} • Gender: ${s.gender} ${s.className.isNotEmpty ? "• Class: ${s.className}" : ""}'),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.qr_code),
+                                tooltip: 'View QR Code',
+                                onPressed: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (_) => StudentQrDisplayDialog(studentName: s.name, chaseNumber: s.chaseNumber),
+                                  );
+                                },
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                                tooltip: 'Remove Student',
+                                onPressed: () async {
+                                  await ref.read(studentRepositoryProvider).deleteStudent(s.id);
+                                  triggerDataRefresh(ref);
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('${s.name} removed.')),
+                                    );
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildStudentActionButtons(String teamId, List<Student> myStudents, String teamName) {
+    return [
+      ElevatedButton.icon(
+        icon: const Icon(Icons.upload_file, size: 18),
+        label: const Text('Import Excel'),
+        style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor, foregroundColor: Colors.white),
+        onPressed: () => _showExcelImportDialog(teamId),
+      ),
+      OutlinedButton.icon(
+        icon: const Icon(Icons.file_download_outlined, size: 18),
+        label: const Text('Download Template'),
+        onPressed: _downloadStudentTemplate,
+      ),
+      OutlinedButton.icon(
+        icon: const Icon(Icons.download, size: 18),
+        label: const Text('Export Excel'),
+        onPressed: () => _exportStudentsToExcel(myStudents, teamName),
+      ),
+    ];
+  }
+
+  void _downloadStudentTemplate() async {
+    final excelService = ref.read(excelServiceProvider);
+    final bytes = excelService.generateTeamStudentTemplate();
+    await Printing.sharePdf(bytes: bytes, filename: 'team_students_template.xlsx');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Downloaded Excel Student Template.')),
+      );
+    }
+  }
+
+  void _exportStudentsToExcel(List<Student> myStudents, String teamName) async {
+    if (myStudents.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No students available to export.')),
+      );
+      return;
+    }
+    final excelService = ref.read(excelServiceProvider);
+    final bytes = excelService.exportTeamStudentsToExcel(myStudents, teamName);
+    await Printing.sharePdf(bytes: bytes, filename: '${teamName.replaceAll(' ', '_')}_students.xlsx');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Exported ${myStudents.length} students to Excel.')),
+      );
+    }
+  }
+
+  void _showExcelImportDialog(String teamId) {
+    String? selectedFileName;
+    ExcelImportResult<Student>? importResult;
+    bool isParsing = false;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            return AlertDialog(
+              title: Row(
+                children: [
+                  const Icon(Icons.upload_file, color: AppTheme.primaryColor),
+                  const SizedBox(width: 10),
+                  const Text('Import Team Students via Excel'),
+                ],
+              ),
+              content: SizedBox(
+                width: 650,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Upload an Excel file (.xlsx, .xls, .csv) with student data. Required columns: Chase Number, Name.',
+                        style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // File Picker Button Box
+                      InkWell(
+                        onTap: () async {
+                          final pickerResult = await FilePicker.pickFiles(
+                            type: FileType.custom,
+                            allowedExtensions: ['xlsx', 'xls', 'csv'],
+                          );
+                          if (pickerResult.isNotEmpty) {
+                            final file = pickerResult.first;
+                            final bytes = await file.readAsBytes();
+                            setDialogState(() {
+                              isParsing = true;
+                              selectedFileName = file.name;
+                            });
+
+                            final excelService = ref.read(excelServiceProvider);
+                            final result = await excelService.importTeamStudents(bytes, teamId);
+
+                            setDialogState(() {
+                              importResult = result;
+                              isParsing = false;
+                            });
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: AppTheme.primaryColor, style: BorderStyle.solid),
+                            borderRadius: BorderRadius.circular(12),
+                            color: AppTheme.primaryColor.withValues(alpha: 0.05),
+                          ),
+                          child: Center(
+                            child: Column(
+                              children: [
+                                Icon(selectedFileName != null ? Icons.description : Icons.cloud_upload_outlined, size: 36, color: AppTheme.primaryColor),
+                                const SizedBox(height: 8),
+                                Text(
+                                  selectedFileName ?? 'Click to Browse & Select Excel File',
+                                  style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: AppTheme.primaryColor),
+                                ),
+                                if (selectedFileName != null)
+                                  const Text('File loaded. Parsing preview below...', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      if (isParsing) ...[
+                        const SizedBox(height: 20),
+                        const Center(child: CircularProgressIndicator()),
+                      ],
+
+                      if (importResult != null) ...[
+                        const SizedBox(height: 20),
+                        Text('Import Summary Preview', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15)),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            _buildSummaryBadge('Total Rows', '${importResult!.totalRows}', Colors.blue),
+                            const SizedBox(width: 8),
+                            _buildSummaryBadge('Valid', '${importResult!.validRows}', Colors.green),
+                            const SizedBox(width: 8),
+                            _buildSummaryBadge('Duplicates', '${importResult!.duplicateRows}', Colors.amber),
+                            const SizedBox(width: 8),
+                            _buildSummaryBadge('Invalid', '${importResult!.invalidRows}', Colors.red),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Error Log
+                        if (importResult!.errors.isNotEmpty) ...[
+                          Container(
+                            constraints: const BoxConstraints(maxHeight: 120),
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.red.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.red.shade200),
+                            ),
+                            child: SingleChildScrollView(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: importResult!.errors
+                                    .map((err) => Padding(
+                                          padding: const EdgeInsets.only(bottom: 4.0),
+                                          child: Text('• $err', style: TextStyle(fontSize: 12, color: Colors.red.shade900)),
+                                        ))
+                                    .toList(),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+
+                        // Parsed Students Table Preview
+                        if (importResult!.validItems.isNotEmpty) ...[
+                          Text('Students to be Added (${importResult!.validItems.length}):', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13)),
+                          const SizedBox(height: 8),
+                          Container(
+                            constraints: const BoxConstraints(maxHeight: 200),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey.shade300),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: ListView.separated(
+                              shrinkWrap: true,
+                              itemCount: importResult!.validItems.length,
+                              separatorBuilder: (_, _) => const Divider(height: 1),
+                              itemBuilder: (context, idx) {
+                                final st = importResult!.validItems[idx];
+                                return ListTile(
+                                  dense: true,
+                                  leading: const CircleAvatar(radius: 12, child: Icon(Icons.person, size: 14)),
+                                  title: Text('${st.name} (${st.chaseNumber})', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                  subtitle: Text('Section: ${st.section.label} • Gender: ${st.gender} ${st.phone.isNotEmpty ? "• Phone: ${st.phone}" : ""}'),
+                                  trailing: const Chip(label: Text('VALID'), backgroundColor: Colors.greenAccent, visualDensity: VisualDensity.compact),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor, foregroundColor: Colors.white),
+                  onPressed: importResult == null || importResult!.validItems.isEmpty
+                      ? null
+                      : () {
+                          triggerDataRefresh(ref);
+                          Navigator.pop(dialogContext);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Successfully imported ${importResult!.importedRows} students to your team!'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        },
+                  child: Text(importResult != null ? 'Done (${importResult!.importedRows} Imported)' : 'Import Students'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildSummaryBadge(String label, String count, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Column(
+          children: [
+            Text(count, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: color)),
+            Text(label, style: TextStyle(fontSize: 11, color: color)),
           ],
         ),
       ),
@@ -202,27 +614,29 @@ class _LeaderPortalScreenState extends ConsumerState<LeaderPortalScreen> with Si
       builder: (context) {
         return AlertDialog(
           title: const Text('Add Student to Team'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AppTextField(label: 'Chase Number', controller: _studentChaseController, hint: 'e.g. CHASE-1088'),
-              const SizedBox(height: 10),
-              AppTextField(label: 'Student Name', controller: _studentNameController),
-              const SizedBox(height: 10),
-              AppTextField(label: 'Phone', controller: _studentPhoneController),
-              const SizedBox(height: 10),
-              AppDropdown<FestSection>(
-                label: 'Section',
-                value: _studentSection,
-                items: FestSection.values
-                    .where((s) => s != FestSection.general)
-                    .map((s) => DropdownMenuItem(value: s, child: Text(s.label)))
-                    .toList(),
-                onChanged: (val) {
-                  if (val != null) setState(() => _studentSection = val);
-                },
-              ),
-            ],
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AppTextField(label: 'Chase Number', controller: _studentChaseController, hint: 'e.g. CHASE-1088'),
+                const SizedBox(height: 10),
+                AppTextField(label: 'Student Name', controller: _studentNameController),
+                const SizedBox(height: 10),
+                AppTextField(label: 'Phone', controller: _studentPhoneController),
+                const SizedBox(height: 10),
+                AppDropdown<FestSection>(
+                  label: 'Section',
+                  value: _studentSection,
+                  items: FestSection.values
+                      .where((s) => s != FestSection.general)
+                      .map((s) => DropdownMenuItem(value: s, child: Text(s.label)))
+                      .toList(),
+                  onChanged: (val) {
+                    if (val != null) setState(() => _studentSection = val);
+                  },
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
@@ -243,6 +657,7 @@ class _LeaderPortalScreenState extends ConsumerState<LeaderPortalScreen> with Si
                 );
                 await ref.read(studentRepositoryProvider).addStudent(student);
                 triggerDataRefresh(ref);
+                if (!mounted) return;
                 Navigator.pop(context);
               },
               child: const Text('Save'),
@@ -263,7 +678,7 @@ class _LeaderPortalScreenState extends ConsumerState<LeaderPortalScreen> with Si
     // Current student calculation
     Student? activeStudent;
     if (_selectedStudentForReg != null) {
-      activeStudent = myStudents.firstWhere((s) => s.id == _selectedStudentForReg, orElse: () => myStudents.first);
+      activeStudent = myStudents.where((s) => s.id == _selectedStudentForReg).firstOrNull ?? myStudents.firstOrNull;
     } else if (myStudents.isNotEmpty) {
       activeStudent = myStudents.first;
     }
@@ -274,7 +689,7 @@ class _LeaderPortalScreenState extends ConsumerState<LeaderPortalScreen> with Si
     if (activeStudent != null) {
       final studentRegs = allRegs.where((r) => r.studentId == activeStudent!.id).toList();
       for (final reg in studentRegs) {
-        final prog = allPrograms.firstWhere((p) => p.id == reg.programId, orElse: () => Program(id: '', programCode: '', programName: '', section: FestSection.junior, category: ProgramCategory.stage, isStageProgram: true, isGeneral: false));
+        final prog = allPrograms.firstWhere((p) => p.id == reg.programId, orElse: () => Program(id: '', programCode: '', programName: '', section: FestSection.subJunior, category: ProgramCategory.stage, isStageProgram: true, isGeneral: false));
         if (!prog.isGeneral) {
           if (prog.isStageProgram) {
             stageUsed++;
@@ -309,7 +724,7 @@ class _LeaderPortalScreenState extends ConsumerState<LeaderPortalScreen> with Si
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withOpacity(0.08),
+                    color: AppTheme.primaryColor.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(

@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import '../core/constants/app_constants.dart';
 import '../data/models/student_model.dart';
 import '../data/models/team_model.dart';
@@ -11,7 +12,6 @@ import '../data/models/schedule_model.dart';
 import '../data/models/jury_model.dart';
 import '../data/models/announcement_model.dart';
 import '../data/models/user_model.dart';
-import '../data/hive/hive_service.dart';
 import '../data/repositories/app_repositories.dart';
 import 'scoring_service.dart';
 
@@ -44,12 +44,30 @@ class DemoDataService {
     required this.scoringService,
   });
 
+  Future<void> clearDatabase() async {
+    try {
+      final client = Supabase.instance.client;
+      await client.from('announcements').delete().neq('id', '___none___');
+      await client.from('results').delete().neq('id', '___none___');
+      await client.from('registrations').delete().neq('id', '___none___');
+      await client.from('students').delete().neq('id', '___none___');
+      await client.from('schedules').delete().neq('id', '___none___');
+      await client.from('programs').delete().neq('id', '___none___');
+      await client.from('venues').delete().neq('id', '___none___');
+      await client.from('teams').delete().neq('id', '___none___');
+      await client.from('team_leaders').delete().neq('id', '___none___');
+      await client.from('juries').delete().neq('id', '___none___');
+    } catch (e) {
+      // Fallback if table names vary
+    }
+  }
+
   Future<void> clearAllData() async {
-    await HiveService.clearAllBoxes();
+    await clearDatabase();
   }
 
   Future<void> generateDemoData() async {
-    await clearAllData();
+    await clearDatabase();
 
     // 1. Seed Users & Leaders
     final controllerUser = User(
@@ -70,14 +88,28 @@ class DemoDataService {
     );
     await userRepository.saveUser(tvUser);
 
-    // 2. Seed 6 Teams
+    // 2. Seed Only 2 Teams: Apex & Telos
     final teamData = [
-      {'id': 'team_alpha', 'code': 'T-ALPHA', 'name': 'Alpha Tigers', 'leader': 'Alex Johnson'},
-      {'id': 'team_beta', 'code': 'T-BETA', 'name': 'Beta Eagles', 'leader': 'Beth Smith'},
-      {'id': 'team_gamma', 'code': 'T-GAMMA', 'name': 'Gamma Lions', 'leader': 'George Davis'},
-      {'id': 'team_delta', 'code': 'T-DELTA', 'name': 'Delta Falcons', 'leader': 'Diana Prince'},
-      {'id': 'team_omega', 'code': 'T-OMEGA', 'name': 'Omega Warriors', 'leader': 'Oscar Isaac'},
-      {'id': 'team_phoenix', 'code': 'T-PHOENIX', 'name': 'Phoenix Rises', 'leader': 'Peter Parker'},
+      {
+        'id': 'team_01',
+        'code': 'T-APEX',
+        'name': 'Apex',
+        'leader': 'SHAHIL K',
+        'assistant': 'HASHIM FARHAN',
+        'mentor': 'USTHAD SHAHEER HUDAWI',
+        'username': 'lsmht',
+        'password': 'Lthlsm@9947',
+      },
+      {
+        'id': 'team_02',
+        'code': 'T-TELOS',
+        'name': 'Telos',
+        'leader': 'ALTHAF HUSSAIN',
+        'assistant': 'IHSAN',
+        'mentor': 'USTHAD NIZAM FAIZY',
+        'username': 'halans',
+        'password': 'fshlt@4792',
+      },
     ];
 
     List<Team> teams = [];
@@ -86,15 +118,18 @@ class DemoDataService {
       final teamId = tMap['id']!;
       final leaderId = 'leader_${i + 1}';
       final leaderName = tMap['leader']!;
-      final username = i == 0 ? 'leader1' : 'leader${i + 1}';
+      final assistantName = tMap['assistant']!;
+      final mentorName = tMap['mentor']!;
+      final username = tMap['username']!;
+      final password = tMap['password']!;
 
       final leader = TeamLeader(
         id: leaderId,
         name: leaderName,
-        phone: '+1 555-010${i + 1}',
-        email: 'leader${i + 1}@fest.com',
+        phone: '+91 987654321${i + 1}',
+        email: '$username@amiafest.com',
         username: username,
-        password: 'leader${i + 1}3' == 'leader13' ? 'leader123' : 'leader${i + 1}123',
+        password: password,
         teamId: teamId,
       );
       await leaderRepository.addLeader(leader);
@@ -102,7 +137,7 @@ class DemoDataService {
       final userLeader = User(
         id: 'usr_$leaderId',
         username: username,
-        password: leader.password,
+        password: password,
         name: leaderName,
         role: UserRole.teamLeader,
         teamId: teamId,
@@ -115,7 +150,9 @@ class DemoDataService {
         teamCode: tMap['code']!,
         leaderId: leaderId,
         leaderName: leaderName,
-        totalStudents: 10,
+        assistantLeaderName: assistantName,
+        mentorName: mentorName,
+        totalStudents: 12,
       );
       await teamRepository.addTeam(team);
       teams.add(team);
@@ -173,11 +210,11 @@ class DemoDataService {
 
     // 5. Seed 20 Programs
     final programTemplates = [
-      {'code': 'P-101', 'name': 'Arabic Song Solo', 'sec': FestSection.junior, 'stage': true, 'ven': 'ven_main'},
-      {'code': 'P-102', 'name': 'English Elocution', 'sec': FestSection.junior, 'stage': true, 'ven': 'ven_hall2'},
-      {'code': 'P-103', 'name': 'Pencil Drawing', 'sec': FestSection.junior, 'stage': false, 'ven': 'ven_lab1'},
-      {'code': 'P-104', 'name': 'Quiz Masters', 'sec': FestSection.junior, 'stage': false, 'ven': 'ven_hall2'},
-      {'code': 'P-105', 'name': 'Poetry Writing', 'sec': FestSection.junior, 'stage': false, 'ven': 'ven_lab1'},
+      {'code': 'P-101', 'name': 'Arabic Song Solo', 'sec': FestSection.senior, 'stage': true, 'ven': 'ven_main'},
+      {'code': 'P-102', 'name': 'English Elocution', 'sec': FestSection.senior, 'stage': true, 'ven': 'ven_hall2'},
+      {'code': 'P-103', 'name': 'Pencil Drawing', 'sec': FestSection.senior, 'stage': false, 'ven': 'ven_lab1'},
+      {'code': 'P-104', 'name': 'Quiz Masters', 'sec': FestSection.senior, 'stage': false, 'ven': 'ven_hall2'},
+      {'code': 'P-105', 'name': 'Poetry Writing', 'sec': FestSection.senior, 'stage': false, 'ven': 'ven_lab1'},
 
       {'code': 'P-201', 'name': 'Folk Dance Group', 'sec': FestSection.subJunior, 'stage': true, 'ven': 'ven_main'},
       {'code': 'P-202', 'name': 'Classical Music', 'sec': FestSection.subJunior, 'stage': true, 'ven': 'ven_hall3'},
@@ -188,67 +225,76 @@ class DemoDataService {
       {'code': 'P-301', 'name': 'Classical Dance', 'sec': FestSection.superSenior, 'stage': true, 'ven': 'ven_main'},
       {'code': 'P-302', 'name': 'Light Music Solo', 'sec': FestSection.superSenior, 'stage': true, 'ven': 'ven_hall3'},
       {'code': 'P-303', 'name': 'Digital Art', 'sec': FestSection.superSenior, 'stage': false, 'ven': 'ven_lab1'},
-      {'code': 'P-304', 'name': 'Debate Championship', 'sec': FestSection.superSenior, 'stage': true, 'ven': 'ven_hall2'},
-      {'code': 'P-305', 'name': 'Essay Writing', 'sec': FestSection.superSenior, 'stage': false, 'ven': 'ven_lab1'},
+      {'code': 'P-304', 'name': 'Mime & Drama', 'sec': FestSection.superSenior, 'stage': true, 'ven': 'ven_main'},
+      {'code': 'P-305', 'name': 'Debate Competition', 'sec': FestSection.superSenior, 'stage': false, 'ven': 'ven_hall2'},
 
-      {'code': 'P-901', 'name': 'General Knowledge Quiz', 'sec': FestSection.general, 'stage': true, 'ven': 'ven_main'},
-      {'code': 'P-902', 'name': 'Fest Theme Song', 'sec': FestSection.general, 'stage': true, 'ven': 'ven_main'},
-      {'code': 'P-903', 'name': 'Group Photography', 'sec': FestSection.general, 'stage': false, 'ven': 'ven_lab1'},
-      {'code': 'P-904', 'name': 'Short Film Contest', 'sec': FestSection.general, 'stage': false, 'ven': 'ven_lab1'},
-      {'code': 'P-905', 'name': 'Mime & Skit', 'sec': FestSection.general, 'stage': true, 'ven': 'ven_hall3'},
+      {'code': 'P-401', 'name': 'Group Anthem General', 'sec': FestSection.general, 'stage': true, 'ven': 'ven_main'},
+      {'code': 'P-402', 'name': 'Patriotic Song General', 'sec': FestSection.general, 'stage': true, 'ven': 'ven_hall3'},
+      {'code': 'P-403', 'name': 'Collage Making General', 'sec': FestSection.general, 'stage': false, 'ven': 'ven_lab1'},
+      {'code': 'P-404', 'name': 'Skit General', 'sec': FestSection.general, 'stage': true, 'ven': 'ven_main'},
+      {'code': 'P-405', 'name': 'Photography General', 'sec': FestSection.general, 'stage': false, 'ven': 'ven_lab1'},
     ];
 
-    List<Program> programs = [];
+    final random = Random(42);
+    List<Program> allPrograms = [];
     for (int i = 0; i < programTemplates.length; i++) {
-      final pt = programTemplates[i];
-      final progId = 'prog_${100 + i + 1}';
-      final sec = pt['sec'] as FestSection;
-      final isStage = pt['stage'] as bool;
-      final venId = pt['ven'] as String;
-
+      final t = programTemplates[i];
+      final sec = t['sec'] as FestSection;
+      final isGen = sec == FestSection.general;
       final prog = Program(
-        id: progId,
-        programCode: pt['code'] as String,
-        programName: pt['name'] as String,
+        id: 'prog_${i + 1}',
+        programCode: t['code'] as String,
+        programName: t['name'] as String,
         section: sec,
-        category: isStage ? ProgramCategory.stage : ProgramCategory.nonStage,
-        isStageProgram: isStage,
-        isGeneral: sec == FestSection.general,
-        duration: '30 mins',
-        venueId: venId,
-        status: i < 5 ? 'COMPLETED' : (i < 10 ? 'IN_PROGRESS' : 'UPCOMING'),
+        category: (t['stage'] as bool) ? ProgramCategory.stage : ProgramCategory.nonStage,
+        isStageProgram: t['stage'] as bool,
+        isGeneral: isGen,
+        maxParticipants: isGen ? 10 : (random.nextInt(3) + 1),
+        duration: '${(random.nextInt(4) + 1) * 15} mins',
+        venueId: t['ven'] as String,
+        rules: 'Standard Fest rules apply for ${t['name']}.',
+        status: i < 8 ? 'COMPLETED' : (i < 14 ? 'IN_PROGRESS' : 'UPCOMING'),
       );
       await programRepository.addProgram(prog);
-      programs.add(prog);
+      allPrograms.add(prog);
 
-      // Create Schedule
-      final sched = Schedule(
-        id: 'sched_${progId}',
-        programId: progId,
-        venueId: venId,
-        date: '2026-08-25',
-        startTime: '${9 + (i % 8)}:00 AM',
-        endTime: '${9 + (i % 8)}:45 AM',
-        status: prog.status == 'COMPLETED' ? 'COMPLETED' : 'SCHEDULED',
+      // Create a schedule for each program
+      final dateStr = i % 2 == 0 ? '2026-09-05' : '2026-09-06';
+      final startHour = 9 + (i % 6);
+      final startStr = '${startHour.toString().padLeft(2, '0')}:00';
+      final endStr = '${(startHour + 1).toString().padLeft(2, '0')}:30';
+      final sch = Schedule(
+        id: 'sch_${i + 1}',
+        programId: prog.id,
+        venueId: t['ven'] as String,
+        date: dateStr,
+        startTime: startStr,
+        endTime: endStr,
+        status: prog.status == 'COMPLETED' ? 'COMPLETED' : (prog.status == 'IN_PROGRESS' ? 'IN_PROGRESS' : 'SCHEDULED'),
       );
-      await scheduleRepository.addSchedule(sched);
+      await scheduleRepository.addSchedule(sch);
     }
 
-    // 6. Seed 54 Students (9 per team across Junior, Sub Junior, Super Senior)
-    final random = Random(42);
-    final firstNames = ['Aarav', 'Ananya', 'Zayan', 'Mariam', 'Bilal', 'Fatima', 'Rohan', 'Diya', 'Kavya', 'Omar', 'Sarah', 'Aryan'];
+    // 6. Seed Students (3 students per section per team)
+    final firstNames = ['Aarav', 'Ananya', 'Rohan', 'Diya', 'Vihaan', 'Isha', 'Aditya', 'Meera', 'Kabeer', 'Zara', 'Dev', 'Sanya', 'Arjun', 'Priya', 'Bilal', 'Fatima', 'Omar', 'Aisha', 'Zayan', 'Mariam'];
     final lastNames = ['Ahmed', 'Khan', 'Sharma', 'Nair', 'Verma', 'Patel', 'Siddiqui', 'Menon', 'Gupta', 'Hassan'];
 
     List<Student> allStudents = [];
     int chaseCounter = 1001;
 
     for (final team in teams) {
-      final sections = [FestSection.junior, FestSection.subJunior, FestSection.superSenior];
+      final sections = [FestSection.subJunior, FestSection.senior, FestSection.superSenior, FestSection.general];
       for (final sec in sections) {
+        String prefix = 'SB';
+        if (sec == FestSection.subJunior) prefix = 'SB';
+        if (sec == FestSection.senior) prefix = 'SR';
+        if (sec == FestSection.superSenior) prefix = 'SS';
+        if (sec == FestSection.general) prefix = 'GN';
+
         for (int k = 1; k <= 3; k++) {
           final fName = firstNames[random.nextInt(firstNames.length)];
           final lName = lastNames[random.nextInt(lastNames.length)];
-          final chaseNum = 'CHASE-$chaseCounter';
+          final chaseNum = '$prefix-$chaseCounter';
 
           final student = Student(
             id: 'stud_$chaseCounter',
@@ -258,8 +304,8 @@ class DemoDataService {
             dateOfBirth: '200${8 + random.nextInt(6)}-0${1 + random.nextInt(8)}-15',
             section: sec,
             teamId: team.id,
-            phone: '+91 98765${chaseCounter}',
-            className: sec == FestSection.junior ? 'Class 7' : (sec == FestSection.subJunior ? 'Class 9' : 'Class 12'),
+            phone: '+91 98765$chaseCounter',
+            className: sec == FestSection.subJunior ? 'Class 5' : (sec == FestSection.senior ? 'Class 9' : (sec == FestSection.superSenior ? 'Class 12' : 'General')),
             schoolName: 'St. Fest International Academy',
             qrCode: chaseNum,
           );
@@ -274,8 +320,8 @@ class DemoDataService {
     int regCounter = 1;
     int resultCounter = 1;
 
-    for (int pIdx = 0; pIdx < programs.length; pIdx++) {
-      final prog = programs[pIdx];
+    for (int pIdx = 0; pIdx < allPrograms.length; pIdx++) {
+      final prog = allPrograms[pIdx];
       // Select 6 eligible students
       final eligibleStudents = allStudents.where((s) => prog.isGeneral || s.section == prog.section).take(6).toList();
 
@@ -345,7 +391,7 @@ class DemoDataService {
       programId: 'prog_101',
       resultId: 'res_1',
       title: '🎉 RESULT ANNOUNCEMENT 🎉',
-      message: 'Junior Arabic Song Solo results have been officially verified and published!',
+      message: 'Sub Junior Arabic Song Solo results have been officially verified and published!',
       status: 'ANNOUNCED',
       announcedAt: DateTime.now(),
     );

@@ -5,6 +5,7 @@ import '../constants/app_constants.dart';
 import '../providers/app_providers.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/public/public_portal_screen.dart';
+import '../../features/public/scan_and_qr_screen.dart';
 import '../../features/controller/controller_portal_screen.dart';
 import '../../features/leader/leader_portal_screen.dart';
 import '../../features/jury/jury_portal_screen.dart';
@@ -19,6 +20,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/public',
         builder: (context, state) => const PublicPortalScreen(),
+      ),
+      GoRoute(
+        path: '/scan',
+        builder: (context, state) {
+          final query = state.uri.queryParameters['q'];
+          return ScanAndQrScreen(initialQuery: query);
+        },
       ),
       GoRoute(
         path: '/login',
@@ -44,8 +52,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     redirect: (BuildContext context, GoRouterState state) {
       final loc = state.matchedLocation;
 
-      // Public and Login do not require login
-      if (loc == '/public' || loc == '/login') {
+      // Public, Scan, and Login do not require login
+      if (loc == '/public' || loc == '/scan' || loc == '/login') {
         return null;
       }
 

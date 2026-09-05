@@ -2,139 +2,164 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  static const Color primaryColor = Color(0xFF6C5CE7); // Modern Indigo/Purple
-  static const Color secondaryColor = Color(0xFF00CEC9); // Teal accent
-  static const Color accentGold = Color(0xFFFDCB6E); // Gold accent for rankings
-  static const Color darkBackground = Color(0xFF0F172A); // Slate 900
-  static const Color darkSurface = Color(0xFF1E293B); // Slate 800
-  static const Color lightBackground = Color(0xFFF8FAFC); // Slate 50
-  static const Color lightSurface = Colors.white;
+  // Askesis Art Fest '26 Color Palette
+  static const Color cream = Color(0xFFF2ECDC);
+  static const Color cream2 = Color(0xFFEAE2CC);
+  static const Color ink = Color(0xFF241A12);
+  static const Color inkSoft = Color(0xFF5A4E3F);
+  static const Color red = Color(0xFF9C2B22);
+  static const Color redDeep = Color(0xFF6E1E18);
+  static const Color olive = Color(0xFF6E7B3D);
+  static const Color mustard = Color(0xFFD7A233);
+  static const Color green = Color(0xFF43593F);
+  static const Color wood = Color(0xFF2B2119);
+  static const Color line = Color(0x24241A12); // rgba(36,26,18,0.14)
+
+  // Standard theme mappings for compatibility
+  static const Color primaryColor = red;
+  static const Color secondaryColor = olive;
+  static const Color accentGold = mustard;
+  static const Color darkBackground = wood;
+  static const Color darkSurface = Color(0xFF1E1712);
+  static const Color lightBackground = cream;
+  static const Color lightSurface = cream2;
 
   static ThemeData get lightTheme {
-    final baseTextTheme = GoogleFonts.interTextTheme(ThemeData.light().textTheme);
+    final baseTextTheme = GoogleFonts.workSansTextTheme(ThemeData.light().textTheme).apply(
+      bodyColor: ink,
+      displayColor: ink,
+    );
 
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
-      primaryColor: primaryColor,
-      scaffoldBackgroundColor: lightBackground,
-      colorScheme: ColorScheme.light(
-        primary: primaryColor,
-        secondary: secondaryColor,
-        surface: lightSurface,
-        background: lightBackground,
+      primaryColor: red,
+      scaffoldBackgroundColor: cream,
+      colorScheme: const ColorScheme.light(
+        primary: red,
+        secondary: olive,
+        surface: cream2,
         error: Colors.redAccent,
+        onPrimary: cream,
+        onSurface: ink,
       ),
-      textTheme: baseTextTheme,
+      textTheme: baseTextTheme.copyWith(
+        displayLarge: GoogleFonts.rye(color: ink, fontSize: 32, fontWeight: FontWeight.bold),
+        displayMedium: GoogleFonts.rye(color: ink, fontSize: 28, fontWeight: FontWeight.bold),
+        displaySmall: GoogleFonts.rye(color: ink, fontSize: 22, fontWeight: FontWeight.bold),
+        headlineMedium: GoogleFonts.rye(color: ink, fontSize: 20, fontWeight: FontWeight.bold),
+        titleLarge: GoogleFonts.rye(color: ink, fontSize: 18, fontWeight: FontWeight.bold),
+        titleMedium: GoogleFonts.workSans(color: ink, fontSize: 16, fontWeight: FontWeight.w700),
+        bodyLarge: GoogleFonts.workSans(color: ink, fontSize: 14),
+        bodyMedium: GoogleFonts.workSans(color: inkSoft, fontSize: 13),
+      ),
       cardTheme: CardThemeData(
-        color: lightSurface,
+        color: cream2,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: Color(0xFFE2E8F0)),
+          borderRadius: BorderRadius.circular(14),
+          side: const BorderSide(color: line),
         ),
       ),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: lightSurface,
+      appBarTheme: AppBarTheme(
+        backgroundColor: cream,
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: false,
-        iconTheme: IconThemeData(color: Color(0xFF1E293B)),
+        iconTheme: const IconThemeData(color: ink),
+        titleTextStyle: GoogleFonts.rye(color: ink, fontSize: 20, fontWeight: FontWeight.bold),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: const Color(0xFFF1F5F9),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        fillColor: cream,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: line),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: line),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: primaryColor, width: 2),
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: red, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(color: Colors.redAccent),
         ),
+        hintStyle: GoogleFonts.workSans(color: const Color(0xFF8A7E6C), fontSize: 13),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: primaryColor,
-          foregroundColor: Colors.white,
+          backgroundColor: red,
+          foregroundColor: cream,
           elevation: 0,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(10),
           ),
-          textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 15),
+          textStyle: GoogleFonts.workSans(fontWeight: FontWeight.w800, fontSize: 14, letterSpacing: 0.3),
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: cream,
+        selectedColor: red,
+        secondarySelectedColor: red,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        labelStyle: GoogleFonts.workSans(color: ink, fontWeight: FontWeight.w700, fontSize: 12),
+        secondaryLabelStyle: GoogleFonts.workSans(color: cream, fontWeight: FontWeight.w700, fontSize: 12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: ink, width: 1.5),
         ),
       ),
     );
   }
 
   static ThemeData get darkTheme {
-    final baseTextTheme = GoogleFonts.interTextTheme(ThemeData.dark().textTheme);
+    // For dark pages like Login Screen or TV view in dark mode
+    final baseTextTheme = GoogleFonts.workSansTextTheme(ThemeData.dark().textTheme).apply(
+      bodyColor: cream,
+      displayColor: cream,
+    );
 
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      primaryColor: primaryColor,
-      scaffoldBackgroundColor: darkBackground,
-      colorScheme: ColorScheme.dark(
-        primary: primaryColor,
-        secondary: secondaryColor,
-        surface: darkSurface,
-        background: darkBackground,
+      primaryColor: red,
+      scaffoldBackgroundColor: wood,
+      colorScheme: const ColorScheme.dark(
+        primary: red,
+        secondary: mustard,
+        surface: Color(0xFF1E1712),
         error: Colors.redAccent,
+        onPrimary: cream,
+        onSurface: cream,
       ),
-      textTheme: baseTextTheme,
+      textTheme: baseTextTheme.copyWith(
+        displayLarge: GoogleFonts.rye(color: cream, fontSize: 32, fontWeight: FontWeight.bold),
+        displayMedium: GoogleFonts.rye(color: cream, fontSize: 28, fontWeight: FontWeight.bold),
+        displaySmall: GoogleFonts.rye(color: cream, fontSize: 22, fontWeight: FontWeight.bold),
+        headlineMedium: GoogleFonts.rye(color: cream, fontSize: 20, fontWeight: FontWeight.bold),
+        titleLarge: GoogleFonts.rye(color: cream, fontSize: 18, fontWeight: FontWeight.bold),
+      ),
       cardTheme: CardThemeData(
-        color: darkSurface,
+        color: cream,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: Color(0xFF334155)),
+          borderRadius: BorderRadius.circular(22),
+          side: BorderSide.none,
         ),
       ),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: darkSurface,
+      appBarTheme: AppBarTheme(
+        backgroundColor: wood,
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: false,
-      ),
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: const Color(0xFF334155),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF475569)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: primaryColor, width: 2),
-        ),
-      ),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: primaryColor,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 15),
-        ),
+        iconTheme: const IconThemeData(color: cream),
+        titleTextStyle: GoogleFonts.rye(color: cream, fontSize: 20, fontWeight: FontWeight.bold),
       ),
     );
   }

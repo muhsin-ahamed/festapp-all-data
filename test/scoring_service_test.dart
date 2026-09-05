@@ -42,6 +42,8 @@ class FakeTeamRepository implements TeamRepository {
   @override
   Future<void> addTeam(Team team) async => _teams.add(team);
   @override
+  Future<void> addTeams(List<Team> teams) async => _teams.addAll(teams);
+  @override
   Future<void> updateTeam(Team team) async {}
   @override
   Future<void> deleteTeam(String id) async => _teams.removeWhere((t) => t.id == id);

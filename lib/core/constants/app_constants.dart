@@ -1,23 +1,73 @@
 enum FestSection {
-  junior('Junior'),
   subJunior('Sub Junior'),
+  senior('Senior'),
   superSenior('Super Senior'),
-  general('General');
+  general('General'),
+  group('Group');
 
   final String label;
   const FestSection(this.label);
 
-  static FestSection fromString(String val) {
-    return FestSection.values.firstWhere(
-      (e) => e.name.toLowerCase() == val.toLowerCase() || e.label.toLowerCase() == val.toLowerCase(),
-      orElse: () => FestSection.junior,
-    );
+  static FestSection fromString(String val, [String? chaseNumber]) {
+    // 1. Check chase number prefix first if available
+    if (chaseNumber != null && chaseNumber.trim().isNotEmpty) {
+      final cleanChase = chaseNumber.trim().toUpperCase();
+      if (cleanChase.startsWith('SB') || cleanChase.startsWith('SJ') || cleanChase.startsWith('SUB') || cleanChase.startsWith('JR') || cleanChase.startsWith('JUNIOR')) {
+        return FestSection.subJunior;
+      }
+      if (cleanChase.startsWith('SS') || cleanChase.startsWith('SUP') || cleanChase.startsWith('SUPER')) {
+        return FestSection.superSenior;
+      }
+      if (cleanChase.startsWith('SR') || cleanChase.startsWith('SN') || cleanChase.startsWith('SENIOR')) {
+        return FestSection.senior;
+      }
+      if (cleanChase.startsWith('GRP') || cleanChase.startsWith('GROUP')) {
+        return FestSection.group;
+      }
+    }
+
+    // 2. Parse section string
+    final cleanVal = val.trim().toLowerCase().replaceAll(RegExp(r'[\s\-_]'), '');
+
+    if (cleanVal.contains('group') || cleanVal == 'grp') {
+      return FestSection.group;
+    }
+    if (cleanVal.contains('super') || cleanVal == 'ss' || cleanVal == 'sup') {
+      return FestSection.superSenior;
+    }
+    if (cleanVal.startsWith('sub') || cleanVal == 'sb' || cleanVal == 'subj' || cleanVal == 'sj' || cleanVal == 'subjunior' || cleanVal == 'junior' || cleanVal == 'jr' || cleanVal == 'juniors') {
+      return FestSection.subJunior;
+    }
+    if (cleanVal == 'senior' || cleanVal == 'sr' || cleanVal == 'sn') {
+      return FestSection.senior;
+    }
+    if (cleanVal == 'general' || cleanVal == 'gen') {
+      return FestSection.general;
+    }
+
+    for (final e in FestSection.values) {
+      final eNameClean = e.name.toLowerCase().replaceAll(RegExp(r'[\s\-_]'), '');
+      final eLabelClean = e.label.toLowerCase().replaceAll(RegExp(r'[\s\-_]'), '');
+      if (cleanVal == eNameClean || cleanVal == eLabelClean) {
+        return e;
+      }
+    }
+
+    // 3. Additional fallback based on single character prefix in chase number
+    if (chaseNumber != null && chaseNumber.trim().isNotEmpty) {
+      final cleanChase = chaseNumber.trim().toUpperCase();
+      if (cleanChase.startsWith('S')) return FestSection.senior;
+      if (cleanChase.startsWith('J')) return FestSection.subJunior;
+    }
+
+    return FestSection.subJunior;
   }
 }
 
 enum ProgramCategory {
   stage('Stage Program'),
-  nonStage('Non-Stage Program');
+  nonStage('Non-Stage Program'),
+  general('General Program');
 
   final String label;
   const ProgramCategory(this.label);
