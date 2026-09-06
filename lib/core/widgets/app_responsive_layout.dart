@@ -64,7 +64,7 @@ class AppResponsiveLayout extends StatelessWidget {
         ),
         body: Column(
           children: [
-            ?headerWidget,
+            if (headerWidget != null) headerWidget,
             Expanded(child: body),
           ],
         ),

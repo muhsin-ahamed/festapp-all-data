@@ -135,7 +135,7 @@ enum UserRole {
 }
 
 class AppConstants {
-  static const String appName = 'Fest Management System';
+  static const String appName = 'Askesis Fest Management System';
   
   // Registration limits
   static const int maxNonStagePerStudent = 4;
