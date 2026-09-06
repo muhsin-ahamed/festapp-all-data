@@ -9,7 +9,18 @@ class ApiClient {
   final String baseUrl;
   String? _authToken;
 
-  ApiClient({String? baseUrl}) : baseUrl = baseUrl ?? defaultBaseUrl;
+  static String _formatBaseUrl(String url) {
+    var formatted = url.trim();
+    if (formatted.endsWith('/')) {
+      formatted = formatted.substring(0, formatted.length - 1);
+    }
+    if (!formatted.endsWith('/api')) {
+      return '$formatted/api';
+    }
+    return formatted;
+  }
+
+  ApiClient({String? baseUrl}) : baseUrl = _formatBaseUrl(baseUrl ?? defaultBaseUrl);
 
   void setAuthToken(String? token) {
     _authToken = token;

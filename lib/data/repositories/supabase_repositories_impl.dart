@@ -35,7 +35,7 @@ Future<dynamic> _safeUpdate(String table, Map<String, dynamic> data, String id) 
 }
 
 Future<dynamic> _safeUpsert(String table, Map<String, dynamic> data) async {
-  return await _client.from(table).upsert(data).select();
+  return await _client.from(table).upsert(data, onConflict: 'id').select();
 }
 
 class SupabaseStudentRepository implements StudentRepository {
