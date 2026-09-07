@@ -6,6 +6,7 @@ import '../data/models/team_model.dart';
 import '../data/models/program_model.dart';
 import '../data/models/venue_model.dart';
 import '../data/models/schedule_model.dart';
+import '../data/models/registration_model.dart';
 import '../data/repositories/app_repositories.dart';
 import 'package:uuid/uuid.dart';
 
@@ -35,6 +36,7 @@ class ExcelService {
   final ProgramRepository programRepository;
   final VenueRepository venueRepository;
   final ScheduleRepository scheduleRepository;
+  final RegistrationRepository registrationRepository;
 
   ExcelService({
     required this.studentRepository,
@@ -42,6 +44,7 @@ class ExcelService {
     required this.programRepository,
     required this.venueRepository,
     required this.scheduleRepository,
+    required this.registrationRepository,
   });
 
   Future<ExcelImportResult<Student>> importStudents(Uint8List bytes) async {
@@ -398,6 +401,111 @@ class ExcelService {
       TextCellValue('John Doe'),
       TextCellValue('Sub Junior'),
       TextCellValue('Tigrees'),
+    ]);
+
+    return Uint8List.fromList(excel.save() ?? []);
+  }
+
+  Future<ExcelImportResult<Registration>> importRegistrations(Uint8List bytes) async {
+    final excel = Excel.decodeBytes(bytes);
+    final sheet = excel.tables.values.first;
+
+    int total = 0;
+    int valid = 0;
+    int invalid = 0;
+    int duplicate = 0;
+    List<String> errors = [];
+    List<Registration> validRegistrations = [];
+
+    final existingRegistrations = await registrationRepository.getRegistrations();
+    final Set<String> existingComboKeys = existingRegistrations.map((r) => '${r.studentId}_${r.programId}').toSet();
+    
+    final students = await studentRepository.getStudents();
+    final programs = await programRepository.getPrograms();
+
+    for (int i = 1; i < sheet.maxRows; i++) {
+      final row = sheet.row(i);
+      if (row.isEmpty || row.every((cell) => cell?.value == null)) continue;
+      total++;
+
+      try {
+        final chaseNumber = row[0]?.value?.toString().trim() ?? '';
+        final studentName = row[1]?.value?.toString().trim() ?? '';
+        final programName = row[2]?.value?.toString().trim() ?? '';
+        final sectionStr = row.length > 3 ? (row[3]?.value?.toString().trim() ?? '') : '';
+
+        if (chaseNumber.isEmpty || programName.isEmpty) {
+          invalid++;
+          errors.add('Row ${i + 1}: Missing chase number or program name.');
+          continue;
+        }
+
+        final student = students.firstWhere(
+          (s) => s.chaseNumber.toLowerCase() == chaseNumber.toLowerCase(),
+          orElse: () => throw Exception('Student with chase number "$chaseNumber" not found.'),
+        );
+
+        final program = programs.firstWhere(
+          (p) => p.programName.toLowerCase() == programName.toLowerCase() && 
+                (sectionStr.isEmpty || p.section.label.toLowerCase() == sectionStr.toLowerCase()),
+          orElse: () => throw Exception('Program "$programName" (Section: $sectionStr) not found.'),
+        );
+
+        final comboKey = '${student.id}_${program.id}';
+        if (existingComboKeys.contains(comboKey)) {
+          duplicate++;
+          errors.add('Row ${i + 1}: Registration already exists for Student: $chaseNumber and Program: $programName.');
+          continue;
+        }
+
+        final registration = Registration(
+          id: const Uuid().v4(),
+          studentId: student.id,
+          programId: program.id,
+          teamId: student.teamId,
+          registrationNumber: 'REG-${student.chaseNumber}-${program.programCode}',
+        );
+
+        validRegistrations.add(registration);
+        existingComboKeys.add(comboKey);
+        valid++;
+      } catch (e) {
+        invalid++;
+        errors.add('Row ${i + 1}: Parsing error (${e.toString().replaceAll('Exception: ', '')}).');
+      }
+    }
+
+    for (var reg in validRegistrations) {
+      await registrationRepository.addRegistration(reg);
+    }
+
+    return ExcelImportResult<Registration>(
+      totalRows: total,
+      validRows: valid,
+      invalidRows: invalid,
+      duplicateRows: duplicate,
+      importedRows: validRegistrations.length,
+      errors: errors,
+      validItems: validRegistrations,
+    );
+  }
+
+  Uint8List generateRegistrationTemplate() {
+    final excel = Excel.createExcel();
+    final sheet = excel['Registrations_Template'];
+
+    sheet.appendRow([
+      TextCellValue('Chase Number'),
+      TextCellValue('Student Name'),
+      TextCellValue('Program Name'),
+      TextCellValue('Section'),
+    ]);
+
+    sheet.appendRow([
+      TextCellValue('101'),
+      TextCellValue('John Doe'),
+      TextCellValue('Solo Song'),
+      TextCellValue('Sub Junior'),
     ]);
 
     return Uint8List.fromList(excel.save() ?? []);

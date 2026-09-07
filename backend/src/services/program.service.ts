@@ -39,15 +39,32 @@ export class ProgramService {
       ? programData.id
       : `prog_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
+    let sectionVal = (programData.section && programData.section.toString().toLowerCase() !== 'junior') ? programData.section.toString() : 'subJunior';
+    let isGeneralVal = programData.isGeneral !== undefined ? Boolean(programData.isGeneral) : false;
+
+    const upperName = name.toUpperCase();
+    if (
+      upperName.includes('INSTANT TABLOID') ||
+      upperName.includes('PODCAST') ||
+      upperName.includes('FEST BRANDING') ||
+      upperName.includes('GROUP SONG') ||
+      upperName.includes('MALAPPATU') ||
+      upperName.includes('QASEEDA PARAYANAM') ||
+      upperName.includes('QAWALI')
+    ) {
+      sectionVal = 'General';
+      isGeneralVal = true;
+    }
+
     // Sanitize payload strictly to match the 11 columns in public.programs
     const program: ProgramEntity = {
       id,
       programCode: code,
       programName: name,
-      section: (programData.section && programData.section.toString().toLowerCase() !== 'junior') ? programData.section.toString() : 'subJunior',
+      section: sectionVal,
       category: (programData.category || 'stage').toString(),
       isStageProgram: programData.isStageProgram !== undefined ? Boolean(programData.isStageProgram) : true,
-      isGeneral: programData.isGeneral !== undefined ? Boolean(programData.isGeneral) : false,
+      isGeneral: isGeneralVal,
       duration: (programData.duration || '30 mins').toString(),
       venueId: programData.venueId || programData.venue_id || null,
       scheduleId: programData.scheduleId || programData.schedule_id || null,
@@ -78,11 +95,34 @@ export class ProgramService {
     // Sanitize payload strictly to match the 11 columns in public.programs
     const updatePayload: Partial<ProgramEntity> = {};
     if (programData.programCode !== undefined) updatePayload.programCode = programData.programCode;
-    if (programData.programName !== undefined) updatePayload.programName = programData.programName;
-    if (programData.section !== undefined) updatePayload.section = programData.section;
+    
+    let currentName = existing.programName;
+    if (programData.programName !== undefined) {
+      updatePayload.programName = programData.programName;
+      currentName = programData.programName;
+    }
+    
+    let sectionVal = programData.section;
+    let isGeneralVal = programData.isGeneral;
+
+    const upperName = currentName.toUpperCase();
+    if (
+      upperName.includes('INSTANT TABLOID') ||
+      upperName.includes('PODCAST') ||
+      upperName.includes('FEST BRANDING') ||
+      upperName.includes('GROUP SONG') ||
+      upperName.includes('MALAPPATU') ||
+      upperName.includes('QASEEDA PARAYANAM') ||
+      upperName.includes('QAWALI')
+    ) {
+      sectionVal = 'General';
+      isGeneralVal = true;
+    }
+
+    if (sectionVal !== undefined) updatePayload.section = sectionVal;
     if (programData.category !== undefined) updatePayload.category = programData.category;
     if (programData.isStageProgram !== undefined) updatePayload.isStageProgram = Boolean(programData.isStageProgram);
-    if (programData.isGeneral !== undefined) updatePayload.isGeneral = Boolean(programData.isGeneral);
+    if (isGeneralVal !== undefined) updatePayload.isGeneral = Boolean(isGeneralVal);
     if (programData.duration !== undefined) updatePayload.duration = programData.duration;
     if (programData.venueId !== undefined) updatePayload.venueId = programData.venueId;
     if (programData.scheduleId !== undefined) updatePayload.scheduleId = programData.scheduleId;

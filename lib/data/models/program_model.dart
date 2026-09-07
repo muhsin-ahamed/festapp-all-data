@@ -80,7 +80,21 @@ class Program {
   }
 
   factory Program.fromMap(Map<String, dynamic> map) {
-    final sec = FestSection.fromString((map['section'] ?? map['fest_section'] ?? 'subJunior').toString());
+    final String pName = (map['programName'] ?? map['program_name'] ?? '').toString();
+    FestSection sec = FestSection.fromString((map['section'] ?? map['fest_section'] ?? 'subJunior').toString());
+    
+    // Fix incorrectly categorized general programs
+    final upperName = pName.trim().toUpperCase();
+    if (upperName.contains('INSTANT TABLOID') ||
+        upperName.contains('PODCAST') ||
+        upperName.contains('FEST BRANDING') ||
+        upperName.contains('GROUP SONG') ||
+        upperName.contains('MALAPPATU') ||
+        upperName.contains('QASEEDA PARAYANAM') ||
+        upperName.contains('QAWALI')) {
+      sec = FestSection.general;
+    }
+
     final cat = ProgramCategory.fromString((map['category'] ?? map['program_category'] ?? 'stage').toString());
     final rawIsStage = map['isStageProgram'] ?? map['is_stage_program'];
     final isStage = rawIsStage is bool ? rawIsStage : (rawIsStage?.toString() == 'true' || cat == ProgramCategory.stage);

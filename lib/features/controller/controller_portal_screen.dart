@@ -21,6 +21,8 @@ import '../../data/models/user_model.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:printing/printing.dart';
 import '../../services/excel_service.dart';
+import '../../services/qr_service.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 class ControllerPortalScreen extends ConsumerStatefulWidget {
   const ControllerPortalScreen({super.key});
@@ -1386,6 +1388,45 @@ class _ControllerPortalScreenState extends ConsumerState<ControllerPortalScreen>
     }
   }
 
+  Future<void> _importRegistrationsFromExcel() async {
+    try {
+      final files = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['xlsx', 'xls'],
+      );
+
+      if (files.isNotEmpty) {
+        if (!mounted) return;
+        _showLoadingDialog('Importing Registrations', 'Processing Excel file and adding registrations...\nPlease wait.');
+
+        try {
+          final bytes = await files.first.readAsBytes();
+          final excelService = ref.read(excelServiceProvider);
+          final importResult = await excelService.importRegistrations(bytes);
+          triggerDataRefresh(ref);
+
+          if (mounted) {
+            Navigator.of(context, rootNavigator: true).pop();
+            _showImportResultDialog('Registrations Excel Import Summary', importResult);
+          }
+        } catch (e) {
+          if (mounted) {
+            Navigator.of(context, rootNavigator: true).pop();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Failed to import Excel file: $e'), backgroundColor: Colors.red),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to select Excel file: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   void _showAddTeamDialog() {
     bool isSubmitting = false;
     showDialog(
@@ -1715,6 +1756,15 @@ class _ControllerPortalScreenState extends ConsumerState<ControllerPortalScreen>
                           icon: const Icon(Icons.playlist_add),
                           label: const Text('Add New Program'),
                           onPressed: _showAddProgramDialog,
+                        ),
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.delete_sweep_rounded),
+                          label: const Text('Delete All Programs'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                          ),
+                          onPressed: () => _confirmDeleteAllPrograms(programs),
                         ),
                       ],
                     ),
@@ -2087,6 +2137,46 @@ class _ControllerPortalScreenState extends ConsumerState<ControllerPortalScreen>
       },
     );
   }
+  void _confirmDeleteAllPrograms(List<Program> programs) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Confirm Delete All Programs'),
+          content: Text('Are you sure you want to delete all ${programs.length} programs? This action cannot be undone and will delete associated schedules and results.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () async {
+                try {
+                  final repo = ref.read(programRepositoryProvider);
+                  for (final p in programs) {
+                    await repo.deleteProgram(p.id);
+                  }
+                  triggerDataRefresh(ref);
+                  if (mounted) Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('All programs deleted successfully.')),
+                  );
+                } catch (e) {
+                  if (mounted) Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed to delete programs: $e')),
+                  );
+                }
+              },
+              child: const Text('Delete All'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
 
   // --- 4. RESULT UPLOAD & APPROVAL WORKFLOW SECTION ---
   Widget _buildResultUploadSection(
@@ -2397,6 +2487,58 @@ class _ControllerPortalScreenState extends ConsumerState<ControllerPortalScreen>
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Downloaded Program Excel Template.')),
+                          );
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // 1.5. Registrations Import Card
+          AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.app_registration_rounded, color: Colors.orange, size: 24),
+                    const SizedBox(width: 10),
+                    Text('Import Program Registrations from Excel', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16)),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Expected Sheet Columns: Chase Number, Student Name, Program Name, Section',
+                  style: GoogleFonts.inter(color: AppTheme.inkSoft, fontSize: 13),
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 10,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.upload_file),
+                      label: const Text('Select & Upload Registrations Excel'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: _importRegistrationsFromExcel,
+                    ),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.file_download_outlined),
+                      label: const Text('Download Registrations Template'),
+                      onPressed: () async {
+                        final bytes = excelService.generateRegistrationTemplate();
+                        await Printing.sharePdf(bytes: bytes, filename: 'registration_excel_template.xlsx');
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Downloaded Registrations Excel Template.')),
                           );
                         }
                       },
@@ -2914,6 +3056,12 @@ class _ControllerPortalScreenState extends ConsumerState<ControllerPortalScreen>
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    if (juryProfile != null)
+                      IconButton(
+                        icon: const Icon(Icons.qr_code, color: Colors.purple),
+                        tooltip: 'View Login QR Codes',
+                        onPressed: () => _showJuryQRDialog(context, juryProfile, programs),
+                      ),
                     IconButton(
                       icon: const Icon(Icons.edit, color: Colors.blue),
                       tooltip: 'Edit Login & Password',
@@ -3226,6 +3374,7 @@ class _ControllerPortalScreenState extends ConsumerState<ControllerPortalScreen>
                           backgroundColor: Colors.green,
                         ),
                       );
+                      _showJuryQRDialog(context, jury, programs);
                     }
                   },
                   child: Text(isEditing ? 'Save Changes' : 'Create Jury Account'),
@@ -3233,6 +3382,54 @@ class _ControllerPortalScreenState extends ConsumerState<ControllerPortalScreen>
               ],
             );
           },
+        );
+      },
+    );
+  }
+
+  void _showJuryQRDialog(BuildContext context, Jury jury, List<Program> programs) {
+    final assignedProgs = programs.where((p) => jury.assignedPrograms.contains(p.id)).toList();
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: Text('Jury Login QR Codes - ${jury.name}'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: assignedProgs.length,
+              itemBuilder: (context, index) {
+                final p = assignedProgs[index];
+                final payload = QrService.generateJuryLoginProgramQrPayload(jury.username, jury.password, p.id);
+                return Card(
+                  margin: const EdgeInsets.symmetric(vertical: 8),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: Column(
+                      children: [
+                        Text('${p.programName} (${p.programCode})', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 8),
+                        QrImageView(
+                          data: payload,
+                          version: QrVersions.auto,
+                          size: 150.0,
+                        ),
+                        const SizedBox(height: 8),
+                        const Text('Scan this to login and mark this program directly.', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Close'),
+            ),
+          ],
         );
       },
     );
@@ -3615,7 +3812,7 @@ class _ControllerPortalScreenState extends ConsumerState<ControllerPortalScreen>
               Expanded(
                 child: StatCard(
                   title: 'Total Venues',
-                  value: '${venues.length}',
+                  value: '0',
                   icon: Icons.place_rounded,
                   color: AppTheme.mustard,
                 ),
@@ -3632,234 +3829,6 @@ class _ControllerPortalScreenState extends ConsumerState<ControllerPortalScreen>
             ],
           ),
           const SizedBox(height: 24),
-            AppCard(
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        flex: 2,
-                        child: TextField(
-                          decoration: InputDecoration(
-                            hintText: 'Search program, code or venue...',
-                            prefixIcon: const Icon(Icons.search),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          ),
-                          onChanged: (val) {
-                            setState(() {
-                              _scheduleSearchQuery = val;
-                            });
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          initialValue: _selectedScheduleDateFilter,
-                          decoration: InputDecoration(
-                            labelText: 'Filter Date',
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          ),
-                          items: [
-                            const DropdownMenuItem(value: 'ALL', child: Text('All Dates')),
-                            ...availableDates.map((d) => DropdownMenuItem(value: d, child: Text(d))),
-                          ],
-                          onChanged: (val) {
-                            if (val != null) {
-                              setState(() {
-                                _selectedScheduleDateFilter = val;
-                              });
-                            }
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          initialValue: _selectedScheduleVenueFilter,
-                          decoration: InputDecoration(
-                            labelText: 'Filter Venue',
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          ),
-                          items: [
-                            const DropdownMenuItem(value: 'ALL', child: Text('All Venues')),
-                            ...venues.map((v) => DropdownMenuItem(value: v.id, child: Text(v.name))),
-                          ],
-                          onChanged: (val) {
-                            if (val != null) {
-                              setState(() {
-                                _selectedScheduleVenueFilter = val;
-                              });
-                            }
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          initialValue: _selectedScheduleSectionFilter,
-                          decoration: InputDecoration(
-                            labelText: 'Filter Category',
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          ),
-                          items: [
-                            const DropdownMenuItem(value: 'ALL', child: Text('All Categories')),
-                            ...FestSection.values.map((s) => DropdownMenuItem(value: s.name, child: Text(s.label))),
-                          ],
-                          onChanged: (val) {
-                            if (val != null) {
-                              setState(() {
-                                _selectedScheduleSectionFilter = val;
-                              });
-                            }
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            AppCard(
-              padding: EdgeInsets.zero,
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: DataTable(
-                  columnSpacing: 24,
-                  headingRowColor: WidgetStateProperty.all(AppTheme.cream),
-                  columns: const [
-                    DataColumn(label: Text('DATE', style: TextStyle(fontWeight: FontWeight.bold))),
-                    DataColumn(label: Text('ITEM', style: TextStyle(fontWeight: FontWeight.bold))),
-                    DataColumn(label: Text('TIME', style: TextStyle(fontWeight: FontWeight.bold))),
-                    DataColumn(label: Text('VENUE', style: TextStyle(fontWeight: FontWeight.bold))),
-                    DataColumn(label: Text('CATEGORY', style: TextStyle(fontWeight: FontWeight.bold))),
-                    DataColumn(label: Text('CLASH STATUS', style: TextStyle(fontWeight: FontWeight.bold))),
-                    DataColumn(label: Text('ACTIONS', style: TextStyle(fontWeight: FontWeight.bold))),
-                  ],
-                  rows: filteredSchedules.map((sch) {
-                    final prog = progMap[sch.programId];
-                    final ven = venMap[sch.venueId];
-                    final schConflicts = conflicts.where((c) => c.schedule1.id == sch.id || c.schedule2.id == sch.id).toList();
-
-                    return DataRow(
-                      cells: [
-                        DataCell(Text(sch.date.isEmpty ? 'TBA' : sch.date, style: const TextStyle(fontWeight: FontWeight.w600))),
-                        DataCell(
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(prog?.programName ?? 'Unknown Program', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
-                              Text('Code: ${prog?.programCode ?? 'N/A'}', style: TextStyle(color: Colors.grey.shade600, fontSize: 11)),
-                            ],
-                          ),
-                        ),
-                        DataCell(Text('${sch.startTime} - ${sch.endTime}', style: const TextStyle(fontWeight: FontWeight.w500))),
-                        DataCell(
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(ven?.name ?? 'TBA Venue', style: const TextStyle(fontWeight: FontWeight.w600)),
-                              if (ven?.location != null && ven!.location.isNotEmpty)
-                                Text(ven.location, style: TextStyle(color: Colors.grey.shade600, fontSize: 11)),
-                            ],
-                          ),
-                        ),
-                        DataCell(
-                          Chip(
-                            label: Text('${prog?.section.label ?? ''} (${prog?.isStageProgram == true ? 'Stage' : 'Off-Stage'})'),
-                            labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-                            backgroundColor: AppTheme.cream,
-                            side: const BorderSide(color: AppTheme.line),
-                          ),
-                        ),
-                        DataCell(
-                          schConflicts.isEmpty
-                              ? const Chip(
-                                  avatar: Icon(Icons.check_circle, size: 14, color: Colors.teal),
-                                  label: Text('No Clash', style: TextStyle(fontSize: 11, color: Colors.teal, fontWeight: FontWeight.bold)),
-                                  backgroundColor: Color(0xFFE6F4EA),
-                                )
-                              : InkWell(
-                                  onTap: () {
-                                    _showConflictReportDialog(
-                                      context,
-                                      conflicts: schConflicts,
-                                      schedules: schedules,
-                                      programs: programs,
-                                      venues: venues,
-                                    );
-                                  },
-                                  child: Chip(
-                                    avatar: const Icon(Icons.warning_amber_rounded, size: 14, color: Colors.white),
-                                    label: Text('⚠️ ${schConflicts.length} Clash', style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)),
-                                    backgroundColor: AppTheme.red,
-                                  ),
-                                ),
-                        ),
-                        DataCell(
-                          Row(
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.edit, size: 18, color: Colors.blue),
-                                tooltip: 'Edit Schedule',
-                                onPressed: () {
-                                  _showAddEditScheduleDialog(
-                                    context,
-                                    scheduleToEdit: sch,
-                                    programs: programs,
-                                    venues: venues,
-                                    schedules: schedules,
-                                    students: students,
-                                    registrations: registrations,
-                                    teams: teams,
-                                  );
-                                },
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.delete_outline, size: 18, color: AppTheme.red),
-                                tooltip: 'Delete Schedule',
-                                onPressed: () async {
-                                  final confirm = await showDialog<bool>(
-                                    context: context,
-                                    builder: (ctx) => AlertDialog(
-                                      title: const Text('Delete Schedule'),
-                                      content: Text('Are you sure you want to delete schedule for "${prog?.programName}"?'),
-                                      actions: [
-                                        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                                        ElevatedButton(
-                                          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.red, foregroundColor: Colors.white),
-                                          onPressed: () => Navigator.pop(ctx, true),
-                                          child: const Text('Delete'),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                  if (confirm == true) {
-                                    await ref.read(scheduleRepositoryProvider).deleteSchedule(sch.id);
-                                    triggerDataRefresh(ref);
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Schedule deleted.')));
-                                    }
-                                  }
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    );
-                  }).toList(),
-                ),
-              ),
-            ),
         ],
       ),
     );

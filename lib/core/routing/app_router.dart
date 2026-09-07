@@ -42,7 +42,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/jury',
-        builder: (context, state) => const JuryPortalScreen(),
+        builder: (context, state) {
+          final targetProgramId = state.extra as String?;
+          return JuryPortalScreen(targetProgramId: targetProgramId);
+        },
       ),
       GoRoute(
         path: '/tv',

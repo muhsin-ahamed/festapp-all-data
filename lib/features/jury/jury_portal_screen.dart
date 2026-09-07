@@ -13,7 +13,8 @@ import '../../data/models/result_model.dart';
 import '../../services/qr_service.dart';
 
 class JuryPortalScreen extends ConsumerStatefulWidget {
-  const JuryPortalScreen({super.key});
+  final String? targetProgramId;
+  const JuryPortalScreen({super.key, this.targetProgramId});
 
   @override
   ConsumerState<JuryPortalScreen> createState() => _JuryPortalScreenState();
@@ -26,6 +27,7 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
   final Map<String, int> _positions = {};
 
   bool _isScanningProgramQr = false;
+  bool _hasInitialProgramSet = false;
 
   @override
   Widget build(BuildContext context) {
@@ -92,6 +94,23 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
           final allPrograms = programsAsync.value ?? [];
           final assignedPrograms = allPrograms.where((p) => assignedProgIds.contains(p.id)).toList();
 
+          if (!_hasInitialProgramSet && widget.targetProgramId != null) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              final prog = assignedPrograms.where((p) => p.id == widget.targetProgramId).firstOrNull;
+              if (prog != null) {
+                setState(() {
+                  _selectedProgram = prog;
+                  _hasInitialProgramSet = true;
+                });
+              } else {
+                setState(() {
+                  _hasInitialProgramSet = true;
+                });
+              }
+            });
+          }
+
           if (_isScanningProgramQr) {
             return Padding(
               padding: const EdgeInsets.all(24.0),
@@ -102,7 +121,12 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
                   QRScannerWidget(
                     onScanned: (payload) {
                       final scanRes = QrService.parseQrPayload(payload);
-                      final prog = allPrograms.where((p) => p.id == scanRes.value || p.programCode == scanRes.value).firstOrNull;
+                      String? searchProgramId = scanRes.value;
+                      if (scanRes.type == QrScanType.juryLoginProgram) {
+                        searchProgramId = scanRes.programId;
+                      }
+                      
+                      final prog = allPrograms.where((p) => p.id == searchProgramId || p.programCode == searchProgramId).firstOrNull;
                       if (prog != null) {
                         setState(() {
                           _selectedProgram = prog;
@@ -110,7 +134,7 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
                         });
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Program "${scanRes.value}" not found.')),
+                          SnackBar(content: Text('Program "$searchProgramId" not found.')),
                         );
                       }
                     },

@@ -6,6 +6,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_ui_components.dart';
+import '../../services/qr_service.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -19,9 +20,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
+  bool _isScanningQr = false;
   String? _errorMessage;
 
-  Future<void> _handleLogin([String? u, String? p]) async {
+  Future<void> _handleLogin([String? u, String? p, String? targetProgramId]) async {
     final username = u ?? _usernameController.text.trim();
     final password = p ?? _passwordController.text.trim();
 
@@ -57,7 +59,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             context.go('/leader');
             break;
           case UserRole.jury:
-            context.go('/jury');
+            context.go('/jury', extra: targetProgramId);
             break;
           case UserRole.tvOperator:
             context.go('/tv');
@@ -159,29 +161,75 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                             const SizedBox(height: 16),
                           ],
-                          AppTextField(
-                            label: 'Username',
-                            controller: _usernameController,
-                            prefixIcon: Icons.person_outline,
-                            hint: 'Enter your username',
-                            validator: (v) => (v == null || v.isEmpty) ? 'Username required' : null,
-                          ),
-                          const SizedBox(height: 16),
-                          AppTextField(
-                            label: 'Password',
-                            controller: _passwordController,
-                            obscureText: true,
-                            prefixIcon: Icons.lock_outline,
-                            hint: 'Enter your password',
-                            validator: (v) => (v == null || v.isEmpty) ? 'Password required' : null,
-                          ),
-                          const SizedBox(height: 24),
-                          AppButton(
-                            label: 'Sign In',
-                            width: double.infinity,
-                            isLoading: _isLoading,
-                            onPressed: () => _handleLogin(),
-                          ),
+                          if (_isScanningQr) ...[
+                            Container(
+                              height: 300,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: AppTheme.primaryColor),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: QRScannerWidget(
+                                  onScanned: (payload) {
+                                    final scanRes = QrService.parseQrPayload(payload);
+                                    if (scanRes.type == QrScanType.juryLoginProgram) {
+                                      setState(() => _isScanningQr = false);
+                                      if (scanRes.username != null && scanRes.password != null) {
+                                        _handleLogin(scanRes.username, scanRes.password, scanRes.programId);
+                                      } else {
+                                        setState(() => _errorMessage = 'Invalid Jury Login QR code');
+                                      }
+                                    } else {
+                                      setState(() {
+                                        _errorMessage = 'Scanned QR is not a Jury Login QR';
+                                        _isScanningQr = false;
+                                      });
+                                    }
+                                  },
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            TextButton.icon(
+                              onPressed: () => setState(() => _isScanningQr = false),
+                              icon: const Icon(Icons.close),
+                              label: const Text('Cancel QR Scan'),
+                            ),
+                          ] else ...[
+                            AppTextField(
+                              label: 'Username',
+                              controller: _usernameController,
+                              prefixIcon: Icons.person_outline,
+                              hint: 'Enter your username',
+                              validator: (v) => (v == null || v.isEmpty) ? 'Username required' : null,
+                            ),
+                            const SizedBox(height: 16),
+                            AppTextField(
+                              label: 'Password',
+                              controller: _passwordController,
+                              obscureText: true,
+                              prefixIcon: Icons.lock_outline,
+                              hint: 'Enter your password',
+                              validator: (v) => (v == null || v.isEmpty) ? 'Password required' : null,
+                            ),
+                            const SizedBox(height: 24),
+                            AppButton(
+                              label: 'Sign In',
+                              width: double.infinity,
+                              isLoading: _isLoading,
+                              onPressed: () => _handleLogin(),
+                            ),
+                            const SizedBox(height: 16),
+                            OutlinedButton.icon(
+                              onPressed: () => setState(() => _isScanningQr = true),
+                              icon: const Icon(Icons.qr_code_scanner),
+                              label: const Text('Login with QR Code'),
+                              style: OutlinedButton.styleFrom(
+                                minimumSize: const Size.fromHeight(50),
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: 20),
                           TextButton.icon(
                             icon: const Icon(Icons.arrow_back, size: 16, color: AppTheme.red),
