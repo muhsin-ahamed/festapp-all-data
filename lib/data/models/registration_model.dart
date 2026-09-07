@@ -59,7 +59,9 @@ class Registration {
       teamId: map['teamId'] ?? '',
       registrationNumber: map['registrationNumber'] ?? '',
       status: RegistrationStatus.fromString(map['status'] ?? 'approved'),
-      createdAt: map['createdAt'] != null ? DateTime.parse(map['createdAt']) : DateTime.now(),
+      createdAt: map['createdAt'] != null
+          ? DateTime.parse(map['createdAt'])
+          : DateTime.now(),
     );
   }
 }

@@ -160,10 +160,34 @@ class DemoDataService {
 
     // 3. Seed Venues
     final venues = [
-      Venue(id: 'ven_main', name: 'Main Auditorium', location: 'Block A Ground Floor', capacity: 500, description: 'Stage 1'),
-      Venue(id: 'ven_hall2', name: 'Seminar Hall 2', location: 'Block B First Floor', capacity: 200, description: 'Stage 2'),
-      Venue(id: 'ven_hall3', name: 'Open Air Theatre', location: 'Central Campus', capacity: 800, description: 'Stage 3'),
-      Venue(id: 'ven_lab1', name: 'Media Computer Lab', location: 'IT Wing', capacity: 60, description: 'Non-Stage Lab'),
+      Venue(
+        id: 'ven_main',
+        name: 'Main Auditorium',
+        location: 'Block A Ground Floor',
+        capacity: 500,
+        description: 'Stage 1',
+      ),
+      Venue(
+        id: 'ven_hall2',
+        name: 'Seminar Hall 2',
+        location: 'Block B First Floor',
+        capacity: 200,
+        description: 'Stage 2',
+      ),
+      Venue(
+        id: 'ven_hall3',
+        name: 'Open Air Theatre',
+        location: 'Central Campus',
+        capacity: 800,
+        description: 'Stage 3',
+      ),
+      Venue(
+        id: 'ven_lab1',
+        name: 'Media Computer Lab',
+        location: 'IT Wing',
+        capacity: 60,
+        description: 'Non-Stage Lab',
+      ),
     ];
     for (final v in venues) {
       await venueRepository.addVenue(v);
@@ -210,29 +234,149 @@ class DemoDataService {
 
     // 5. Seed 20 Programs
     final programTemplates = [
-      {'code': 'P-101', 'name': 'Arabic Song Solo', 'sec': FestSection.senior, 'stage': true, 'ven': 'ven_main'},
-      {'code': 'P-102', 'name': 'English Elocution', 'sec': FestSection.senior, 'stage': true, 'ven': 'ven_hall2'},
-      {'code': 'P-103', 'name': 'Pencil Drawing', 'sec': FestSection.senior, 'stage': false, 'ven': 'ven_lab1'},
-      {'code': 'P-104', 'name': 'Quiz Masters', 'sec': FestSection.senior, 'stage': false, 'ven': 'ven_hall2'},
-      {'code': 'P-105', 'name': 'Poetry Writing', 'sec': FestSection.senior, 'stage': false, 'ven': 'ven_lab1'},
+      {
+        'code': 'P-101',
+        'name': 'Arabic Song Solo',
+        'sec': FestSection.senior,
+        'stage': true,
+        'ven': 'ven_main',
+      },
+      {
+        'code': 'P-102',
+        'name': 'English Elocution',
+        'sec': FestSection.senior,
+        'stage': true,
+        'ven': 'ven_hall2',
+      },
+      {
+        'code': 'P-103',
+        'name': 'Pencil Drawing',
+        'sec': FestSection.senior,
+        'stage': false,
+        'ven': 'ven_lab1',
+      },
+      {
+        'code': 'P-104',
+        'name': 'Quiz Masters',
+        'sec': FestSection.senior,
+        'stage': false,
+        'ven': 'ven_hall2',
+      },
+      {
+        'code': 'P-105',
+        'name': 'Poetry Writing',
+        'sec': FestSection.senior,
+        'stage': false,
+        'ven': 'ven_lab1',
+      },
 
-      {'code': 'P-201', 'name': 'Folk Dance Group', 'sec': FestSection.subJunior, 'stage': true, 'ven': 'ven_main'},
-      {'code': 'P-202', 'name': 'Classical Music', 'sec': FestSection.subJunior, 'stage': true, 'ven': 'ven_hall3'},
-      {'code': 'P-203', 'name': 'Calligraphy', 'sec': FestSection.subJunior, 'stage': false, 'ven': 'ven_lab1'},
-      {'code': 'P-204', 'name': 'Spelling Bee', 'sec': FestSection.subJunior, 'stage': false, 'ven': 'ven_hall2'},
-      {'code': 'P-205', 'name': 'Story Telling', 'sec': FestSection.subJunior, 'stage': true, 'ven': 'ven_hall2'},
+      {
+        'code': 'P-201',
+        'name': 'Folk Dance Group',
+        'sec': FestSection.subJunior,
+        'stage': true,
+        'ven': 'ven_main',
+      },
+      {
+        'code': 'P-202',
+        'name': 'Classical Music',
+        'sec': FestSection.subJunior,
+        'stage': true,
+        'ven': 'ven_hall3',
+      },
+      {
+        'code': 'P-203',
+        'name': 'Calligraphy',
+        'sec': FestSection.subJunior,
+        'stage': false,
+        'ven': 'ven_lab1',
+      },
+      {
+        'code': 'P-204',
+        'name': 'Spelling Bee',
+        'sec': FestSection.subJunior,
+        'stage': false,
+        'ven': 'ven_hall2',
+      },
+      {
+        'code': 'P-205',
+        'name': 'Story Telling',
+        'sec': FestSection.subJunior,
+        'stage': true,
+        'ven': 'ven_hall2',
+      },
 
-      {'code': 'P-301', 'name': 'Classical Dance', 'sec': FestSection.superSenior, 'stage': true, 'ven': 'ven_main'},
-      {'code': 'P-302', 'name': 'Light Music Solo', 'sec': FestSection.superSenior, 'stage': true, 'ven': 'ven_hall3'},
-      {'code': 'P-303', 'name': 'Digital Art', 'sec': FestSection.superSenior, 'stage': false, 'ven': 'ven_lab1'},
-      {'code': 'P-304', 'name': 'Mime & Drama', 'sec': FestSection.superSenior, 'stage': true, 'ven': 'ven_main'},
-      {'code': 'P-305', 'name': 'Debate Competition', 'sec': FestSection.superSenior, 'stage': false, 'ven': 'ven_hall2'},
+      {
+        'code': 'P-301',
+        'name': 'Classical Dance',
+        'sec': FestSection.superSenior,
+        'stage': true,
+        'ven': 'ven_main',
+      },
+      {
+        'code': 'P-302',
+        'name': 'Light Music Solo',
+        'sec': FestSection.superSenior,
+        'stage': true,
+        'ven': 'ven_hall3',
+      },
+      {
+        'code': 'P-303',
+        'name': 'Digital Art',
+        'sec': FestSection.superSenior,
+        'stage': false,
+        'ven': 'ven_lab1',
+      },
+      {
+        'code': 'P-304',
+        'name': 'Mime & Drama',
+        'sec': FestSection.superSenior,
+        'stage': true,
+        'ven': 'ven_main',
+      },
+      {
+        'code': 'P-305',
+        'name': 'Debate Competition',
+        'sec': FestSection.superSenior,
+        'stage': false,
+        'ven': 'ven_hall2',
+      },
 
-      {'code': 'P-401', 'name': 'Group Anthem General', 'sec': FestSection.general, 'stage': true, 'ven': 'ven_main'},
-      {'code': 'P-402', 'name': 'Patriotic Song General', 'sec': FestSection.general, 'stage': true, 'ven': 'ven_hall3'},
-      {'code': 'P-403', 'name': 'Collage Making General', 'sec': FestSection.general, 'stage': false, 'ven': 'ven_lab1'},
-      {'code': 'P-404', 'name': 'Skit General', 'sec': FestSection.general, 'stage': true, 'ven': 'ven_main'},
-      {'code': 'P-405', 'name': 'Photography General', 'sec': FestSection.general, 'stage': false, 'ven': 'ven_lab1'},
+      {
+        'code': 'P-401',
+        'name': 'Group Anthem General',
+        'sec': FestSection.general,
+        'stage': true,
+        'ven': 'ven_main',
+      },
+      {
+        'code': 'P-402',
+        'name': 'Patriotic Song General',
+        'sec': FestSection.general,
+        'stage': true,
+        'ven': 'ven_hall3',
+      },
+      {
+        'code': 'P-403',
+        'name': 'Collage Making General',
+        'sec': FestSection.general,
+        'stage': false,
+        'ven': 'ven_lab1',
+      },
+      {
+        'code': 'P-404',
+        'name': 'Skit General',
+        'sec': FestSection.general,
+        'stage': true,
+        'ven': 'ven_main',
+      },
+      {
+        'code': 'P-405',
+        'name': 'Photography General',
+        'sec': FestSection.general,
+        'stage': false,
+        'ven': 'ven_lab1',
+      },
     ];
 
     final random = Random(42);
@@ -246,7 +390,9 @@ class DemoDataService {
         programCode: t['code'] as String,
         programName: t['name'] as String,
         section: sec,
-        category: (t['stage'] as bool) ? ProgramCategory.stage : ProgramCategory.nonStage,
+        category: (t['stage'] as bool)
+            ? ProgramCategory.stage
+            : ProgramCategory.nonStage,
         isStageProgram: t['stage'] as bool,
         isGeneral: isGen,
         maxParticipants: isGen ? 10 : (random.nextInt(3) + 1),
@@ -270,20 +416,59 @@ class DemoDataService {
         date: dateStr,
         startTime: startStr,
         endTime: endStr,
-        status: prog.status == 'COMPLETED' ? 'COMPLETED' : (prog.status == 'IN_PROGRESS' ? 'IN_PROGRESS' : 'SCHEDULED'),
+        status: prog.status == 'COMPLETED'
+            ? 'COMPLETED'
+            : (prog.status == 'IN_PROGRESS' ? 'IN_PROGRESS' : 'SCHEDULED'),
       );
       await scheduleRepository.addSchedule(sch);
     }
 
     // 6. Seed Students (3 students per section per team)
-    final firstNames = ['Aarav', 'Ananya', 'Rohan', 'Diya', 'Vihaan', 'Isha', 'Aditya', 'Meera', 'Kabeer', 'Zara', 'Dev', 'Sanya', 'Arjun', 'Priya', 'Bilal', 'Fatima', 'Omar', 'Aisha', 'Zayan', 'Mariam'];
-    final lastNames = ['Ahmed', 'Khan', 'Sharma', 'Nair', 'Verma', 'Patel', 'Siddiqui', 'Menon', 'Gupta', 'Hassan'];
+    final firstNames = [
+      'Aarav',
+      'Ananya',
+      'Rohan',
+      'Diya',
+      'Vihaan',
+      'Isha',
+      'Aditya',
+      'Meera',
+      'Kabeer',
+      'Zara',
+      'Dev',
+      'Sanya',
+      'Arjun',
+      'Priya',
+      'Bilal',
+      'Fatima',
+      'Omar',
+      'Aisha',
+      'Zayan',
+      'Mariam',
+    ];
+    final lastNames = [
+      'Ahmed',
+      'Khan',
+      'Sharma',
+      'Nair',
+      'Verma',
+      'Patel',
+      'Siddiqui',
+      'Menon',
+      'Gupta',
+      'Hassan',
+    ];
 
     List<Student> allStudents = [];
     int chaseCounter = 1001;
 
     for (final team in teams) {
-      final sections = [FestSection.subJunior, FestSection.senior, FestSection.superSenior, FestSection.general];
+      final sections = [
+        FestSection.subJunior,
+        FestSection.senior,
+        FestSection.superSenior,
+        FestSection.general,
+      ];
       for (final sec in sections) {
         String prefix = 'SB';
         if (sec == FestSection.subJunior) prefix = 'SB';
@@ -301,11 +486,18 @@ class DemoDataService {
             chaseNumber: chaseNum,
             name: '$fName $lName',
             gender: k % 2 == 0 ? 'Female' : 'Male',
-            dateOfBirth: '200${8 + random.nextInt(6)}-0${1 + random.nextInt(8)}-15',
+            dateOfBirth:
+                '200${8 + random.nextInt(6)}-0${1 + random.nextInt(8)}-15',
             section: sec,
             teamId: team.id,
             phone: '+91 98765$chaseCounter',
-            className: sec == FestSection.subJunior ? 'Class 5' : (sec == FestSection.senior ? 'Class 9' : (sec == FestSection.superSenior ? 'Class 12' : 'General')),
+            className: sec == FestSection.subJunior
+                ? 'Class 5'
+                : (sec == FestSection.senior
+                      ? 'Class 9'
+                      : (sec == FestSection.superSenior
+                            ? 'Class 12'
+                            : 'General')),
             schoolName: 'St. Fest International Academy',
             qrCode: chaseNum,
           );
@@ -323,7 +515,10 @@ class DemoDataService {
     for (int pIdx = 0; pIdx < allPrograms.length; pIdx++) {
       final prog = allPrograms[pIdx];
       // Select 6 eligible students
-      final eligibleStudents = allStudents.where((s) => prog.isGeneral || s.section == prog.section).take(6).toList();
+      final eligibleStudents = allStudents
+          .where((s) => prog.isGeneral || s.section == prog.section)
+          .take(6)
+          .toList();
 
       for (int sIdx = 0; sIdx < eligibleStudents.length; sIdx++) {
         final stud = eligibleStudents[sIdx];
@@ -340,9 +535,14 @@ class DemoDataService {
 
         // Generate results for first 4 completed programs
         if (pIdx < 4) {
-          final pos = (sIdx == 0) ? 1 : ((sIdx == 1) ? 2 : ((sIdx == 2) ? 3 : null));
+          final pos = (sIdx == 0)
+              ? 1
+              : ((sIdx == 1) ? 2 : ((sIdx == 2) ? 3 : null));
           final grade = (sIdx <= 1) ? 'A' : ((sIdx <= 3) ? 'B' : 'C');
-          final pts = scoringService.calculateResultPoints(position: pos, grade: grade);
+          final pts = scoringService.calculateResultPoints(
+            position: pos,
+            grade: grade,
+          );
 
           final result = Result(
             id: 'res_$resultCounter',
@@ -354,7 +554,9 @@ class DemoDataService {
             grade: grade,
             position: pos,
             points: pts,
-            remarks: pos != null ? 'Outstanding performance in $pos place' : 'Good effort',
+            remarks: pos != null
+                ? 'Outstanding performance in $pos place'
+                : 'Good effort',
             status: ResultStatus.published,
             publishedAt: DateTime.now().subtract(Duration(hours: 4 - pIdx)),
           );
@@ -362,9 +564,14 @@ class DemoDataService {
           resultCounter++;
         } else if (pIdx == 4) {
           // Draft results submitted by Jury
-          final pos = (sIdx == 0) ? 1 : ((sIdx == 1) ? 2 : ((sIdx == 2) ? 3 : null));
+          final pos = (sIdx == 0)
+              ? 1
+              : ((sIdx == 1) ? 2 : ((sIdx == 2) ? 3 : null));
           final grade = 'A';
-          final pts = scoringService.calculateResultPoints(position: pos, grade: grade);
+          final pts = scoringService.calculateResultPoints(
+            position: pos,
+            grade: grade,
+          );
 
           final result = Result(
             id: 'res_$resultCounter',
@@ -391,7 +598,8 @@ class DemoDataService {
       programId: 'prog_101',
       resultId: 'res_1',
       title: '🎉 RESULT ANNOUNCEMENT 🎉',
-      message: 'Sub Junior Arabic Song Solo results have been officially verified and published!',
+      message:
+          'Sub Junior Arabic Song Solo results have been officially verified and published!',
       status: 'ANNOUNCED',
       announcedAt: DateTime.now(),
     );

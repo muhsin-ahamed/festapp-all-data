@@ -23,7 +23,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _isScanningQr = false;
   String? _errorMessage;
 
-  Future<void> _handleLogin([String? u, String? p, String? targetProgramId]) async {
+  Future<void> _handleLogin([
+    String? u,
+    String? p,
+    String? targetProgramId,
+  ]) async {
     final username = u ?? _usernameController.text.trim();
     final password = p ?? _passwordController.text.trim();
 
@@ -68,7 +72,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       } else {
         if (!mounted) return;
         setState(() {
-          _errorMessage = 'Authentication failed. Please check your credentials.';
+          _errorMessage =
+              'Authentication failed. Please check your credentials.';
         });
       }
     } catch (e) {
@@ -144,16 +149,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               decoration: BoxDecoration(
                                 color: Colors.red.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
+                                border: Border.all(
+                                  color: Colors.redAccent.withValues(
+                                    alpha: 0.3,
+                                  ),
+                                ),
                               ),
                               child: Row(
                                 children: [
-                                  const Icon(Icons.error_outline, color: Colors.redAccent, size: 20),
+                                  const Icon(
+                                    Icons.error_outline,
+                                    color: Colors.redAccent,
+                                    size: 20,
+                                  ),
                                   const SizedBox(width: 10),
                                   Expanded(
                                     child: Text(
                                       _errorMessage!,
-                                      style: GoogleFonts.workSans(color: Colors.redAccent, fontSize: 12.5, fontWeight: FontWeight.w600),
+                                      style: GoogleFonts.workSans(
+                                        color: Colors.redAccent,
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -166,23 +183,37 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               height: 300,
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: AppTheme.primaryColor),
+                                border: Border.all(
+                                  color: AppTheme.primaryColor,
+                                ),
                               ),
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(12),
                                 child: QRScannerWidget(
                                   onScanned: (payload) {
-                                    final scanRes = QrService.parseQrPayload(payload);
-                                    if (scanRes.type == QrScanType.juryLoginProgram) {
+                                    final scanRes = QrService.parseQrPayload(
+                                      payload,
+                                    );
+                                    if (scanRes.type ==
+                                        QrScanType.juryLoginProgram) {
                                       setState(() => _isScanningQr = false);
-                                      if (scanRes.username != null && scanRes.password != null) {
-                                        _handleLogin(scanRes.username, scanRes.password, scanRes.programId);
+                                      if (scanRes.username != null &&
+                                          scanRes.password != null) {
+                                        _handleLogin(
+                                          scanRes.username,
+                                          scanRes.password,
+                                          scanRes.programId,
+                                        );
                                       } else {
-                                        setState(() => _errorMessage = 'Invalid Jury Login QR code');
+                                        setState(
+                                          () => _errorMessage =
+                                              'Invalid Jury Login QR code',
+                                        );
                                       }
                                     } else {
                                       setState(() {
-                                        _errorMessage = 'Scanned QR is not a Jury Login QR';
+                                        _errorMessage =
+                                            'Scanned QR is not a Jury Login QR';
                                         _isScanningQr = false;
                                       });
                                     }
@@ -192,7 +223,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                             const SizedBox(height: 16),
                             TextButton.icon(
-                              onPressed: () => setState(() => _isScanningQr = false),
+                              onPressed: () =>
+                                  setState(() => _isScanningQr = false),
                               icon: const Icon(Icons.close),
                               label: const Text('Cancel QR Scan'),
                             ),
@@ -202,7 +234,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               controller: _usernameController,
                               prefixIcon: Icons.person_outline,
                               hint: 'Enter your username',
-                              validator: (v) => (v == null || v.isEmpty) ? 'Username required' : null,
+                              validator: (v) => (v == null || v.isEmpty)
+                                  ? 'Username required'
+                                  : null,
                             ),
                             const SizedBox(height: 16),
                             AppTextField(
@@ -211,7 +245,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               obscureText: true,
                               prefixIcon: Icons.lock_outline,
                               hint: 'Enter your password',
-                              validator: (v) => (v == null || v.isEmpty) ? 'Password required' : null,
+                              validator: (v) => (v == null || v.isEmpty)
+                                  ? 'Password required'
+                                  : null,
                             ),
                             const SizedBox(height: 24),
                             AppButton(
@@ -222,7 +258,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                             const SizedBox(height: 16),
                             OutlinedButton.icon(
-                              onPressed: () => setState(() => _isScanningQr = true),
+                              onPressed: () =>
+                                  setState(() => _isScanningQr = true),
                               icon: const Icon(Icons.qr_code_scanner),
                               label: const Text('Login with QR Code'),
                               style: OutlinedButton.styleFrom(
@@ -232,7 +269,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ],
                           const SizedBox(height: 20),
                           TextButton.icon(
-                            icon: const Icon(Icons.arrow_back, size: 16, color: AppTheme.red),
+                            icon: const Icon(
+                              Icons.arrow_back,
+                              size: 16,
+                              color: AppTheme.red,
+                            ),
                             label: Text(
                               'Back to Public Portal',
                               style: GoogleFonts.workSans(

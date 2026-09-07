@@ -46,7 +46,11 @@ class AppResponsiveLayout extends StatelessWidget {
           title: Row(
             children: [
               if (items.isNotEmpty && selectedIndex < items.length) ...[
-                Icon(items[selectedIndex].icon, size: 22, color: headerColor ?? AppTheme.red),
+                Icon(
+                  items[selectedIndex].icon,
+                  size: 22,
+                  color: headerColor ?? AppTheme.red,
+                ),
                 const SizedBox(width: 8),
               ],
               Expanded(
@@ -106,10 +110,7 @@ class AppResponsiveLayout extends StatelessWidget {
             sidebarSearchWidgetBuilder: sidebarSearchWidgetBuilder,
           ),
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: body,
-            ),
+            child: Padding(padding: const EdgeInsets.all(16.0), child: body),
           ),
         ],
       ),
@@ -147,9 +148,7 @@ class AppBottomNavBar extends StatelessWidget {
             offset: const Offset(0, -2),
           ),
         ],
-        border: const Border(
-          top: BorderSide(color: AppTheme.line, width: 1),
-        ),
+        border: const Border(top: BorderSide(color: AppTheme.line, width: 1)),
       ),
       child: SafeArea(
         child: isScrollable
@@ -212,10 +211,15 @@ class AppBottomNavBar extends StatelessWidget {
             vertical: 8,
           ),
           decoration: BoxDecoration(
-            color: isSelected ? activeColor.withValues(alpha: 0.12) : Colors.transparent,
+            color: isSelected
+                ? activeColor.withValues(alpha: 0.12)
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
             border: isSelected
-                ? Border.all(color: activeColor.withValues(alpha: 0.3), width: 1)
+                ? Border.all(
+                    color: activeColor.withValues(alpha: 0.3),
+                    width: 1,
+                  )
                 : Border.all(color: Colors.transparent, width: 1),
           ),
           child: Column(
@@ -234,7 +238,10 @@ class AppBottomNavBar extends StatelessWidget {
                       top: -2,
                       right: -6,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 1,
+                        ),
                         decoration: BoxDecoration(
                           color: item.badgeColor ?? AppTheme.mustard,
                           borderRadius: BorderRadius.circular(8),

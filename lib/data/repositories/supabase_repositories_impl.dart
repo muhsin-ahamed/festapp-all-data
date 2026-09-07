@@ -25,12 +25,19 @@ Future<dynamic> _safeInsert(String table, Map<String, dynamic> data) async {
   return await _client.from(table).insert(data).select();
 }
 
-Future<void> _safeInsertBatch(String table, List<Map<String, dynamic>> dataList) async {
+Future<void> _safeInsertBatch(
+  String table,
+  List<Map<String, dynamic>> dataList,
+) async {
   if (dataList.isEmpty) return;
   await _client.from(table).insert(dataList);
 }
 
-Future<dynamic> _safeUpdate(String table, Map<String, dynamic> data, String id) async {
+Future<dynamic> _safeUpdate(
+  String table,
+  Map<String, dynamic> data,
+  String id,
+) async {
   return await _client.from(table).update(data).eq('id', id).select();
 }
 
@@ -44,7 +51,9 @@ class SupabaseStudentRepository implements StudentRepository {
   @override
   Future<List<Student>> getStudents() async {
     final res = await _client.from(_table).select();
-    return (res as List).map((e) => Student.fromMap(e as Map<String, dynamic>)).toList();
+    return (res as List)
+        .map((e) => Student.fromMap(e as Map<String, dynamic>))
+        .toList();
   }
 
   @override
@@ -55,20 +64,31 @@ class SupabaseStudentRepository implements StudentRepository {
 
   @override
   Future<Student?> getByChaseNumber(String chaseNumber) async {
-    final res = await _client.from(_table).select().or('chaseNumber.eq.$chaseNumber,chase_number.eq.$chaseNumber').maybeSingle();
+    final res = await _client
+        .from(_table)
+        .select()
+        .or('chaseNumber.eq.$chaseNumber,chase_number.eq.$chaseNumber')
+        .maybeSingle();
     return res != null ? Student.fromMap(res) : null;
   }
 
   @override
   Future<List<Student>> getByTeam(String teamId) async {
-    final res = await _client.from(_table).select().or('teamId.eq.$teamId,team_id.eq.$teamId');
-    return (res as List).map((e) => Student.fromMap(e as Map<String, dynamic>)).toList();
+    final res = await _client
+        .from(_table)
+        .select()
+        .or('teamId.eq.$teamId,team_id.eq.$teamId');
+    return (res as List)
+        .map((e) => Student.fromMap(e as Map<String, dynamic>))
+        .toList();
   }
 
   @override
   Future<List<Student>> getBySection(FestSection section) async {
     final res = await _client.from(_table).select().eq('section', section.name);
-    return (res as List).map((e) => Student.fromMap(e as Map<String, dynamic>)).toList();
+    return (res as List)
+        .map((e) => Student.fromMap(e as Map<String, dynamic>))
+        .toList();
   }
 
   @override
@@ -100,7 +120,9 @@ class SupabaseTeamRepository implements TeamRepository {
   @override
   Future<List<Team>> getTeams() async {
     final res = await _client.from(_table).select();
-    return (res as List).map((e) => Team.fromMap(e as Map<String, dynamic>)).toList();
+    return (res as List)
+        .map((e) => Team.fromMap(e as Map<String, dynamic>))
+        .toList();
   }
 
   @override
@@ -111,7 +133,11 @@ class SupabaseTeamRepository implements TeamRepository {
 
   @override
   Future<Team?> getByCode(String code) async {
-    final res = await _client.from(_table).select().or('teamCode.eq.$code,team_code.eq.$code').maybeSingle();
+    final res = await _client
+        .from(_table)
+        .select()
+        .or('teamCode.eq.$code,team_code.eq.$code')
+        .maybeSingle();
     return res != null ? Team.fromMap(res) : null;
   }
 
@@ -144,7 +170,9 @@ class SupabaseTeamLeaderRepository implements TeamLeaderRepository {
   @override
   Future<List<TeamLeader>> getLeaders() async {
     final res = await _client.from(_table).select();
-    return (res as List).map((e) => TeamLeader.fromMap(e as Map<String, dynamic>)).toList();
+    return (res as List)
+        .map((e) => TeamLeader.fromMap(e as Map<String, dynamic>))
+        .toList();
   }
 
   @override
@@ -155,13 +183,21 @@ class SupabaseTeamLeaderRepository implements TeamLeaderRepository {
 
   @override
   Future<TeamLeader?> getByUsername(String username) async {
-    final res = await _client.from(_table).select().eq('username', username).maybeSingle();
+    final res = await _client
+        .from(_table)
+        .select()
+        .eq('username', username)
+        .maybeSingle();
     return res != null ? TeamLeader.fromMap(res) : null;
   }
 
   @override
   Future<TeamLeader?> getByTeamId(String teamId) async {
-    final res = await _client.from(_table).select().eq('teamId', teamId).maybeSingle();
+    final res = await _client
+        .from(_table)
+        .select()
+        .eq('teamId', teamId)
+        .maybeSingle();
     return res != null ? TeamLeader.fromMap(res) : null;
   }
 
@@ -187,7 +223,9 @@ class SupabaseProgramRepository implements ProgramRepository {
   @override
   Future<List<Program>> getPrograms() async {
     final res = await _client.from(_table).select();
-    return (res as List).map((e) => Program.fromMap(e as Map<String, dynamic>)).toList();
+    return (res as List)
+        .map((e) => Program.fromMap(e as Map<String, dynamic>))
+        .toList();
   }
 
   @override
@@ -198,14 +236,20 @@ class SupabaseProgramRepository implements ProgramRepository {
 
   @override
   Future<Program?> getByCode(String code) async {
-    final res = await _client.from(_table).select().or('programCode.eq.$code,program_code.eq.$code').maybeSingle();
+    final res = await _client
+        .from(_table)
+        .select()
+        .or('programCode.eq.$code,program_code.eq.$code')
+        .maybeSingle();
     return res != null ? Program.fromMap(res) : null;
   }
 
   @override
   Future<List<Program>> getBySection(FestSection section) async {
     final res = await _client.from(_table).select().eq('section', section.name);
-    return (res as List).map((e) => Program.fromMap(e as Map<String, dynamic>)).toList();
+    return (res as List)
+        .map((e) => Program.fromMap(e as Map<String, dynamic>))
+        .toList();
   }
 
   @override
@@ -237,29 +281,40 @@ class SupabaseRegistrationRepository implements RegistrationRepository {
   @override
   Future<List<Registration>> getRegistrations() async {
     final res = await _client.from(_table).select();
-    return (res as List).map((e) => Registration.fromMap(e as Map<String, dynamic>)).toList();
+    return (res as List)
+        .map((e) => Registration.fromMap(e as Map<String, dynamic>))
+        .toList();
   }
 
   @override
   Future<List<Registration>> getByStudent(String studentId) async {
     final res = await _client.from(_table).select().eq('studentId', studentId);
-    return (res as List).map((e) => Registration.fromMap(e as Map<String, dynamic>)).toList();
+    return (res as List)
+        .map((e) => Registration.fromMap(e as Map<String, dynamic>))
+        .toList();
   }
 
   @override
   Future<List<Registration>> getByProgram(String programId) async {
     final res = await _client.from(_table).select().eq('programId', programId);
-    return (res as List).map((e) => Registration.fromMap(e as Map<String, dynamic>)).toList();
+    return (res as List)
+        .map((e) => Registration.fromMap(e as Map<String, dynamic>))
+        .toList();
   }
 
   @override
   Future<List<Registration>> getByTeam(String teamId) async {
     final res = await _client.from(_table).select().eq('teamId', teamId);
-    return (res as List).map((e) => Registration.fromMap(e as Map<String, dynamic>)).toList();
+    return (res as List)
+        .map((e) => Registration.fromMap(e as Map<String, dynamic>))
+        .toList();
   }
 
   @override
-  Future<Registration?> getByStudentAndProgram(String studentId, String programId) async {
+  Future<Registration?> getByStudentAndProgram(
+    String studentId,
+    String programId,
+  ) async {
     final res = await _client
         .from(_table)
         .select()
@@ -291,31 +346,44 @@ class SupabaseResultRepository implements ResultRepository {
   @override
   Future<List<Result>> getResults() async {
     final res = await _client.from(_table).select();
-    return (res as List).map((e) => Result.fromMap(e as Map<String, dynamic>)).toList();
+    return (res as List)
+        .map((e) => Result.fromMap(e as Map<String, dynamic>))
+        .toList();
   }
 
   @override
   Future<List<Result>> getPublishedResults() async {
-    final res = await _client.from(_table).select().eq('status', ResultStatus.published.name);
-    return (res as List).map((e) => Result.fromMap(e as Map<String, dynamic>)).toList();
+    final res = await _client
+        .from(_table)
+        .select()
+        .eq('status', ResultStatus.published.name);
+    return (res as List)
+        .map((e) => Result.fromMap(e as Map<String, dynamic>))
+        .toList();
   }
 
   @override
   Future<List<Result>> getByProgram(String programId) async {
     final res = await _client.from(_table).select().eq('programId', programId);
-    return (res as List).map((e) => Result.fromMap(e as Map<String, dynamic>)).toList();
+    return (res as List)
+        .map((e) => Result.fromMap(e as Map<String, dynamic>))
+        .toList();
   }
 
   @override
   Future<List<Result>> getByStudent(String studentId) async {
     final res = await _client.from(_table).select().eq('studentId', studentId);
-    return (res as List).map((e) => Result.fromMap(e as Map<String, dynamic>)).toList();
+    return (res as List)
+        .map((e) => Result.fromMap(e as Map<String, dynamic>))
+        .toList();
   }
 
   @override
   Future<List<Result>> getByTeam(String teamId) async {
     final res = await _client.from(_table).select().eq('teamId', teamId);
-    return (res as List).map((e) => Result.fromMap(e as Map<String, dynamic>)).toList();
+    return (res as List)
+        .map((e) => Result.fromMap(e as Map<String, dynamic>))
+        .toList();
   }
 
   @override
@@ -348,7 +416,9 @@ class SupabaseVenueRepository implements VenueRepository {
   Future<List<Venue>> getVenues() async {
     try {
       final res = await _client.from(_table).select();
-      final items = (res as List).map((e) => Venue.fromMap(e as Map<String, dynamic>)).toList();
+      final items = (res as List)
+          .map((e) => Venue.fromMap(e as Map<String, dynamic>))
+          .toList();
       if (items.isNotEmpty) return items;
     } catch (_) {}
     return List.from(_localVenues);
@@ -357,7 +427,11 @@ class SupabaseVenueRepository implements VenueRepository {
   @override
   Future<Venue?> getById(String id) async {
     try {
-      final res = await _client.from(_table).select().eq('id', id).maybeSingle();
+      final res = await _client
+          .from(_table)
+          .select()
+          .eq('id', id)
+          .maybeSingle();
       if (res != null) return Venue.fromMap(res);
     } catch (_) {}
     try {
@@ -421,7 +495,9 @@ class SupabaseScheduleRepository implements ScheduleRepository {
   Future<List<Schedule>> getSchedules() async {
     try {
       final res = await _client.from(_table).select();
-      final items = (res as List).map((e) => Schedule.fromMap(e as Map<String, dynamic>)).toList();
+      final items = (res as List)
+          .map((e) => Schedule.fromMap(e as Map<String, dynamic>))
+          .toList();
       if (items.isNotEmpty) return items;
     } catch (_) {}
     return List.from(_localSchedules);
@@ -430,7 +506,11 @@ class SupabaseScheduleRepository implements ScheduleRepository {
   @override
   Future<Schedule?> getById(String id) async {
     try {
-      final res = await _client.from(_table).select().eq('id', id).maybeSingle();
+      final res = await _client
+          .from(_table)
+          .select()
+          .eq('id', id)
+          .maybeSingle();
       if (res != null) return Schedule.fromMap(res);
     } catch (_) {}
     try {
@@ -444,7 +524,9 @@ class SupabaseScheduleRepository implements ScheduleRepository {
   Future<List<Schedule>> getByVenue(String venueId) async {
     try {
       final res = await _client.from(_table).select().eq('venueId', venueId);
-      final items = (res as List).map((e) => Schedule.fromMap(e as Map<String, dynamic>)).toList();
+      final items = (res as List)
+          .map((e) => Schedule.fromMap(e as Map<String, dynamic>))
+          .toList();
       if (items.isNotEmpty) return items;
     } catch (_) {}
     return _localSchedules.where((s) => s.venueId == venueId).toList();
@@ -502,7 +584,9 @@ class SupabaseJuryRepository implements JuryRepository {
   @override
   Future<List<Jury>> getJuries() async {
     final res = await _client.from(_table).select();
-    return (res as List).map((e) => Jury.fromMap(e as Map<String, dynamic>)).toList();
+    return (res as List)
+        .map((e) => Jury.fromMap(e as Map<String, dynamic>))
+        .toList();
   }
 
   @override
@@ -513,7 +597,11 @@ class SupabaseJuryRepository implements JuryRepository {
 
   @override
   Future<Jury?> getByUsername(String username) async {
-    final res = await _client.from(_table).select().eq('username', username).maybeSingle();
+    final res = await _client
+        .from(_table)
+        .select()
+        .eq('username', username)
+        .maybeSingle();
     return res != null ? Jury.fromMap(res) : null;
   }
 
@@ -539,7 +627,9 @@ class SupabaseAnnouncementRepository implements AnnouncementRepository {
   @override
   Future<List<Announcement>> getAnnouncements() async {
     final res = await _client.from(_table).select();
-    return (res as List).map((e) => Announcement.fromMap(e as Map<String, dynamic>)).toList();
+    return (res as List)
+        .map((e) => Announcement.fromMap(e as Map<String, dynamic>))
+        .toList();
   }
 
   @override
@@ -579,13 +669,19 @@ class SupabaseUserRepository implements UserRepository {
   @override
   Future<List<User>> getUsers() async {
     final res = await _client.from(_table).select();
-    return (res as List).map((e) => User.fromMap(e as Map<String, dynamic>)).toList();
+    return (res as List)
+        .map((e) => User.fromMap(e as Map<String, dynamic>))
+        .toList();
   }
 
   @override
   Future<User?> getByUsername(String username) async {
     final clean = username.trim();
-    final res = await _client.from(_table).select().ilike('username', clean).maybeSingle();
+    final res = await _client
+        .from(_table)
+        .select()
+        .ilike('username', clean)
+        .maybeSingle();
     return res != null ? User.fromMap(res) : null;
   }
 
@@ -606,7 +702,9 @@ class SupabaseAuditLogRepository implements AuditLogRepository {
   @override
   Future<List<AuditLog>> getLogs() async {
     final res = await _client.from(_table).select();
-    return (res as List).map((e) => AuditLog.fromMap(e as Map<String, dynamic>)).toList();
+    return (res as List)
+        .map((e) => AuditLog.fromMap(e as Map<String, dynamic>))
+        .toList();
   }
 
   @override

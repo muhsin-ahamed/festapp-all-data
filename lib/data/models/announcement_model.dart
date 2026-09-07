@@ -62,8 +62,12 @@ class Announcement {
       title: map['title'] ?? '',
       message: map['message'] ?? '',
       status: map['status'] ?? 'ANNOUNCED',
-      createdAt: map['createdAt'] != null ? DateTime.parse(map['createdAt']) : DateTime.now(),
-      announcedAt: map['announcedAt'] != null ? DateTime.parse(map['announcedAt']) : null,
+      createdAt: map['createdAt'] != null
+          ? DateTime.parse(map['createdAt'])
+          : DateTime.now(),
+      announcedAt: map['announcedAt'] != null
+          ? DateTime.parse(map['announcedAt'])
+          : null,
     );
   }
 }

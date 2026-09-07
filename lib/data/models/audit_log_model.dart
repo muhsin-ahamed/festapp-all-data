@@ -45,7 +45,9 @@ class AuditLog {
       entityId: map['entityId'] ?? '',
       oldValue: map['oldValue'],
       newValue: map['newValue'],
-      timestamp: map['timestamp'] != null ? DateTime.parse(map['timestamp']) : DateTime.now(),
+      timestamp: map['timestamp'] != null
+          ? DateTime.parse(map['timestamp'])
+          : DateTime.now(),
     );
   }
 }

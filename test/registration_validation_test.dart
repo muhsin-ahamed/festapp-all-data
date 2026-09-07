@@ -23,10 +23,14 @@ void main() {
       expect(canRegister, isFalse);
     });
 
-    test('General program does not consume section stage/non-stage slot limits', () {
-      bool canRegister(bool isGen, int count) => isGen ? true : count < AppConstants.maxNonStagePerStudent;
-      expect(canRegister(true, 4), isTrue);
-      expect(canRegister(false, 4), isFalse);
-    });
+    test(
+      'General program does not consume section stage/non-stage slot limits',
+      () {
+        bool canRegister(bool isGen, int count) =>
+            isGen ? true : count < AppConstants.maxNonStagePerStudent;
+        expect(canRegister(true, 4), isTrue);
+        expect(canRegister(false, 4), isFalse);
+      },
+    );
   });
 }

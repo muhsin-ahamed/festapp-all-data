@@ -61,7 +61,10 @@ abstract class RegistrationRepository {
   Future<List<Registration>> getByStudent(String studentId);
   Future<List<Registration>> getByProgram(String programId);
   Future<List<Registration>> getByTeam(String teamId);
-  Future<Registration?> getByStudentAndProgram(String studentId, String programId);
+  Future<Registration?> getByStudentAndProgram(
+    String studentId,
+    String programId,
+  );
   Future<void> addRegistration(Registration reg);
   Future<void> updateRegistration(Registration reg);
   Future<void> deleteRegistration(String id);

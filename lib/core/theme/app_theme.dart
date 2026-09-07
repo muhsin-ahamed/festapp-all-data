@@ -25,10 +25,9 @@ class AppTheme {
   static const Color lightSurface = cream2;
 
   static ThemeData get lightTheme {
-    final baseTextTheme = GoogleFonts.workSansTextTheme(ThemeData.light().textTheme).apply(
-      bodyColor: ink,
-      displayColor: ink,
-    );
+    final baseTextTheme = GoogleFonts.workSansTextTheme(
+      ThemeData.light().textTheme,
+    ).apply(bodyColor: ink, displayColor: ink);
 
     return ThemeData(
       useMaterial3: true,
@@ -44,12 +43,36 @@ class AppTheme {
         onSurface: ink,
       ),
       textTheme: baseTextTheme.copyWith(
-        displayLarge: GoogleFonts.rye(color: ink, fontSize: 32, fontWeight: FontWeight.bold),
-        displayMedium: GoogleFonts.rye(color: ink, fontSize: 28, fontWeight: FontWeight.bold),
-        displaySmall: GoogleFonts.rye(color: ink, fontSize: 22, fontWeight: FontWeight.bold),
-        headlineMedium: GoogleFonts.rye(color: ink, fontSize: 20, fontWeight: FontWeight.bold),
-        titleLarge: GoogleFonts.rye(color: ink, fontSize: 18, fontWeight: FontWeight.bold),
-        titleMedium: GoogleFonts.workSans(color: ink, fontSize: 16, fontWeight: FontWeight.w700),
+        displayLarge: GoogleFonts.rye(
+          color: ink,
+          fontSize: 32,
+          fontWeight: FontWeight.bold,
+        ),
+        displayMedium: GoogleFonts.rye(
+          color: ink,
+          fontSize: 28,
+          fontWeight: FontWeight.bold,
+        ),
+        displaySmall: GoogleFonts.rye(
+          color: ink,
+          fontSize: 22,
+          fontWeight: FontWeight.bold,
+        ),
+        headlineMedium: GoogleFonts.rye(
+          color: ink,
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
+        titleLarge: GoogleFonts.rye(
+          color: ink,
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+        titleMedium: GoogleFonts.workSans(
+          color: ink,
+          fontSize: 16,
+          fontWeight: FontWeight.w700,
+        ),
         bodyLarge: GoogleFonts.workSans(color: ink, fontSize: 14),
         bodyMedium: GoogleFonts.workSans(color: inkSoft, fontSize: 13),
       ),
@@ -67,12 +90,19 @@ class AppTheme {
         scrolledUnderElevation: 0,
         centerTitle: false,
         iconTheme: const IconThemeData(color: ink),
-        titleTextStyle: GoogleFonts.rye(color: ink, fontSize: 20, fontWeight: FontWeight.bold),
+        titleTextStyle: GoogleFonts.rye(
+          color: ink,
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: cream,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 12,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(color: line),
@@ -89,7 +119,10 @@ class AppTheme {
           borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(color: Colors.redAccent),
         ),
-        hintStyle: GoogleFonts.workSans(color: const Color(0xFF8A7E6C), fontSize: 13),
+        hintStyle: GoogleFonts.workSans(
+          color: const Color(0xFF8A7E6C),
+          fontSize: 13,
+        ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -100,7 +133,11 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
           ),
-          textStyle: GoogleFonts.workSans(fontWeight: FontWeight.w800, fontSize: 14, letterSpacing: 0.3),
+          textStyle: GoogleFonts.workSans(
+            fontWeight: FontWeight.w800,
+            fontSize: 14,
+            letterSpacing: 0.3,
+          ),
         ),
       ),
       chipTheme: ChipThemeData(
@@ -108,8 +145,16 @@ class AppTheme {
         selectedColor: red,
         secondarySelectedColor: red,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        labelStyle: GoogleFonts.workSans(color: ink, fontWeight: FontWeight.w700, fontSize: 12),
-        secondaryLabelStyle: GoogleFonts.workSans(color: cream, fontWeight: FontWeight.w700, fontSize: 12),
+        labelStyle: GoogleFonts.workSans(
+          color: ink,
+          fontWeight: FontWeight.w700,
+          fontSize: 12,
+        ),
+        secondaryLabelStyle: GoogleFonts.workSans(
+          color: cream,
+          fontWeight: FontWeight.w700,
+          fontSize: 12,
+        ),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
           side: const BorderSide(color: ink, width: 1.5),
@@ -120,10 +165,9 @@ class AppTheme {
 
   static ThemeData get darkTheme {
     // For dark pages like Login Screen or TV view in dark mode
-    final baseTextTheme = GoogleFonts.workSansTextTheme(ThemeData.dark().textTheme).apply(
-      bodyColor: cream,
-      displayColor: cream,
-    );
+    final baseTextTheme = GoogleFonts.workSansTextTheme(
+      ThemeData.dark().textTheme,
+    ).apply(bodyColor: cream, displayColor: cream);
 
     return ThemeData(
       useMaterial3: true,
@@ -139,11 +183,31 @@ class AppTheme {
         onSurface: cream,
       ),
       textTheme: baseTextTheme.copyWith(
-        displayLarge: GoogleFonts.rye(color: cream, fontSize: 32, fontWeight: FontWeight.bold),
-        displayMedium: GoogleFonts.rye(color: cream, fontSize: 28, fontWeight: FontWeight.bold),
-        displaySmall: GoogleFonts.rye(color: cream, fontSize: 22, fontWeight: FontWeight.bold),
-        headlineMedium: GoogleFonts.rye(color: cream, fontSize: 20, fontWeight: FontWeight.bold),
-        titleLarge: GoogleFonts.rye(color: cream, fontSize: 18, fontWeight: FontWeight.bold),
+        displayLarge: GoogleFonts.rye(
+          color: cream,
+          fontSize: 32,
+          fontWeight: FontWeight.bold,
+        ),
+        displayMedium: GoogleFonts.rye(
+          color: cream,
+          fontSize: 28,
+          fontWeight: FontWeight.bold,
+        ),
+        displaySmall: GoogleFonts.rye(
+          color: cream,
+          fontSize: 22,
+          fontWeight: FontWeight.bold,
+        ),
+        headlineMedium: GoogleFonts.rye(
+          color: cream,
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
+        titleLarge: GoogleFonts.rye(
+          color: cream,
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
       ),
       cardTheme: CardThemeData(
         color: cream,
@@ -159,7 +223,11 @@ class AppTheme {
         scrolledUnderElevation: 0,
         centerTitle: false,
         iconTheme: const IconThemeData(color: cream),
-        titleTextStyle: GoogleFonts.rye(color: cream, fontSize: 20, fontWeight: FontWeight.bold),
+        titleTextStyle: GoogleFonts.rye(
+          color: cream,
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }

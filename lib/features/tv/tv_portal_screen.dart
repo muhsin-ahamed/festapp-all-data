@@ -24,7 +24,9 @@ class TvPortalScreen extends ConsumerWidget {
     final studentsAsync = ref.watch(studentsProvider);
 
     final announcements = announcementsAsync.value ?? [];
-    final activeAnnouncement = announcements.isNotEmpty ? announcements.first : null;
+    final activeAnnouncement = announcements.isNotEmpty
+        ? announcements.first
+        : null;
 
     final screenWidth = MediaQuery.of(context).size.width;
     final isCompact = screenWidth < 700;
@@ -38,7 +40,14 @@ class TvPortalScreen extends ConsumerWidget {
             duration: const Duration(milliseconds: 800),
             child: tvService.currentSlideIndex == 0
                 ? _buildTvScoreboardScreen(context, teamsAsync, isCompact)
-                : _buildTvResultsScreen(context, publishedResultsAsync, programsAsync, teamsAsync, studentsAsync, isCompact),
+                : _buildTvResultsScreen(
+                    context,
+                    publishedResultsAsync,
+                    programsAsync,
+                    teamsAsync,
+                    studentsAsync,
+                    isCompact,
+                  ),
           ),
 
           // Top Pattern Strip & Header Bar
@@ -50,7 +59,10 @@ class TvPortalScreen extends ConsumerWidget {
               children: [
                 const PatternStrip(height: 10),
                 Padding(
-                  padding: EdgeInsets.symmetric(horizontal: isCompact ? 20 : 40, vertical: isCompact ? 14 : 22),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isCompact ? 20 : 40,
+                    vertical: isCompact ? 14 : 22,
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -66,12 +78,21 @@ class TvPortalScreen extends ConsumerWidget {
                                 children: [
                                   Text(
                                     'Askesis Art Fest \'26',
-                                    style: GoogleFonts.rye(fontSize: isCompact ? 20 : 32, color: AppTheme.cream, letterSpacing: 1.0),
+                                    style: GoogleFonts.rye(
+                                      fontSize: isCompact ? 20 : 32,
+                                      color: AppTheme.cream,
+                                      letterSpacing: 1.0,
+                                    ),
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   Text(
                                     'LIVE DISPLAY PORTAL',
-                                    style: GoogleFonts.workSans(fontSize: isCompact ? 11 : 13, fontWeight: FontWeight.w800, color: AppTheme.mustard, letterSpacing: 2.0),
+                                    style: GoogleFonts.workSans(
+                                      fontSize: isCompact ? 11 : 13,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppTheme.mustard,
+                                      letterSpacing: 2.0,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -80,7 +101,10 @@ class TvPortalScreen extends ConsumerWidget {
                         ),
                       ),
                       Container(
-                        padding: EdgeInsets.symmetric(horizontal: isCompact ? 12 : 20, vertical: isCompact ? 8 : 10),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isCompact ? 12 : 20,
+                          vertical: isCompact ? 8 : 10,
+                        ),
                         decoration: BoxDecoration(
                           color: AppTheme.red,
                           borderRadius: BorderRadius.circular(24),
@@ -94,9 +118,21 @@ class TvPortalScreen extends ConsumerWidget {
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.fiber_manual_record, color: AppTheme.cream, size: 14),
+                            const Icon(
+                              Icons.fiber_manual_record,
+                              color: AppTheme.cream,
+                              size: 14,
+                            ),
                             const SizedBox(width: 8),
-                            Text('LIVE', style: GoogleFonts.workSans(color: AppTheme.cream, fontWeight: FontWeight.w900, fontSize: isCompact ? 12 : 14, letterSpacing: 1.2)),
+                            Text(
+                              'LIVE',
+                              style: GoogleFonts.workSans(
+                                color: AppTheme.cream,
+                                fontWeight: FontWeight.w900,
+                                fontSize: isCompact ? 12 : 14,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -115,13 +151,19 @@ class TvPortalScreen extends ConsumerWidget {
               right: isCompact ? 20 : 40,
               child: Card(
                 color: AppTheme.red,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
                 elevation: 12,
                 child: Padding(
                   padding: EdgeInsets.all(isCompact ? 20.0 : 28.0),
                   child: Row(
                     children: [
-                      const Icon(Icons.campaign, color: AppTheme.mustard, size: 44),
+                      const Icon(
+                        Icons.campaign,
+                        color: AppTheme.mustard,
+                        size: 44,
+                      ),
                       const SizedBox(width: 18),
                       Expanded(
                         child: Column(
@@ -130,12 +172,19 @@ class TvPortalScreen extends ConsumerWidget {
                           children: [
                             Text(
                               activeAnnouncement.title,
-                              style: GoogleFonts.rye(fontSize: isCompact ? 20 : 26, color: AppTheme.cream),
+                              style: GoogleFonts.rye(
+                                fontSize: isCompact ? 20 : 26,
+                                color: AppTheme.cream,
+                              ),
                             ),
                             const SizedBox(height: 6),
                             Text(
                               activeAnnouncement.message,
-                              style: GoogleFonts.workSans(fontSize: isCompact ? 14 : 18, color: AppTheme.cream.withValues(alpha: 0.95), fontWeight: FontWeight.w500),
+                              style: GoogleFonts.workSans(
+                                fontSize: isCompact ? 14 : 18,
+                                color: AppTheme.cream.withValues(alpha: 0.95),
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ],
                         ),
@@ -152,7 +201,11 @@ class TvPortalScreen extends ConsumerWidget {
   }
 
   // --- SCREEN 1: TV SCOREBOARD ---
-  Widget _buildTvScoreboardScreen(BuildContext context, AsyncValue<List<Team>> teamsAsync, bool isCompact) {
+  Widget _buildTvScoreboardScreen(
+    BuildContext context,
+    AsyncValue<List<Team>> teamsAsync,
+    bool isCompact,
+  ) {
     return Container(
       key: const ValueKey('tv_scoreboard'),
       padding: EdgeInsets.fromLTRB(
@@ -170,13 +223,19 @@ class TvPortalScreen extends ConsumerWidget {
               Expanded(
                 child: Text(
                   'TEAM CHAMPIONSHIP SCOREBOARD',
-                  style: GoogleFonts.rye(fontSize: isCompact ? 20 : 32, color: AppTheme.mustard),
+                  style: GoogleFonts.rye(
+                    fontSize: isCompact ? 20 : 32,
+                    color: AppTheme.mustard,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               const SizedBox(width: 12),
               Container(
-                padding: EdgeInsets.symmetric(horizontal: isCompact ? 12 : 18, vertical: isCompact ? 6 : 9),
+                padding: EdgeInsets.symmetric(
+                  horizontal: isCompact ? 12 : 18,
+                  vertical: isCompact ? 6 : 9,
+                ),
                 decoration: BoxDecoration(
                   color: AppTheme.cream2,
                   borderRadius: BorderRadius.circular(24),
@@ -199,12 +258,19 @@ class TvPortalScreen extends ConsumerWidget {
             child: teamsAsync.when(
               data: (teams) {
                 if (teams.isEmpty) {
-                  return const Center(child: Text('No team scores calculated.', style: TextStyle(color: AppTheme.cream, fontSize: 20)));
+                  return const Center(
+                    child: Text(
+                      'No team scores calculated.',
+                      style: TextStyle(color: AppTheme.cream, fontSize: 20),
+                    ),
+                  );
                 }
 
                 final team1 = teams[0];
                 final team2 = teams.length > 1 ? teams[1] : null;
-                final remainingTeams = teams.length > 2 ? teams.sublist(2) : <Team>[];
+                final remainingTeams = teams.length > 2
+                    ? teams.sublist(2)
+                    : <Team>[];
 
                 return Column(
                   children: [
@@ -243,11 +309,21 @@ class TvPortalScreen extends ConsumerWidget {
                                       : Container(
                                           padding: const EdgeInsets.all(24),
                                           decoration: BoxDecoration(
-                                            color: AppTheme.cream2.withValues(alpha: 0.5),
-                                            borderRadius: BorderRadius.circular(28),
+                                            color: AppTheme.cream2.withValues(
+                                              alpha: 0.5,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              28,
+                                            ),
                                           ),
                                           child: const Center(
-                                            child: Text('Awaiting 2nd Team', style: TextStyle(color: AppTheme.inkSoft, fontSize: 18)),
+                                            child: Text(
+                                              'Awaiting 2nd Team',
+                                              style: TextStyle(
+                                                color: AppTheme.inkSoft,
+                                                fontSize: 18,
+                                              ),
+                                            ),
                                           ),
                                         ),
                                 ),
@@ -292,16 +368,25 @@ class TvPortalScreen extends ConsumerWidget {
                             final rank = idx + 3;
                             return Container(
                               margin: const EdgeInsets.only(right: 12),
-                              padding: EdgeInsets.symmetric(horizontal: isCompact ? 14 : 20, vertical: isCompact ? 8 : 12),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: isCompact ? 14 : 20,
+                                vertical: isCompact ? 8 : 12,
+                              ),
                               decoration: BoxDecoration(
                                 color: AppTheme.cream2,
                                 borderRadius: BorderRadius.circular(18),
-                                border: Border.all(color: AppTheme.line, width: 1.2),
+                                border: Border.all(
+                                  color: AppTheme.line,
+                                  width: 1.2,
+                                ),
                               ),
                               child: Row(
                                 children: [
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: AppTheme.ink,
                                       borderRadius: BorderRadius.circular(14),
@@ -343,7 +428,12 @@ class TvPortalScreen extends ConsumerWidget {
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Error: $e', style: const TextStyle(color: AppTheme.cream))),
+              error: (e, _) => Center(
+                child: Text(
+                  'Error: $e',
+                  style: const TextStyle(color: AppTheme.cream),
+                ),
+              ),
             ),
           ),
         ],
@@ -357,7 +447,9 @@ class TvPortalScreen extends ConsumerWidget {
     required bool isLeader,
     required bool isCompact,
   }) {
-    final initials = team.teamName.length >= 2 ? team.teamName.substring(0, 2).toUpperCase() : 'T';
+    final initials = team.teamName.length >= 2
+        ? team.teamName.substring(0, 2).toUpperCase()
+        : 'T';
 
     return Container(
       padding: EdgeInsets.all(isCompact ? 18 : 28),
@@ -408,7 +500,11 @@ class TvPortalScreen extends ConsumerWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           if (isLeader) ...[
-                            const Icon(Icons.emoji_events_rounded, color: AppTheme.ink, size: 22),
+                            const Icon(
+                              Icons.emoji_events_rounded,
+                              color: AppTheme.ink,
+                              size: 22,
+                            ),
                             const SizedBox(width: 8),
                           ],
                           FittedBox(
@@ -460,7 +556,8 @@ class TvPortalScreen extends ConsumerWidget {
                         maxLines: 1,
                       ),
                     ),
-                    if (team.leaderName != null && team.leaderName!.isNotEmpty) ...[
+                    if (team.leaderName != null &&
+                        team.leaderName!.isNotEmpty) ...[
                       const SizedBox(height: 6),
                       FittedBox(
                         fit: BoxFit.scaleDown,
@@ -533,15 +630,29 @@ class TvPortalScreen extends ConsumerWidget {
         children: [
           Text(
             'LATEST PUBLISHED RESULTS',
-            style: GoogleFonts.rye(fontSize: isCompact ? 22 : 32, color: AppTheme.mustard),
+            style: GoogleFonts.rye(
+              fontSize: isCompact ? 22 : 32,
+              color: AppTheme.mustard,
+            ),
           ),
           SizedBox(height: isCompact ? 14 : 22),
           Expanded(
             child: resultsAsync.when(
               data: (results) {
-                final published = results.where((r) => r.status == ResultStatus.published || r.status == ResultStatus.announced).toList();
+                final published = results
+                    .where(
+                      (r) =>
+                          r.status == ResultStatus.published ||
+                          r.status == ResultStatus.announced,
+                    )
+                    .toList();
                 if (published.isEmpty) {
-                  return const Center(child: Text('No published results available yet.', style: TextStyle(color: AppTheme.cream, fontSize: 20)));
+                  return const Center(
+                    child: Text(
+                      'No published results available yet.',
+                      style: TextStyle(color: AppTheme.cream, fontSize: 20),
+                    ),
+                  );
                 }
 
                 final progs = programsAsync.value ?? [];
@@ -577,13 +688,21 @@ class TvPortalScreen extends ConsumerWidget {
                               children: [
                                 Text(
                                   prog?.programName ?? 'Program',
-                                  style: GoogleFonts.workSans(fontSize: isCompact ? 18 : 24, fontWeight: FontWeight.w800, color: AppTheme.ink),
+                                  style: GoogleFonts.workSans(
+                                    fontSize: isCompact ? 18 : 24,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppTheme.ink,
+                                  ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
                                   '$studName ($teamName)',
-                                  style: GoogleFonts.workSans(fontSize: isCompact ? 14 : 18, color: AppTheme.inkSoft, fontWeight: FontWeight.w600),
+                                  style: GoogleFonts.workSans(
+                                    fontSize: isCompact ? 14 : 18,
+                                    color: AppTheme.inkSoft,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ],
@@ -594,7 +713,10 @@ class TvPortalScreen extends ConsumerWidget {
                             fit: BoxFit.scaleDown,
                             child: Text(
                               '${res.position != null ? "${res.position}st Place" : "Grade ${res.grade}"} • ${res.points} PTS',
-                              style: GoogleFonts.rye(fontSize: isCompact ? 16 : 22, color: AppTheme.red),
+                              style: GoogleFonts.rye(
+                                fontSize: isCompact ? 16 : 22,
+                                color: AppTheme.red,
+                              ),
                             ),
                           ),
                         ],
@@ -604,7 +726,12 @@ class TvPortalScreen extends ConsumerWidget {
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Error: $e', style: const TextStyle(color: AppTheme.cream))),
+              error: (e, _) => Center(
+                child: Text(
+                  'Error: $e',
+                  style: const TextStyle(color: AppTheme.cream),
+                ),
+              ),
             ),
           ),
         ],

@@ -7,7 +7,6 @@ import '../theme/app_theme.dart';
 export 'app_sidebar.dart';
 export 'app_responsive_layout.dart';
 
-
 // --- 1. Askesis Crest Clipper & Brand Mark ---
 class AskesisCrestClipper extends CustomClipper<Path> {
   @override
@@ -122,7 +121,12 @@ class ScheduleTabIcon extends StatelessWidget {
             child: const Center(
               child: Text(
                 'JUL',
-                style: TextStyle(fontSize: 3.5, color: Colors.white, fontWeight: FontWeight.bold, height: 1.0),
+                style: TextStyle(
+                  fontSize: 3.5,
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  height: 1.0,
+                ),
               ),
             ),
           ),
@@ -130,7 +134,12 @@ class ScheduleTabIcon extends StatelessWidget {
             child: Center(
               child: Text(
                 '17',
-                style: TextStyle(fontSize: 7.5, color: color, fontWeight: FontWeight.bold, height: 1.0),
+                style: TextStyle(
+                  fontSize: 7.5,
+                  color: color,
+                  fontWeight: FontWeight.bold,
+                  height: 1.0,
+                ),
               ),
             ),
           ),
@@ -151,9 +160,7 @@ class PatternStrip extends StatelessWidget {
     return SizedBox(
       height: height,
       width: double.infinity,
-      child: CustomPaint(
-        painter: PatternStripPainter(),
-      ),
+      child: CustomPaint(painter: PatternStripPainter()),
     );
   }
 }
@@ -181,7 +188,10 @@ class PatternStripPainter extends CustomPainter {
 
     // 3. Solid Olive Green
     final paint3 = Paint()..color = const Color(0xFF6E7B3D);
-    canvas.drawRect(Rect.fromLTWH(blockWidth * 2, 0, blockWidth, size.height), paint3);
+    canvas.drawRect(
+      Rect.fromLTWH(blockWidth * 2, 0, blockWidth, size.height),
+      paint3,
+    );
 
     // 4. Yellow/Green diagonal stripes
     _drawStripedBlock(
@@ -193,10 +203,18 @@ class PatternStripPainter extends CustomPainter {
 
     // 5. Solid Dark Green
     final paint5 = Paint()..color = const Color(0xFF2D4A27);
-    canvas.drawRect(Rect.fromLTWH(blockWidth * 4, 0, blockWidth, size.height), paint5);
+    canvas.drawRect(
+      Rect.fromLTWH(blockWidth * 4, 0, blockWidth, size.height),
+      paint5,
+    );
   }
 
-  void _drawStripedBlock(Canvas canvas, Rect rect, {required Color baseColor, required Color stripeColor}) {
+  void _drawStripedBlock(
+    Canvas canvas,
+    Rect rect, {
+    required Color baseColor,
+    required Color stripeColor,
+  }) {
     canvas.save();
     canvas.clipRect(rect);
     final basePaint = Paint()..color = baseColor;
@@ -208,7 +226,11 @@ class PatternStripPainter extends CustomPainter {
       ..style = PaintingStyle.stroke;
 
     const step = 7.0;
-    for (double x = rect.left - rect.height * 2; x < rect.right + rect.height * 2; x += step) {
+    for (
+      double x = rect.left - rect.height * 2;
+      x < rect.right + rect.height * 2;
+      x += step
+    ) {
       canvas.drawLine(
         Offset(x, rect.bottom),
         Offset(x + rect.height, rect.top),
@@ -251,13 +273,19 @@ class AppButton extends StatelessWidget {
         ? const SizedBox(
             height: 20,
             width: 20,
-            child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.cream),
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: AppTheme.cream,
+            ),
           )
         : Row(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              if (icon != null) ...[Icon(icon, size: 18), const SizedBox(width: 8)],
+              if (icon != null) ...[
+                Icon(icon, size: 18),
+                const SizedBox(width: 8),
+              ],
               Text(
                 label,
                 style: GoogleFonts.workSans(
@@ -272,7 +300,9 @@ class AppButton extends StatelessWidget {
     final style = ElevatedButton.styleFrom(
       backgroundColor: isOutlined ? Colors.transparent : btnColor,
       foregroundColor: isOutlined ? btnColor : AppTheme.cream,
-      side: isOutlined ? BorderSide(color: btnColor, width: 1.5) : BorderSide.none,
+      side: isOutlined
+          ? BorderSide(color: btnColor, width: 1.5)
+          : BorderSide.none,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       elevation: isOutlined ? 0 : 2,
@@ -323,7 +353,11 @@ class AppTextField extends StatelessWidget {
       children: [
         Text(
           label,
-          style: GoogleFonts.workSans(fontWeight: FontWeight.w700, fontSize: 12.5, color: AppTheme.ink),
+          style: GoogleFonts.workSans(
+            fontWeight: FontWeight.w700,
+            fontSize: 12.5,
+            color: AppTheme.ink,
+          ),
         ),
         const SizedBox(height: 6),
         TextFormField(
@@ -338,8 +372,13 @@ class AppTextField extends StatelessWidget {
             hintText: hint,
             filled: true,
             fillColor: AppTheme.cream,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            prefixIcon: prefixIcon != null ? Icon(prefixIcon, size: 18, color: AppTheme.inkSoft) : null,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 12,
+            ),
+            prefixIcon: prefixIcon != null
+                ? Icon(prefixIcon, size: 18, color: AppTheme.inkSoft)
+                : null,
             suffixIcon: suffixIcon,
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
@@ -378,7 +417,11 @@ class AppDropdown<T> extends StatelessWidget {
       children: [
         Text(
           label,
-          style: GoogleFonts.workSans(fontWeight: FontWeight.w700, fontSize: 12.5, color: AppTheme.ink),
+          style: GoogleFonts.workSans(
+            fontWeight: FontWeight.w700,
+            fontSize: 12.5,
+            color: AppTheme.ink,
+          ),
         ),
         const SizedBox(height: 6),
         DropdownButtonFormField<T>(
@@ -386,12 +429,19 @@ class AppDropdown<T> extends StatelessWidget {
           items: items,
           onChanged: onChanged,
           dropdownColor: AppTheme.cream,
-          style: GoogleFonts.workSans(color: AppTheme.ink, fontSize: 13.5, fontWeight: FontWeight.w600),
+          style: GoogleFonts.workSans(
+            color: AppTheme.ink,
+            fontSize: 13.5,
+            fontWeight: FontWeight.w600,
+          ),
           borderRadius: BorderRadius.circular(12),
           decoration: InputDecoration(
             filled: true,
             fillColor: AppTheme.cream,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 12,
+            ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide: const BorderSide(color: AppTheme.line),
@@ -479,7 +529,11 @@ class StatCard extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: GoogleFonts.workSans(fontSize: 11, color: AppTheme.inkSoft, fontWeight: FontWeight.w600),
+                  style: GoogleFonts.workSans(
+                    fontSize: 11,
+                    color: AppTheme.inkSoft,
+                    fontWeight: FontWeight.w600,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -525,7 +579,10 @@ class SectionSelector extends StatelessWidget {
               onTap: () => onSelected(sec),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: isSelected ? AppTheme.red : Colors.transparent,
                   borderRadius: BorderRadius.circular(20),
@@ -575,7 +632,10 @@ class SearchBarWidget extends StatelessWidget {
         filled: true,
         fillColor: AppTheme.cream,
         prefixIcon: const Icon(Icons.search, size: 20, color: AppTheme.inkSoft),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(color: AppTheme.line),
@@ -594,11 +654,7 @@ class VsScoreboardWidget extends StatelessWidget {
   final Map<String, dynamic>? leaderTeam;
   final Map<String, dynamic>? runnerTeam;
 
-  const VsScoreboardWidget({
-    super.key,
-    this.leaderTeam,
-    this.runnerTeam,
-  });
+  const VsScoreboardWidget({super.key, this.leaderTeam, this.runnerTeam});
 
   @override
   Widget build(BuildContext context) {
@@ -668,7 +724,9 @@ class VsScoreboardWidget extends StatelessWidget {
           )
         : null;
 
-    final initials = teamName.length >= 2 ? teamName.substring(0, 2).toUpperCase() : 'T';
+    final initials = teamName.length >= 2
+        ? teamName.substring(0, 2).toUpperCase()
+        : 'T';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
@@ -713,7 +771,11 @@ class VsScoreboardWidget extends StatelessWidget {
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.workSans(fontWeight: FontWeight.w800, fontSize: 12.5, color: AppTheme.ink),
+            style: GoogleFonts.workSans(
+              fontWeight: FontWeight.w800,
+              fontSize: 12.5,
+              color: AppTheme.ink,
+            ),
           ),
           const SizedBox(height: 2),
           Text(
@@ -721,7 +783,10 @@ class VsScoreboardWidget extends StatelessWidget {
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.workSans(fontSize: 10.5, color: AppTheme.inkSoft),
+            style: GoogleFonts.workSans(
+              fontSize: 10.5,
+              color: AppTheme.inkSoft,
+            ),
           ),
           const SizedBox(height: 10),
           Text(
@@ -774,11 +839,15 @@ class TeamScoreCard extends StatelessWidget {
     if (rank == 2) rankColor = const Color(0xFF9C9484);
     if (rank == 3) rankColor = const Color(0xFFB4703A);
 
-    final leaderText = (leaderName != null && leaderName!.isNotEmpty) ? 'Leader: $leaderName' : '';
+    final leaderText = (leaderName != null && leaderName!.isNotEmpty)
+        ? 'Leader: $leaderName'
+        : '';
 
     return AppCard(
       color: isHighlight ? const Color(0xFFFBF3DE) : AppTheme.cream2,
-      border: isHighlight ? Border.all(color: AppTheme.mustard, width: 1.5) : Border.all(color: AppTheme.line),
+      border: isHighlight
+          ? Border.all(color: AppTheme.mustard, width: 1.5)
+          : Border.all(color: AppTheme.line),
       child: Row(
         children: [
           Container(
@@ -805,12 +874,20 @@ class TeamScoreCard extends StatelessWidget {
               children: [
                 Text(
                   teamName,
-                  style: GoogleFonts.workSans(fontWeight: FontWeight.w800, fontSize: 14.5, color: AppTheme.ink),
+                  style: GoogleFonts.workSans(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14.5,
+                    color: AppTheme.ink,
+                  ),
                 ),
                 if (leaderText.isNotEmpty)
                   Text(
                     leaderText,
-                    style: GoogleFonts.workSans(fontSize: 11.5, color: AppTheme.inkSoft, fontWeight: FontWeight.w600),
+                    style: GoogleFonts.workSans(
+                      fontSize: 11.5,
+                      color: AppTheme.inkSoft,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
               ],
             ),
@@ -820,11 +897,19 @@ class TeamScoreCard extends StatelessWidget {
             children: [
               Text(
                 '$points',
-                style: GoogleFonts.rye(fontSize: 22, color: isHighlight ? AppTheme.red : AppTheme.ink),
+                style: GoogleFonts.rye(
+                  fontSize: 22,
+                  color: isHighlight ? AppTheme.red : AppTheme.ink,
+                ),
               ),
               Text(
                 'PTS',
-                style: GoogleFonts.workSans(fontSize: 9.5, fontWeight: FontWeight.w800, color: AppTheme.inkSoft, letterSpacing: 1.2),
+                style: GoogleFonts.workSans(
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.inkSoft,
+                  letterSpacing: 1.2,
+                ),
               ),
             ],
           ),
@@ -870,13 +955,20 @@ class ResultCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   programName,
-                  style: GoogleFonts.workSans(fontSize: 15, fontWeight: FontWeight.w800, color: AppTheme.ink),
+                  style: GoogleFonts.workSans(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.ink,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: AppTheme.cream,
                   border: Border.all(color: AppTheme.line),
@@ -884,7 +976,11 @@ class ResultCard extends StatelessWidget {
                 ),
                 child: Text(
                   section,
-                  style: GoogleFonts.workSans(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.inkSoft),
+                  style: GoogleFonts.workSans(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.inkSoft,
+                  ),
                 ),
               ),
             ],
@@ -1018,7 +1114,11 @@ class StudentQrDisplayDialog extends StatelessWidget {
       title: Text(
         studentName,
         textAlign: TextAlign.center,
-        style: GoogleFonts.rye(fontWeight: FontWeight.bold, color: AppTheme.ink, fontSize: 18),
+        style: GoogleFonts.rye(
+          fontWeight: FontWeight.bold,
+          color: AppTheme.ink,
+          fontSize: 18,
+        ),
       ),
       content: SingleChildScrollView(
         child: Column(
@@ -1026,7 +1126,11 @@ class StudentQrDisplayDialog extends StatelessWidget {
           children: [
             Text(
               'Chase Number: $chaseNumber',
-              style: GoogleFonts.workSans(color: AppTheme.red, fontWeight: FontWeight.bold, fontSize: 14),
+              style: GoogleFonts.workSans(
+                color: AppTheme.red,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
@@ -1052,7 +1156,13 @@ class StudentQrDisplayDialog extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: Text('Close', style: GoogleFonts.workSans(color: AppTheme.red, fontWeight: FontWeight.bold)),
+          child: Text(
+            'Close',
+            style: GoogleFonts.workSans(
+              color: AppTheme.red,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ),
       ],
     );

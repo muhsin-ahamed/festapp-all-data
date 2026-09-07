@@ -59,7 +59,9 @@ class ExcelService {
     List<Student> validStudents = [];
 
     final existingStudents = await studentRepository.getStudents();
-    final existingChaseNumbers = existingStudents.map((s) => s.chaseNumber.trim().toLowerCase()).toSet();
+    final existingChaseNumbers = existingStudents
+        .map((s) => s.chaseNumber.trim().toLowerCase())
+        .toSet();
     final teams = await teamRepository.getTeams();
     final List<Team> newTeamsToSave = [];
 
@@ -71,8 +73,12 @@ class ExcelService {
       try {
         final chaseNumber = row[0]?.value?.toString().trim() ?? '';
         final name = row[1]?.value?.toString().trim() ?? '';
-        final sectionStr = row.length > 2 ? (row[2]?.value?.toString().trim() ?? 'Sub Junior') : 'Sub Junior';
-        final teamStr = row.length > 3 ? (row[3]?.value?.toString().trim() ?? '') : '';
+        final sectionStr = row.length > 2
+            ? (row[2]?.value?.toString().trim() ?? 'Sub Junior')
+            : 'Sub Junior';
+        final teamStr = row.length > 3
+            ? (row[3]?.value?.toString().trim() ?? '')
+            : '';
 
         if (chaseNumber.isEmpty || name.isEmpty) {
           invalid++;
@@ -91,7 +97,8 @@ class ExcelService {
         if (teamStr.isNotEmpty) {
           Team? matched;
           for (final t in teams) {
-            if (t.teamCode.toLowerCase() == teamStr.toLowerCase() || t.teamName.toLowerCase() == teamStr.toLowerCase()) {
+            if (t.teamCode.toLowerCase() == teamStr.toLowerCase() ||
+                t.teamName.toLowerCase() == teamStr.toLowerCase()) {
               matched = t;
               break;
             }
@@ -100,7 +107,8 @@ class ExcelService {
             matched = Team(
               id: 'team_${const Uuid().v4()}',
               teamName: teamStr,
-              teamCode: 'T-${teamStr.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '')}',
+              teamCode:
+                  'T-${teamStr.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '')}',
             );
             teams.add(matched);
             newTeamsToSave.add(matched);
@@ -162,7 +170,9 @@ class ExcelService {
     List<Team> validTeams = [];
 
     final existingTeams = await teamRepository.getTeams();
-    final existingCodes = existingTeams.map((t) => t.teamCode.trim().toLowerCase()).toSet();
+    final existingCodes = existingTeams
+        .map((t) => t.teamCode.trim().toLowerCase())
+        .toSet();
 
     for (int i = 1; i < sheet.maxRows; i++) {
       final row = sheet.row(i);
@@ -171,9 +181,15 @@ class ExcelService {
 
       try {
         final name = row[0]?.value?.toString().trim() ?? '';
-        final mentorName = row.length > 1 ? (row[1]?.value?.toString().trim() ?? '') : '';
-        final leaderName = row.length > 2 ? (row[2]?.value?.toString().trim() ?? '') : '';
-        final assistantLeaderName = row.length > 3 ? (row[3]?.value?.toString().trim() ?? '') : '';
+        final mentorName = row.length > 1
+            ? (row[1]?.value?.toString().trim() ?? '')
+            : '';
+        final leaderName = row.length > 2
+            ? (row[2]?.value?.toString().trim() ?? '')
+            : '';
+        final assistantLeaderName = row.length > 3
+            ? (row[3]?.value?.toString().trim() ?? '')
+            : '';
 
         if (name.isEmpty) {
           invalid++;
@@ -181,7 +197,8 @@ class ExcelService {
           continue;
         }
 
-        final code = 'T-${name.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '')}';
+        final code =
+            'T-${name.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '')}';
 
         if (existingCodes.contains(code.toLowerCase())) {
           duplicate++;
@@ -195,7 +212,9 @@ class ExcelService {
           teamName: name,
           mentorName: mentorName.isNotEmpty ? mentorName : null,
           leaderName: leaderName.isNotEmpty ? leaderName : null,
-          assistantLeaderName: assistantLeaderName.isNotEmpty ? assistantLeaderName : null,
+          assistantLeaderName: assistantLeaderName.isNotEmpty
+              ? assistantLeaderName
+              : null,
         );
 
         validTeams.add(team);
@@ -234,7 +253,9 @@ class ExcelService {
     List<Program> validPrograms = [];
 
     final existingPrograms = await programRepository.getPrograms();
-    final existingCodes = existingPrograms.map((p) => p.programCode.trim().toLowerCase()).toSet();
+    final existingCodes = existingPrograms
+        .map((p) => p.programCode.trim().toLowerCase())
+        .toSet();
     int codeCounter = 101;
 
     for (int i = 1; i < sheet.maxRows; i++) {
@@ -244,8 +265,12 @@ class ExcelService {
 
       try {
         final name = row[0]?.value?.toString().trim() ?? '';
-        final sectionStr = row.length > 1 ? (row[1]?.value?.toString().trim() ?? 'Sub Junior') : 'Sub Junior';
-        final typeStr = row.length > 2 ? (row[2]?.value?.toString().trim() ?? 'Stage') : 'Stage';
+        final sectionStr = row.length > 1
+            ? (row[1]?.value?.toString().trim() ?? 'Sub Junior')
+            : 'Sub Junior';
+        final typeStr = row.length > 2
+            ? (row[2]?.value?.toString().trim() ?? 'Stage')
+            : 'Stage';
 
         if (name.isEmpty) {
           invalid++;
@@ -362,7 +387,10 @@ class ExcelService {
     return Uint8List.fromList(excel.save() ?? []);
   }
 
-  Uint8List exportStudentsToExcel(List<Student> students, Map<String, String> teamNameMap) {
+  Uint8List exportStudentsToExcel(
+    List<Student> students,
+    Map<String, String> teamNameMap,
+  ) {
     final excel = Excel.createExcel();
     final sheet = excel['Students'];
 
@@ -406,7 +434,9 @@ class ExcelService {
     return Uint8List.fromList(excel.save() ?? []);
   }
 
-  Future<ExcelImportResult<Registration>> importRegistrations(Uint8List bytes) async {
+  Future<ExcelImportResult<Registration>> importRegistrations(
+    Uint8List bytes,
+  ) async {
     final excel = Excel.decodeBytes(bytes);
     final sheet = excel.tables.values.first;
 
@@ -417,9 +447,12 @@ class ExcelService {
     List<String> errors = [];
     List<Registration> validRegistrations = [];
 
-    final existingRegistrations = await registrationRepository.getRegistrations();
-    final Set<String> existingComboKeys = existingRegistrations.map((r) => '${r.studentId}_${r.programId}').toSet();
-    
+    final existingRegistrations = await registrationRepository
+        .getRegistrations();
+    final Set<String> existingComboKeys = existingRegistrations
+        .map((r) => '${r.studentId}_${r.programId}')
+        .toSet();
+
     final students = await studentRepository.getStudents();
     final programs = await programRepository.getPrograms();
 
@@ -432,29 +465,37 @@ class ExcelService {
         final chaseNumber = row[0]?.value?.toString().trim() ?? '';
         final studentName = row[1]?.value?.toString().trim() ?? '';
         final programName = row[2]?.value?.toString().trim() ?? '';
-        final sectionStr = row.length > 3 ? (row[3]?.value?.toString().trim() ?? '') : '';
+        final sectionStr = ''; // Section removed per user request
 
         if (chaseNumber.isEmpty || programName.isEmpty) {
           invalid++;
-          errors.add('Row ${i + 1}: Missing chase number or program name.');
+          errors.add('Row ${i + 1}: Missing ches.no or program name.');
           continue;
         }
 
         final student = students.firstWhere(
           (s) => s.chaseNumber.toLowerCase() == chaseNumber.toLowerCase(),
-          orElse: () => throw Exception('Student with chase number "$chaseNumber" not found.'),
+          orElse: () => throw Exception(
+            'Student with chase number "$chaseNumber" not found.',
+          ),
         );
 
         final program = programs.firstWhere(
-          (p) => p.programName.toLowerCase() == programName.toLowerCase() && 
-                (sectionStr.isEmpty || p.section.label.toLowerCase() == sectionStr.toLowerCase()),
-          orElse: () => throw Exception('Program "$programName" (Section: $sectionStr) not found.'),
+          (p) =>
+              p.programName.toLowerCase() == programName.toLowerCase() &&
+              (sectionStr.isEmpty ||
+                  p.section.label.toLowerCase() == sectionStr.toLowerCase()),
+          orElse: () => throw Exception(
+            'Program "$programName" (Section: $sectionStr) not found.',
+          ),
         );
 
         final comboKey = '${student.id}_${program.id}';
         if (existingComboKeys.contains(comboKey)) {
           duplicate++;
-          errors.add('Row ${i + 1}: Registration already exists for Student: $chaseNumber and Program: $programName.');
+          errors.add(
+            'Row ${i + 1}: Registration already exists for Student: $chaseNumber and Program: $programName.',
+          );
           continue;
         }
 
@@ -463,7 +504,8 @@ class ExcelService {
           studentId: student.id,
           programId: program.id,
           teamId: student.teamId,
-          registrationNumber: 'REG-${student.chaseNumber}-${program.programCode}',
+          registrationNumber:
+              'REG-${student.chaseNumber}-${program.programCode}',
         );
 
         validRegistrations.add(registration);
@@ -471,7 +513,9 @@ class ExcelService {
         valid++;
       } catch (e) {
         invalid++;
-        errors.add('Row ${i + 1}: Parsing error (${e.toString().replaceAll('Exception: ', '')}).');
+        errors.add(
+          'Row ${i + 1}: Parsing error (${e.toString().replaceAll('Exception: ', '')}).',
+        );
       }
     }
 
@@ -495,17 +539,15 @@ class ExcelService {
     final sheet = excel['Registrations_Template'];
 
     sheet.appendRow([
-      TextCellValue('Chase Number'),
-      TextCellValue('Student Name'),
-      TextCellValue('Program Name'),
-      TextCellValue('Section'),
+      TextCellValue('ches.no'),
+      TextCellValue('name'),
+      TextCellValue('program'),
     ]);
 
     sheet.appendRow([
       TextCellValue('101'),
       TextCellValue('John Doe'),
       TextCellValue('Solo Song'),
-      TextCellValue('Sub Junior'),
     ]);
 
     return Uint8List.fromList(excel.save() ?? []);
@@ -555,7 +597,10 @@ class ExcelService {
     return Uint8List.fromList(excel.save() ?? []);
   }
 
-  Future<ExcelImportResult<Student>> importTeamStudents(Uint8List bytes, String teamId) async {
+  Future<ExcelImportResult<Student>> importTeamStudents(
+    Uint8List bytes,
+    String teamId,
+  ) async {
     final excel = Excel.decodeBytes(bytes);
     final sheet = excel.tables.values.first;
 
@@ -567,7 +612,9 @@ class ExcelService {
     List<Student> validStudents = [];
 
     final existingStudents = await studentRepository.getStudents();
-    final existingChaseNumbers = existingStudents.map((s) => s.chaseNumber.trim().toLowerCase()).toSet();
+    final existingChaseNumbers = existingStudents
+        .map((s) => s.chaseNumber.trim().toLowerCase())
+        .toSet();
 
     for (int i = 1; i < sheet.maxRows; i++) {
       final row = sheet.row(i);
@@ -576,12 +623,24 @@ class ExcelService {
 
       try {
         final chaseNumber = row[0]?.value?.toString().trim() ?? '';
-        final name = row.length > 1 ? (row[1]?.value?.toString().trim() ?? '') : '';
-        final sectionStr = row.length > 2 ? (row[2]?.value?.toString().trim() ?? 'Sub Junior') : 'Sub Junior';
-        final genderStr = row.length > 3 ? (row[3]?.value?.toString().trim() ?? 'Male') : 'Male';
-        final phone = row.length > 4 ? (row[4]?.value?.toString().trim() ?? '') : '';
-        final className = row.length > 5 ? (row[5]?.value?.toString().trim() ?? '') : '';
-        final schoolName = row.length > 6 ? (row[6]?.value?.toString().trim() ?? '') : '';
+        final name = row.length > 1
+            ? (row[1]?.value?.toString().trim() ?? '')
+            : '';
+        final sectionStr = row.length > 2
+            ? (row[2]?.value?.toString().trim() ?? 'Sub Junior')
+            : 'Sub Junior';
+        final genderStr = row.length > 3
+            ? (row[3]?.value?.toString().trim() ?? 'Male')
+            : 'Male';
+        final phone = row.length > 4
+            ? (row[4]?.value?.toString().trim() ?? '')
+            : '';
+        final className = row.length > 5
+            ? (row[5]?.value?.toString().trim() ?? '')
+            : '';
+        final schoolName = row.length > 6
+            ? (row[6]?.value?.toString().trim() ?? '')
+            : '';
 
         if (chaseNumber.isEmpty || name.isEmpty) {
           invalid++;
@@ -682,7 +741,8 @@ class ExcelService {
 
   Uint8List exportTeamStudentsToExcel(List<Student> students, String teamName) {
     final excel = Excel.createExcel();
-    final sheet = excel['${teamName.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')}_Students'];
+    final sheet =
+        excel['${teamName.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')}_Students'];
 
     sheet.appendRow([
       TextCellValue('Chase Number'),
@@ -709,15 +769,27 @@ class ExcelService {
     return Uint8List.fromList(excel.save() ?? []);
   }
 
-  Future<ExcelImportResult<Schedule>> importSchedules(Uint8List bytes, [String? filename]) async {
+  Future<ExcelImportResult<Schedule>> importSchedules(
+    Uint8List bytes, [
+    String? filename,
+  ]) async {
     final List<List<String>> rows = [];
-    final isPdf = (filename != null && filename.toLowerCase().endsWith('.pdf')) ||
-        (bytes.length > 4 && String.fromCharCodes(bytes.sublist(0, 4)) == '%PDF');
+    final isPdf =
+        (filename != null && filename.toLowerCase().endsWith('.pdf')) ||
+        (bytes.length > 4 &&
+            String.fromCharCodes(bytes.sublist(0, 4)) == '%PDF');
 
     if (isPdf) {
-      final pdfContent = String.fromCharCodes(bytes.map((b) => (b >= 32 && b <= 126 || b == 10 || b == 13 || b == 9) ? b : 32));
+      final pdfContent = String.fromCharCodes(
+        bytes.map(
+          (b) => (b >= 32 && b <= 126 || b == 10 || b == 13 || b == 9) ? b : 32,
+        ),
+      );
       final matches = RegExp(r'\(([^()]{2,})\)').allMatches(pdfContent);
-      final extractedStrings = matches.map((m) => m.group(1)?.trim() ?? '').where((s) => s.isNotEmpty).toList();
+      final extractedStrings = matches
+          .map((m) => m.group(1)?.trim() ?? '')
+          .where((s) => s.isNotEmpty)
+          .toList();
 
       if (extractedStrings.length >= 5) {
         for (int i = 0; i + 4 < extractedStrings.length; i += 5) {
@@ -732,7 +804,11 @@ class ExcelService {
       } else {
         final lines = pdfContent.split(RegExp(r'[\r\n]+'));
         for (final line in lines) {
-          final parts = line.split(RegExp(r'[,;\t]')).map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+          final parts = line
+              .split(RegExp(r'[,;\t]'))
+              .map((e) => e.trim())
+              .where((e) => e.isNotEmpty)
+              .toList();
           if (parts.isNotEmpty) {
             rows.add([
               parts[0],
@@ -753,9 +829,13 @@ class ExcelService {
         rows.add([
           row[0]?.value?.toString().trim() ?? '2026-09-05',
           row.length > 1 ? (row[1]?.value?.toString().trim() ?? '') : '',
-          row.length > 2 ? (row[2]?.value?.toString().trim() ?? '09:00 - 10:30') : '09:00 - 10:30',
+          row.length > 2
+              ? (row[2]?.value?.toString().trim() ?? '09:00 - 10:30')
+              : '09:00 - 10:30',
           row.length > 3 ? (row[3]?.value?.toString().trim() ?? '') : '',
-          row.length > 4 ? (row[4]?.value?.toString().trim() ?? 'General') : 'General',
+          row.length > 4
+              ? (row[4]?.value?.toString().trim() ?? 'General')
+              : 'General',
         ]);
       }
     }
@@ -795,12 +875,18 @@ class ExcelService {
         // Expected columns: DATE, ITEM, TIME, VENUE, CATEGORY
         final dateStr = row[0].isEmpty ? '2026-09-05' : row[0];
         final progStr = row.length > 1 ? row[1] : '';
-        final timeStr = row.length > 2 && row[2].isNotEmpty ? row[2] : '09:00 - 10:30';
+        final timeStr = row.length > 2 && row[2].isNotEmpty
+            ? row[2]
+            : '09:00 - 10:30';
         final venueStr = row.length > 3 ? row[3] : '';
-        final sectionStr = row.length > 4 && row[4].isNotEmpty ? row[4] : 'General';
+        final sectionStr = row.length > 4 && row[4].isNotEmpty
+            ? row[4]
+            : 'General';
 
         // Skip header row if present
-        if (dateStr.toUpperCase() == 'DATE' || progStr.toUpperCase() == 'ITEM' || progStr.toUpperCase() == 'PROGRAM') {
+        if (dateStr.toUpperCase() == 'DATE' ||
+            progStr.toUpperCase() == 'ITEM' ||
+            progStr.toUpperCase() == 'PROGRAM') {
           continue;
         }
 
@@ -822,7 +908,9 @@ class ExcelService {
             programCode: progCode,
             programName: progStr,
             section: sec,
-            category: sec == FestSection.general ? ProgramCategory.general : ProgramCategory.stage,
+            category: sec == FestSection.general
+                ? ProgramCategory.general
+                : ProgramCategory.stage,
             isStageProgram: true,
             isGeneral: sec == FestSection.general,
             maxParticipants: 1,
@@ -871,13 +959,18 @@ class ExcelService {
         }
 
         // Duplicate check (same program on same date at same start time)
-        final isDuplicate = existingSchedules.any((s) =>
-          s.programId == matchedProg!.id && s.date == dateStr && s.startTime == startTime
+        final isDuplicate = existingSchedules.any(
+          (s) =>
+              s.programId == matchedProg!.id &&
+              s.date == dateStr &&
+              s.startTime == startTime,
         );
 
         if (isDuplicate) {
           duplicate++;
-          errors.add('Row ${i + 1}: Duplicate schedule for "${matchedProg.programName}" on $dateStr at $startTime.');
+          errors.add(
+            'Row ${i + 1}: Duplicate schedule for "${matchedProg.programName}" on $dateStr at $startTime.',
+          );
           continue;
         }
 
@@ -921,7 +1014,11 @@ class ExcelService {
     );
   }
 
-  Uint8List exportSchedulesToExcel(List<Schedule> schedules, Map<String, Program> progMap, Map<String, Venue> venMap) {
+  Uint8List exportSchedulesToExcel(
+    List<Schedule> schedules,
+    Map<String, Program> progMap,
+    Map<String, Venue> venMap,
+  ) {
     final excel = Excel.createExcel();
     final sheet = excel['Schedule'];
 
@@ -988,4 +1085,3 @@ class ExcelService {
     return Uint8List.fromList(excel.save() ?? []);
   }
 }
-

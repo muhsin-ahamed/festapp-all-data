@@ -32,9 +32,14 @@ class LeaderApi {
     if (section != null && section.isNotEmpty) queryParams['section'] = section;
 
     try {
-      final res = await client.get('/leader/students', queryParams: queryParams);
+      final res = await client.get(
+        '/leader/students',
+        queryParams: queryParams,
+      );
       if (res is List) {
-        return res.map((e) => Student.fromMap(e as Map<String, dynamic>)).toList();
+        return res
+            .map((e) => Student.fromMap(e as Map<String, dynamic>))
+            .toList();
       }
     } catch (_) {}
     return [];
@@ -51,7 +56,10 @@ class LeaderApi {
 
   Future<Map<String, dynamic>?> importStudentsExcel(List<int> bytes) async {
     try {
-      final res = await client.post('/leader/students/import-excel', body: {'buffer': bytes});
+      final res = await client.post(
+        '/leader/students/import-excel',
+        body: {'buffer': bytes},
+      );
       if (res is Map<String, dynamic>) return res;
     } catch (_) {}
     return null;
@@ -59,21 +67,31 @@ class LeaderApi {
 
   Future<List<Program>> getSectionPrograms(String section) async {
     try {
-      final res = await client.get('/leader/programs', queryParams: {'section': section});
+      final res = await client.get(
+        '/leader/programs',
+        queryParams: {'section': section},
+      );
       if (res is List) {
-        return res.map((e) => Program.fromMap(e as Map<String, dynamic>)).toList();
+        return res
+            .map((e) => Program.fromMap(e as Map<String, dynamic>))
+            .toList();
       }
     } catch (_) {}
     return [];
   }
 
-  Future<Registration?> createRegistration(String studentId, String programId) async {
+  Future<Registration?> createRegistration(
+    String studentId,
+    String programId,
+  ) async {
     try {
-      final res = await client.post('/leader/registrations', body: {
-        'studentId': studentId,
-        'programId': programId,
-      });
-      return res != null ? Registration.fromMap(res as Map<String, dynamic>) : null;
+      final res = await client.post(
+        '/leader/registrations',
+        body: {'studentId': studentId, 'programId': programId},
+      );
+      return res != null
+          ? Registration.fromMap(res as Map<String, dynamic>)
+          : null;
     } catch (_) {
       return null;
     }
@@ -83,7 +101,9 @@ class LeaderApi {
     try {
       final res = await client.get('/leader/registrations');
       if (res is List) {
-        return res.map((e) => Registration.fromMap(e as Map<String, dynamic>)).toList();
+        return res
+            .map((e) => Registration.fromMap(e as Map<String, dynamic>))
+            .toList();
       }
     } catch (_) {}
     return [];
@@ -93,7 +113,9 @@ class LeaderApi {
     try {
       final res = await client.get('/leader/results');
       if (res is List) {
-        return res.map((e) => Result.fromMap(e as Map<String, dynamic>)).toList();
+        return res
+            .map((e) => Result.fromMap(e as Map<String, dynamic>))
+            .toList();
       }
     } catch (_) {}
     return [];

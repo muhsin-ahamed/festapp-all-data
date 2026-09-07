@@ -28,10 +28,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return ScanAndQrScreen(initialQuery: query);
         },
       ),
-      GoRoute(
-        path: '/login',
-        builder: (context, state) => const LoginScreen(),
-      ),
+      GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(
         path: '/controller',
         builder: (context, state) => const ControllerPortalScreen(),
@@ -47,10 +44,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return JuryPortalScreen(targetProgramId: targetProgramId);
         },
       ),
-      GoRoute(
-        path: '/tv',
-        builder: (context, state) => const TvPortalScreen(),
-      ),
+      GoRoute(path: '/tv', builder: (context, state) => const TvPortalScreen()),
     ],
     redirect: (BuildContext context, GoRouterState state) {
       final loc = state.matchedLocation;

@@ -31,8 +31,8 @@ class Result {
     DateTime? createdAt,
     DateTime? updatedAt,
     this.publishedAt,
-  })  : createdAt = createdAt ?? DateTime.now(),
-        updatedAt = updatedAt ?? DateTime.now();
+  }) : createdAt = createdAt ?? DateTime.now(),
+       updatedAt = updatedAt ?? DateTime.now();
 
   Result copyWith({
     String? id,
@@ -100,9 +100,15 @@ class Result {
       points: map['points'] ?? 0,
       remarks: map['remarks'],
       status: ResultStatus.fromString(map['status'] ?? 'draft'),
-      createdAt: map['createdAt'] != null ? DateTime.parse(map['createdAt']) : DateTime.now(),
-      updatedAt: map['updatedAt'] != null ? DateTime.parse(map['updatedAt']) : DateTime.now(),
-      publishedAt: map['publishedAt'] != null ? DateTime.parse(map['publishedAt']) : null,
+      createdAt: map['createdAt'] != null
+          ? DateTime.parse(map['createdAt'])
+          : DateTime.now(),
+      updatedAt: map['updatedAt'] != null
+          ? DateTime.parse(map['updatedAt'])
+          : DateTime.now(),
+      publishedAt: map['publishedAt'] != null
+          ? DateTime.parse(map['publishedAt'])
+          : null,
     );
   }
 }

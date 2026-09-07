@@ -11,10 +11,7 @@ class AuthService {
   final AuthApi _authApi = AuthApi(globalApiClient);
   User? _currentUser;
 
-  AuthService({
-    required this.userRepository,
-    required this.auditRepository,
-  });
+  AuthService({required this.userRepository, required this.auditRepository});
 
   User? get currentUser => _currentUser;
   bool get isAuthenticated => _currentUser != null;
@@ -101,7 +98,8 @@ class AuthService {
         try {
           final allUsers = await userRepository.getUsers();
           user = allUsers.firstWhere(
-            (u) => u.username.trim().toLowerCase() == cleanUsername.toLowerCase(),
+            (u) =>
+                u.username.trim().toLowerCase() == cleanUsername.toLowerCase(),
           );
         } catch (_) {}
       }
@@ -137,8 +135,18 @@ class AuthService {
     }
 
     // If stored password is a bcrypt hash starting with $2, allow login if input matches valid seed passwords
-    if (user.password.startsWith('\$2a\$') || user.password.startsWith('\$2b\$') || user.password.startsWith('\$2y\$')) {
-      final allValidPasswords = {'Lthlsm@9947', 'leader123', 'fshlt@4792', 'Acsmr@7012', 'controller123', 'jury123', 'tv123'};
+    if (user.password.startsWith('\$2a\$') ||
+        user.password.startsWith('\$2b\$') ||
+        user.password.startsWith('\$2y\$')) {
+      final allValidPasswords = {
+        'Lthlsm@9947',
+        'leader123',
+        'fshlt@4792',
+        'Acsmr@7012',
+        'controller123',
+        'jury123',
+        'tv123',
+      };
       if (allValidPasswords.contains(inputPassword)) {
         return true;
       }

@@ -11,7 +11,11 @@ class QrService {
     return 'fest_jury:$juryCode';
   }
 
-  static String generateJuryLoginProgramQrPayload(String username, String password, String programId) {
+  static String generateJuryLoginProgramQrPayload(
+    String username,
+    String password,
+    String programId,
+  ) {
     return 'fest_jury_login:$username:$password:$programId';
   }
 

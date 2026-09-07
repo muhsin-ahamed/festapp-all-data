@@ -145,8 +145,12 @@ class Team {
       secondPlaces: map['secondPlaces'] ?? 0,
       thirdPlaces: map['thirdPlaces'] ?? 0,
       status: map['status'] ?? 'ACTIVE',
-      createdAt: map['createdAt'] != null ? DateTime.parse(map['createdAt']) : DateTime.now(),
-      updatedAt: map['updatedAt'] != null ? DateTime.parse(map['updatedAt']) : null,
+      createdAt: map['createdAt'] != null
+          ? DateTime.parse(map['createdAt'])
+          : DateTime.now(),
+      updatedAt: map['updatedAt'] != null
+          ? DateTime.parse(map['updatedAt'])
+          : null,
     );
   }
 }

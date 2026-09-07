@@ -80,9 +80,12 @@ class Program {
   }
 
   factory Program.fromMap(Map<String, dynamic> map) {
-    final String pName = (map['programName'] ?? map['program_name'] ?? '').toString();
-    FestSection sec = FestSection.fromString((map['section'] ?? map['fest_section'] ?? 'subJunior').toString());
-    
+    final String pName = (map['programName'] ?? map['program_name'] ?? '')
+        .toString();
+    FestSection sec = FestSection.fromString(
+      (map['section'] ?? map['fest_section'] ?? 'subJunior').toString(),
+    );
+
     // Fix incorrectly categorized general programs
     final upperName = pName.trim().toUpperCase();
     if (upperName.contains('INSTANT TABLOID') ||
@@ -95,11 +98,19 @@ class Program {
       sec = FestSection.general;
     }
 
-    final cat = ProgramCategory.fromString((map['category'] ?? map['program_category'] ?? 'stage').toString());
+    final cat = ProgramCategory.fromString(
+      (map['category'] ?? map['program_category'] ?? 'stage').toString(),
+    );
     final rawIsStage = map['isStageProgram'] ?? map['is_stage_program'];
-    final isStage = rawIsStage is bool ? rawIsStage : (rawIsStage?.toString() == 'true' || cat == ProgramCategory.stage);
+    final isStage = rawIsStage is bool
+        ? rawIsStage
+        : (rawIsStage?.toString() == 'true' || cat == ProgramCategory.stage);
     final rawIsGen = map['isGeneral'] ?? map['is_general'];
-    final isGen = rawIsGen is bool ? rawIsGen : (rawIsGen?.toString() == 'true' || sec == FestSection.general || cat == ProgramCategory.general);
+    final isGen = rawIsGen is bool
+        ? rawIsGen
+        : (rawIsGen?.toString() == 'true' ||
+              sec == FestSection.general ||
+              cat == ProgramCategory.general);
 
     return Program(
       id: (map['id'] ?? '').toString(),
@@ -109,10 +120,15 @@ class Program {
       category: cat,
       isStageProgram: isStage,
       isGeneral: isGen,
-      maxParticipants: int.tryParse((map['maxParticipants'] ?? map['max_participants'] ?? 1).toString()) ?? 1,
+      maxParticipants:
+          int.tryParse(
+            (map['maxParticipants'] ?? map['max_participants'] ?? 1).toString(),
+          ) ??
+          1,
       duration: (map['duration'] ?? '30 mins').toString(),
       venueId: map['venueId']?.toString() ?? map['venue_id']?.toString(),
-      scheduleId: map['scheduleId']?.toString() ?? map['schedule_id']?.toString(),
+      scheduleId:
+          map['scheduleId']?.toString() ?? map['schedule_id']?.toString(),
       rules: map['rules']?.toString(),
       status: (map['status'] ?? 'UPCOMING').toString(),
     );

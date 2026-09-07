@@ -19,11 +19,7 @@ void main() async {
     debugPrint('Supabase initialization error: $e');
   }
 
-  runApp(
-    const ProviderScope(
-      child: FestApp(),
-    ),
-  );
+  runApp(const ProviderScope(child: FestApp()));
 }
 
 class FestApp extends ConsumerStatefulWidget {

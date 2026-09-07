@@ -12,13 +12,21 @@ enum FestSection {
     // 1. Check chase number prefix first if available
     if (chaseNumber != null && chaseNumber.trim().isNotEmpty) {
       final cleanChase = chaseNumber.trim().toUpperCase();
-      if (cleanChase.startsWith('SB') || cleanChase.startsWith('SJ') || cleanChase.startsWith('SUB') || cleanChase.startsWith('JR') || cleanChase.startsWith('JUNIOR')) {
+      if (cleanChase.startsWith('SB') ||
+          cleanChase.startsWith('SJ') ||
+          cleanChase.startsWith('SUB') ||
+          cleanChase.startsWith('JR') ||
+          cleanChase.startsWith('JUNIOR')) {
         return FestSection.subJunior;
       }
-      if (cleanChase.startsWith('SS') || cleanChase.startsWith('SUP') || cleanChase.startsWith('SUPER')) {
+      if (cleanChase.startsWith('SS') ||
+          cleanChase.startsWith('SUP') ||
+          cleanChase.startsWith('SUPER')) {
         return FestSection.superSenior;
       }
-      if (cleanChase.startsWith('SR') || cleanChase.startsWith('SN') || cleanChase.startsWith('SENIOR')) {
+      if (cleanChase.startsWith('SR') ||
+          cleanChase.startsWith('SN') ||
+          cleanChase.startsWith('SENIOR')) {
         return FestSection.senior;
       }
       if (cleanChase.startsWith('GRP') || cleanChase.startsWith('GROUP')) {
@@ -27,7 +35,10 @@ enum FestSection {
     }
 
     // 2. Parse section string
-    final cleanVal = val.trim().toLowerCase().replaceAll(RegExp(r'[\s\-_]'), '');
+    final cleanVal = val.trim().toLowerCase().replaceAll(
+      RegExp(r'[\s\-_]'),
+      '',
+    );
 
     if (cleanVal.contains('group') || cleanVal == 'grp') {
       return FestSection.group;
@@ -35,7 +46,14 @@ enum FestSection {
     if (cleanVal.contains('super') || cleanVal == 'ss' || cleanVal == 'sup') {
       return FestSection.superSenior;
     }
-    if (cleanVal.startsWith('sub') || cleanVal == 'sb' || cleanVal == 'subj' || cleanVal == 'sj' || cleanVal == 'subjunior' || cleanVal == 'junior' || cleanVal == 'jr' || cleanVal == 'juniors') {
+    if (cleanVal.startsWith('sub') ||
+        cleanVal == 'sb' ||
+        cleanVal == 'subj' ||
+        cleanVal == 'sj' ||
+        cleanVal == 'subjunior' ||
+        cleanVal == 'junior' ||
+        cleanVal == 'jr' ||
+        cleanVal == 'juniors') {
       return FestSection.subJunior;
     }
     if (cleanVal == 'senior' || cleanVal == 'sr' || cleanVal == 'sn') {
@@ -46,8 +64,14 @@ enum FestSection {
     }
 
     for (final e in FestSection.values) {
-      final eNameClean = e.name.toLowerCase().replaceAll(RegExp(r'[\s\-_]'), '');
-      final eLabelClean = e.label.toLowerCase().replaceAll(RegExp(r'[\s\-_]'), '');
+      final eNameClean = e.name.toLowerCase().replaceAll(
+        RegExp(r'[\s\-_]'),
+        '',
+      );
+      final eLabelClean = e.label.toLowerCase().replaceAll(
+        RegExp(r'[\s\-_]'),
+        '',
+      );
       if (cleanVal == eNameClean || cleanVal == eLabelClean) {
         return e;
       }
@@ -74,7 +98,9 @@ enum ProgramCategory {
 
   static ProgramCategory fromString(String val) {
     return ProgramCategory.values.firstWhere(
-      (e) => e.name.toLowerCase() == val.toLowerCase() || e.label.toLowerCase() == val.toLowerCase(),
+      (e) =>
+          e.name.toLowerCase() == val.toLowerCase() ||
+          e.label.toLowerCase() == val.toLowerCase(),
       orElse: () => ProgramCategory.stage,
     );
   }
@@ -91,7 +117,9 @@ enum RegistrationStatus {
 
   static RegistrationStatus fromString(String val) {
     return RegistrationStatus.values.firstWhere(
-      (e) => e.name.toLowerCase() == val.toLowerCase() || e.label.toLowerCase() == val.toLowerCase(),
+      (e) =>
+          e.name.toLowerCase() == val.toLowerCase() ||
+          e.label.toLowerCase() == val.toLowerCase(),
       orElse: () => RegistrationStatus.pending,
     );
   }
@@ -109,7 +137,9 @@ enum ResultStatus {
 
   static ResultStatus fromString(String val) {
     return ResultStatus.values.firstWhere(
-      (e) => e.name.toLowerCase() == val.toLowerCase() || e.label.toLowerCase() == val.toLowerCase(),
+      (e) =>
+          e.name.toLowerCase() == val.toLowerCase() ||
+          e.label.toLowerCase() == val.toLowerCase(),
       orElse: () => ResultStatus.draft,
     );
   }
@@ -127,7 +157,9 @@ enum UserRole {
 
   static UserRole? fromCode(String code) {
     try {
-      return UserRole.values.firstWhere((e) => e.code == code || e.name == code);
+      return UserRole.values.firstWhere(
+        (e) => e.code == code || e.name == code,
+      );
     } catch (_) {
       return null;
     }
@@ -136,16 +168,16 @@ enum UserRole {
 
 class AppConstants {
   static const String appName = 'Askesis Fest Management System';
-  
+
   // Registration limits
   static const int maxNonStagePerStudent = 4;
   static const int maxStagePerStudent = 3;
-  
+
   // Scoring default points
   static const int pointsFirst = 10;
   static const int pointsSecond = 7;
   static const int pointsThird = 5;
-  
+
   static const int pointsGradeA = 5;
   static const int pointsGradeB = 3;
   static const int pointsGradeC = 1;

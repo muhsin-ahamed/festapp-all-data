@@ -9,14 +9,22 @@ class ProgramApi {
   Future<List<Program>> getPrograms({String? section, String? category}) async {
     final queryParams = <String, String>{};
     if (section != null && section.isNotEmpty) queryParams['section'] = section;
-    if (category != null && category.isNotEmpty) queryParams['category'] = category;
+    if (category != null && category.isNotEmpty)
+      queryParams['category'] = category;
 
-    print('[Flutter ProgramApi] GET /public/programs request - params: $queryParams');
+    print(
+      '[Flutter ProgramApi] GET /public/programs request - params: $queryParams',
+    );
     try {
-      final res = await client.get('/public/programs', queryParams: queryParams);
+      final res = await client.get(
+        '/public/programs',
+        queryParams: queryParams,
+      );
       print('[Flutter ProgramApi] GET /public/programs response: $res');
       if (res is List) {
-        final list = res.map((e) => Program.fromMap(e as Map<String, dynamic>)).toList();
+        final list = res
+            .map((e) => Program.fromMap(e as Map<String, dynamic>))
+            .toList();
         print('[Flutter ProgramApi] Parsed program count: ${list.length}');
         return list;
       }
@@ -42,13 +50,22 @@ class ProgramApi {
 
   Future<Program?> updateProgram(Program program) async {
     final body = program.toMap();
-    print('[Flutter ProgramApi] PUT /controller/programs/${program.id} request: $body');
+    print(
+      '[Flutter ProgramApi] PUT /controller/programs/${program.id} request: $body',
+    );
     try {
-      final res = await client.put('/controller/programs/${program.id}', body: body);
-      print('[Flutter ProgramApi] PUT /controller/programs/${program.id} response: $res');
+      final res = await client.put(
+        '/controller/programs/${program.id}',
+        body: body,
+      );
+      print(
+        '[Flutter ProgramApi] PUT /controller/programs/${program.id} response: $res',
+      );
       return res != null ? Program.fromMap(res as Map<String, dynamic>) : null;
     } catch (e) {
-      print('[Flutter ProgramApi] PUT /controller/programs/${program.id} error: $e');
+      print(
+        '[Flutter ProgramApi] PUT /controller/programs/${program.id} error: $e',
+      );
       rethrow;
     }
   }

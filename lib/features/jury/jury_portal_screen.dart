@@ -44,7 +44,10 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
           children: [
             const BrandMark(size: 26),
             const SizedBox(width: 10),
-            Text('JURY MARKING PORTAL', style: GoogleFonts.rye(fontSize: 18, color: AppTheme.ink)),
+            Text(
+              'JURY MARKING PORTAL',
+              style: GoogleFonts.rye(fontSize: 18, color: AppTheme.ink),
+            ),
           ],
         ),
         actions: [
@@ -72,132 +75,185 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
           const PatternStrip(height: 8),
           Expanded(
             child: juriesAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('Error loading jury data: $err')),
-        data: (juries) {
-          if (juries.isEmpty) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24.0),
-                child: Text(
-                  'No jury profiles found in the system.\nPlease create a jury profile in Controller settings.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 16),
-                ),
-              ),
-            );
-          }
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (err, stack) =>
+                  Center(child: Text('Error loading jury data: $err')),
+              data: (juries) {
+                if (juries.isEmpty) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(24.0),
+                      child: Text(
+                        'No jury profiles found in the system.\nPlease create a jury profile in Controller settings.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  );
+                }
 
-          final currentJury = juries.where((j) => j.id == user?.juryId || j.username == user?.username).firstOrNull ?? juries.first;
-          final assignedProgIds = currentJury.assignedPrograms;
+                final currentJury =
+                    juries
+                        .where(
+                          (j) =>
+                              j.id == user?.juryId ||
+                              j.username == user?.username,
+                        )
+                        .firstOrNull ??
+                    juries.first;
+                final assignedProgIds = currentJury.assignedPrograms;
 
-          final allPrograms = programsAsync.value ?? [];
-          final assignedPrograms = allPrograms.where((p) => assignedProgIds.contains(p.id)).toList();
+                final allPrograms = programsAsync.value ?? [];
+                final assignedPrograms = allPrograms
+                    .where((p) => assignedProgIds.contains(p.id))
+                    .toList();
 
-          if (!_hasInitialProgramSet && widget.targetProgramId != null) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!mounted) return;
-              final prog = assignedPrograms.where((p) => p.id == widget.targetProgramId).firstOrNull;
-              if (prog != null) {
-                setState(() {
-                  _selectedProgram = prog;
-                  _hasInitialProgramSet = true;
-                });
-              } else {
-                setState(() {
-                  _hasInitialProgramSet = true;
-                });
-              }
-            });
-          }
+                if (!_hasInitialProgramSet && widget.targetProgramId != null) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (!mounted) return;
+                    final prog = assignedPrograms
+                        .where((p) => p.id == widget.targetProgramId)
+                        .firstOrNull;
+                    if (prog != null) {
+                      setState(() {
+                        _selectedProgram = prog;
+                        _hasInitialProgramSet = true;
+                      });
+                    } else {
+                      setState(() {
+                        _hasInitialProgramSet = true;
+                      });
+                    }
+                  });
+                }
 
-          if (_isScanningProgramQr) {
-            return Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                children: [
-                  Text('Scan Program Jury QR Code', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 18)),
-                  const SizedBox(height: 16),
-                  QRScannerWidget(
-                    onScanned: (payload) {
-                      final scanRes = QrService.parseQrPayload(payload);
-                      String? searchProgramId = scanRes.value;
-                      if (scanRes.type == QrScanType.juryLoginProgram) {
-                        searchProgramId = scanRes.programId;
-                      }
-                      
-                      final prog = allPrograms.where((p) => p.id == searchProgramId || p.programCode == searchProgramId).firstOrNull;
-                      if (prog != null) {
-                        setState(() {
-                          _selectedProgram = prog;
-                          _isScanningProgramQr = false;
-                        });
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Program "$searchProgramId" not found.')),
-                        );
-                      }
-                    },
-                  ),
-                ],
-              ),
-            );
-          }
-
-          if (_selectedProgram != null) {
-            return _buildMarkingForm(_selectedProgram!, studentsAsync.value ?? [], regsAsync.value ?? [], currentJury.id);
-          }
-
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Assigned Programs for ${currentJury.name}', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 16),
-                if (assignedPrograms.isEmpty) ...[
-                  const Text('No programs currently assigned to your jury account.'),
-                ] else ...[
-                  ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: assignedPrograms.length,
-                    itemBuilder: (context, idx) {
-                      final p = assignedPrograms[idx];
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        child: ListTile(
-                          title: Text('${p.programName} (${p.programCode})'),
-                          subtitle: Text('Section: ${p.section.label} • ${p.isStageProgram ? "Stage" : "Non-Stage"}'),
-                          trailing: ElevatedButton(
-                            onPressed: () {
-                              setState(() {
-                                _selectedProgram = p;
-                              });
-                            },
-                            child: const Text('Open Marking Paper'),
+                if (_isScanningProgramQr) {
+                  return Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                      children: [
+                        Text(
+                          'Scan Program Jury QR Code',
+                          style: GoogleFonts.inter(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
                           ),
                         ),
-                      );
-                    },
+                        const SizedBox(height: 16),
+                        QRScannerWidget(
+                          onScanned: (payload) {
+                            final scanRes = QrService.parseQrPayload(payload);
+                            String? searchProgramId = scanRes.value;
+                            if (scanRes.type == QrScanType.juryLoginProgram) {
+                              searchProgramId = scanRes.programId;
+                            }
+
+                            final prog = allPrograms
+                                .where(
+                                  (p) =>
+                                      p.id == searchProgramId ||
+                                      p.programCode == searchProgramId,
+                                )
+                                .firstOrNull;
+                            if (prog != null) {
+                              setState(() {
+                                _selectedProgram = prog;
+                                _isScanningProgramQr = false;
+                              });
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Program "$searchProgramId" not found.',
+                                  ),
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                if (_selectedProgram != null) {
+                  return _buildMarkingForm(
+                    _selectedProgram!,
+                    studentsAsync.value ?? [],
+                    regsAsync.value ?? [],
+                    currentJury.id,
+                  );
+                }
+
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Assigned Programs for ${currentJury.name}',
+                        style: GoogleFonts.inter(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      if (assignedPrograms.isEmpty) ...[
+                        const Text(
+                          'No programs currently assigned to your jury account.',
+                        ),
+                      ] else ...[
+                        ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: assignedPrograms.length,
+                          itemBuilder: (context, idx) {
+                            final p = assignedPrograms[idx];
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              child: ListTile(
+                                title: Text(
+                                  '${p.programName} (${p.programCode})',
+                                ),
+                                subtitle: Text(
+                                  'Section: ${p.section.label} • ${p.isStageProgram ? "Stage" : "Non-Stage"}',
+                                ),
+                                trailing: ElevatedButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _selectedProgram = p;
+                                    });
+                                  },
+                                  child: const Text('Open Marking Paper'),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ],
                   ),
-                ],
-              ],
+                );
+              },
             ),
-          );
-        },
+          ),
+        ],
       ),
-    ),
-  ],
-),
-);
+    );
   }
 
-  Widget _buildMarkingForm(Program program, List<Student> allStudents, List<dynamic> allRegs, String juryId) {
+  Widget _buildMarkingForm(
+    Program program,
+    List<Student> allStudents,
+    List<dynamic> allRegs,
+    String juryId,
+  ) {
     // Filter participants for this program
     final progRegs = allRegs.where((r) => r.programId == program.id).toList();
     final studentIds = progRegs.map((r) => r.studentId).toSet();
-    final participants = allStudents.where((s) => studentIds.contains(s.id)).toList();
+    final participants = allStudents
+        .where((s) => studentIds.contains(s.id))
+        .toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -212,7 +268,13 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Enter Student Marks & Positions', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(
+              'Enter Student Marks & Positions',
+              style: GoogleFonts.inter(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 16),
             if (participants.isEmpty) ...[
               const Text('No registered participants found for this program.'),
@@ -223,32 +285,67 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
                 itemCount: participants.length,
                 itemBuilder: (context, idx) {
                   final stud = participants[idx];
-                  _marksControllers.putIfAbsent(stud.id, () => TextEditingController(text: '85'));
-                  _gradeControllers.putIfAbsent(stud.id, () => TextEditingController(text: 'A'));
-                  _positions.putIfAbsent(stud.id, () => idx + 1 <= 3 ? idx + 1 : 0);
+                  _marksControllers.putIfAbsent(
+                    stud.id,
+                    () => TextEditingController(text: '85'),
+                  );
+                  _gradeControllers.putIfAbsent(
+                    stud.id,
+                    () => TextEditingController(text: 'A'),
+                  );
+                  _positions.putIfAbsent(
+                    stud.id,
+                    () => idx + 1 <= 3 ? idx + 1 : 0,
+                  );
 
                   return AppCard(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('${stud.name} (${stud.chaseNumber})', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16)),
+                        Text(
+                          '${stud.name} (${stud.chaseNumber})',
+                          style: GoogleFonts.inter(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
                         const SizedBox(height: 12),
                         LayoutBuilder(
                           builder: (context, constraints) {
                             final isCompact = constraints.maxWidth < 480;
-                            final marksField = AppTextField(label: 'Marks', controller: _marksControllers[stud.id]!, keyboardType: TextInputType.number);
-                            final gradeField = AppTextField(label: 'Grade', controller: _gradeControllers[stud.id]!);
+                            final marksField = AppTextField(
+                              label: 'Marks',
+                              controller: _marksControllers[stud.id]!,
+                              keyboardType: TextInputType.number,
+                            );
+                            final gradeField = AppTextField(
+                              label: 'Grade',
+                              controller: _gradeControllers[stud.id]!,
+                            );
                             final posDropdown = AppDropdown<int>(
                               label: 'Position',
                               value: _positions[stud.id],
                               items: const [
-                                DropdownMenuItem(value: 1, child: Text('1st Place')),
-                                DropdownMenuItem(value: 2, child: Text('2nd Place')),
-                                DropdownMenuItem(value: 3, child: Text('3rd Place')),
-                                DropdownMenuItem(value: 0, child: Text('Participant')),
+                                DropdownMenuItem(
+                                  value: 1,
+                                  child: Text('1st Place'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 2,
+                                  child: Text('2nd Place'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 3,
+                                  child: Text('3rd Place'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 0,
+                                  child: Text('Participant'),
+                                ),
                               ],
                               onChanged: (v) {
-                                if (v != null) setState(() => _positions[stud.id] = v);
+                                if (v != null)
+                                  setState(() => _positions[stud.id] = v);
                               },
                             );
 
@@ -294,8 +391,13 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
                   for (final stud in participants) {
                     final pos = _positions[stud.id];
                     final grade = _gradeControllers[stud.id]!.text.trim();
-                    final marks = double.tryParse(_marksControllers[stud.id]!.text) ?? 80.0;
-                    final pts = scoring.calculateResultPoints(position: pos != null && pos > 0 ? pos : null, grade: grade);
+                    final marks =
+                        double.tryParse(_marksControllers[stud.id]!.text) ??
+                        80.0;
+                    final pts = scoring.calculateResultPoints(
+                      position: pos != null && pos > 0 ? pos : null,
+                      grade: grade,
+                    );
 
                     final result = Result(
                       id: 'res_${const Uuid().v4()}',
@@ -318,7 +420,12 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
                   setState(() => _selectedProgram = null);
 
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Jury results submitted successfully to Controller!'), backgroundColor: Colors.green),
+                    const SnackBar(
+                      content: Text(
+                        'Jury results submitted successfully to Controller!',
+                      ),
+                      backgroundColor: Colors.green,
+                    ),
                   );
                 },
               ),

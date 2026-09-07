@@ -94,7 +94,9 @@ class ApiTeamRepository implements TeamRepository {
   Future<Team?> getByCode(String code) async {
     final teams = await getTeams();
     try {
-      return teams.firstWhere((t) => t.teamCode.toLowerCase() == code.toLowerCase());
+      return teams.firstWhere(
+        (t) => t.teamCode.toLowerCase() == code.toLowerCase(),
+      );
     } catch (_) {
       return null;
     }
@@ -114,7 +116,10 @@ class ApiTeamRepository implements TeamRepository {
 
   @override
   Future<void> updateTeam(Team team) async {
-    await globalApiClient.put('/controller/teams/${team.id}', body: team.toMap());
+    await globalApiClient.put(
+      '/controller/teams/${team.id}',
+      body: team.toMap(),
+    );
   }
 
   @override
@@ -145,7 +150,9 @@ class ApiProgramRepository implements ProgramRepository {
   Future<Program?> getByCode(String code) async {
     final programs = await getPrograms();
     try {
-      return programs.firstWhere((p) => p.programCode.toLowerCase() == code.toLowerCase());
+      return programs.firstWhere(
+        (p) => p.programCode.toLowerCase() == code.toLowerCase(),
+      );
     } catch (_) {
       return null;
     }
@@ -185,7 +192,9 @@ class ApiRegistrationRepository implements RegistrationRepository {
     try {
       final res = await globalApiClient.get('/controller/registrations');
       if (res is List) {
-        return res.map((e) => Registration.fromMap(e as Map<String, dynamic>)).toList();
+        return res
+            .map((e) => Registration.fromMap(e as Map<String, dynamic>))
+            .toList();
       }
     } catch (_) {}
     return [];
@@ -210,10 +219,15 @@ class ApiRegistrationRepository implements RegistrationRepository {
   }
 
   @override
-  Future<Registration?> getByStudentAndProgram(String studentId, String programId) async {
+  Future<Registration?> getByStudentAndProgram(
+    String studentId,
+    String programId,
+  ) async {
     final regs = await getRegistrations();
     try {
-      return regs.firstWhere((r) => r.studentId == studentId && r.programId == programId);
+      return regs.firstWhere(
+        (r) => r.studentId == studentId && r.programId == programId,
+      );
     } catch (_) {
       return null;
     }
@@ -222,10 +236,10 @@ class ApiRegistrationRepository implements RegistrationRepository {
   @override
   Future<void> addRegistration(Registration reg) async {
     try {
-      await globalApiClient.post('/leader/registrations', body: {
-        'studentId': reg.studentId,
-        'programId': reg.programId,
-      });
+      await globalApiClient.post(
+        '/leader/registrations',
+        body: {'studentId': reg.studentId, 'programId': reg.programId},
+      );
     } catch (_) {}
   }
 

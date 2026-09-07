@@ -20,7 +20,8 @@ class ApiClient {
     return formatted;
   }
 
-  ApiClient({String? baseUrl}) : baseUrl = _formatBaseUrl(baseUrl ?? defaultBaseUrl);
+  ApiClient({String? baseUrl})
+    : baseUrl = _formatBaseUrl(baseUrl ?? defaultBaseUrl);
 
   void setAuthToken(String? token) {
     _authToken = token;
@@ -74,9 +75,12 @@ class ApiClient {
       rethrow;
     } catch (e) {
       final errStr = e.toString();
-      if (errStr.contains('Failed to fetch') || errStr.contains('ClientException') || errStr.contains('SocketException')) {
+      if (errStr.contains('Failed to fetch') ||
+          errStr.contains('ClientException') ||
+          errStr.contains('SocketException')) {
         throw ApiException(
-          message: 'Failed to connect to backend at $baseUrl. Please verify Node.js server is running on port 3000.',
+          message:
+              'Failed to connect to backend at $baseUrl. Please verify Node.js server is running on port 3000.',
           statusCode: 0,
         );
       }

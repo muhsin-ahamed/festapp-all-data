@@ -20,7 +20,9 @@ class JuryApi {
     try {
       final res = await client.get('/jury/programs');
       if (res is List) {
-        return res.map((e) => Program.fromMap(e as Map<String, dynamic>)).toList();
+        return res
+            .map((e) => Program.fromMap(e as Map<String, dynamic>))
+            .toList();
       }
     } catch (_) {}
     return [];
@@ -30,7 +32,9 @@ class JuryApi {
     try {
       final res = await client.get('/jury/programs/$programId/participants');
       if (res is List) {
-        return res.map((e) => Registration.fromMap(e as Map<String, dynamic>)).toList();
+        return res
+            .map((e) => Registration.fromMap(e as Map<String, dynamic>))
+            .toList();
       }
     } catch (_) {}
     return [];
@@ -48,7 +52,9 @@ class JuryApi {
     try {
       final res = await client.get('/jury/results');
       if (res is List) {
-        return res.map((e) => Result.fromMap(e as Map<String, dynamic>)).toList();
+        return res
+            .map((e) => Result.fromMap(e as Map<String, dynamic>))
+            .toList();
       }
     } catch (_) {}
     return [];

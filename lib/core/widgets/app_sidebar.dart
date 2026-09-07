@@ -81,9 +81,7 @@ class _AppSidebarState extends State<AppSidebar> {
       width: currentWidth,
       decoration: const BoxDecoration(
         color: AppTheme.cream,
-        border: Border(
-          right: BorderSide(color: AppTheme.line, width: 1),
-        ),
+        border: Border(right: BorderSide(color: AppTheme.line, width: 1)),
       ),
       child: SafeArea(
         child: Column(
@@ -101,10 +99,7 @@ class _AppSidebarState extends State<AppSidebar> {
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [
-                      activeColor,
-                      AppTheme.redDeep,
-                    ],
+                    colors: [activeColor, AppTheme.redDeep],
                   ),
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
@@ -124,14 +119,21 @@ class _AppSidebarState extends State<AppSidebar> {
                             backgroundColor: AppTheme.cream,
                             child: Padding(
                               padding: const EdgeInsets.all(4.0),
-                              child: Image.asset('assets/images/logo.png', fit: BoxFit.contain),
+                              child: Image.asset(
+                                'assets/images/logo.png',
+                                fit: BoxFit.contain,
+                              ),
                             ),
                           ),
                           const SizedBox(height: 10),
                           IconButton(
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
-                            icon: const Icon(Icons.chevron_right, color: AppTheme.cream, size: 22),
+                            icon: const Icon(
+                              Icons.chevron_right,
+                              color: AppTheme.cream,
+                              size: 22,
+                            ),
                             tooltip: 'Expand Sidebar',
                             onPressed: _toggleCollapse,
                           ),
@@ -148,13 +150,20 @@ class _AppSidebarState extends State<AppSidebar> {
                                 backgroundColor: AppTheme.cream,
                                 child: Padding(
                                   padding: const EdgeInsets.all(4.0),
-                                  child: Image.asset('assets/images/logo.png', fit: BoxFit.contain),
+                                  child: Image.asset(
+                                    'assets/images/logo.png',
+                                    fit: BoxFit.contain,
+                                  ),
                                 ),
                               ),
                               IconButton(
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints(),
-                                icon: const Icon(Icons.menu_open, color: AppTheme.cream, size: 22),
+                                icon: const Icon(
+                                  Icons.menu_open,
+                                  color: AppTheme.cream,
+                                  size: 22,
+                                ),
                                 tooltip: 'Collapse Sidebar',
                                 onPressed: _toggleCollapse,
                               ),
@@ -216,15 +225,19 @@ class _AppSidebarState extends State<AppSidebar> {
                               height: 48,
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
-                                color: isSelected ? activeColor : Colors.transparent,
+                                color: isSelected
+                                    ? activeColor
+                                    : Colors.transparent,
                                 borderRadius: BorderRadius.circular(12),
                                 boxShadow: isSelected
                                     ? [
                                         BoxShadow(
-                                          color: activeColor.withValues(alpha: 0.3),
+                                          color: activeColor.withValues(
+                                            alpha: 0.3,
+                                          ),
                                           blurRadius: 6,
                                           offset: const Offset(0, 2),
-                                        )
+                                        ),
                                       ]
                                     : null,
                               ),
@@ -234,7 +247,9 @@ class _AppSidebarState extends State<AppSidebar> {
                                   Icon(
                                     item.icon,
                                     size: 22,
-                                    color: isSelected ? AppTheme.cream : AppTheme.inkSoft,
+                                    color: isSelected
+                                        ? AppTheme.cream
+                                        : AppTheme.inkSoft,
                                   ),
                                   if (item.badgeText != null)
                                     Positioned(
@@ -244,7 +259,9 @@ class _AppSidebarState extends State<AppSidebar> {
                                         width: 8,
                                         height: 8,
                                         decoration: BoxDecoration(
-                                          color: item.badgeColor ?? AppTheme.mustard,
+                                          color:
+                                              item.badgeColor ??
+                                              AppTheme.mustard,
                                           shape: BoxShape.circle,
                                         ),
                                       ),
@@ -269,17 +286,24 @@ class _AppSidebarState extends State<AppSidebar> {
                         hoverColor: activeColor.withValues(alpha: 0.08),
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 180),
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 11,
+                          ),
                           decoration: BoxDecoration(
-                            color: isSelected ? activeColor : Colors.transparent,
+                            color: isSelected
+                                ? activeColor
+                                : Colors.transparent,
                             borderRadius: BorderRadius.circular(12),
                             boxShadow: isSelected
                                 ? [
                                     BoxShadow(
-                                      color: activeColor.withValues(alpha: 0.25),
+                                      color: activeColor.withValues(
+                                        alpha: 0.25,
+                                      ),
                                       blurRadius: 6,
                                       offset: const Offset(0, 2),
-                                    )
+                                    ),
                                   ]
                                 : null,
                           ),
@@ -288,7 +312,9 @@ class _AppSidebarState extends State<AppSidebar> {
                               Icon(
                                 item.icon,
                                 size: 21,
-                                color: isSelected ? AppTheme.cream : AppTheme.inkSoft,
+                                color: isSelected
+                                    ? AppTheme.cream
+                                    : AppTheme.inkSoft,
                               ),
                               const SizedBox(width: 12),
                               Expanded(
@@ -296,23 +322,34 @@ class _AppSidebarState extends State<AppSidebar> {
                                   item.label,
                                   style: GoogleFonts.workSans(
                                     fontSize: 13.5,
-                                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                                    color: isSelected ? AppTheme.cream : AppTheme.ink,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w800
+                                        : FontWeight.w600,
+                                    color: isSelected
+                                        ? AppTheme.cream
+                                        : AppTheme.ink,
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                               if (item.badgeText != null)
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 2,
+                                  ),
                                   decoration: BoxDecoration(
-                                    color: isSelected ? AppTheme.mustard : (item.badgeColor ?? activeColor),
+                                    color: isSelected
+                                        ? AppTheme.mustard
+                                        : (item.badgeColor ?? activeColor),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: Text(
                                     item.badgeText!,
                                     style: TextStyle(
-                                      color: isSelected ? AppTheme.ink : AppTheme.cream,
+                                      color: isSelected
+                                          ? AppTheme.ink
+                                          : AppTheme.cream,
                                       fontSize: 10.5,
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -336,14 +373,19 @@ class _AppSidebarState extends State<AppSidebar> {
               ),
               child: _isCollapsed
                   ? IconButton(
-                      icon: const Icon(Icons.chevron_right, color: AppTheme.inkSoft, size: 22),
+                      icon: const Icon(
+                        Icons.chevron_right,
+                        color: AppTheme.inkSoft,
+                        size: 22,
+                      ),
                       tooltip: 'Expand Sidebar',
                       onPressed: _toggleCollapse,
                     )
                   : Row(
                       children: [
                         Expanded(
-                          child: widget.footer ??
+                          child:
+                              widget.footer ??
                               Text(
                                 'Askesis \'26 Portal',
                                 style: GoogleFonts.workSans(
@@ -357,7 +399,11 @@ class _AppSidebarState extends State<AppSidebar> {
                         IconButton(
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
-                          icon: const Icon(Icons.chevron_left, color: AppTheme.inkSoft, size: 20),
+                          icon: const Icon(
+                            Icons.chevron_left,
+                            color: AppTheme.inkSoft,
+                            size: 20,
+                          ),
                           tooltip: 'Collapse Sidebar',
                           onPressed: _toggleCollapse,
                         ),

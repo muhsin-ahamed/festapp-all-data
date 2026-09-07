@@ -6,16 +6,25 @@ class StudentApi {
 
   StudentApi(this.client);
 
-  Future<List<Student>> getStudents({String? teamId, String? section, String? query}) async {
+  Future<List<Student>> getStudents({
+    String? teamId,
+    String? section,
+    String? query,
+  }) async {
     final queryParams = <String, String>{};
     if (teamId != null && teamId.isNotEmpty) queryParams['teamId'] = teamId;
     if (section != null && section.isNotEmpty) queryParams['section'] = section;
     if (query != null && query.isNotEmpty) queryParams['query'] = query;
 
     try {
-      final res = await client.get('/controller/students', queryParams: queryParams);
+      final res = await client.get(
+        '/controller/students',
+        queryParams: queryParams,
+      );
       if (res is List) {
-        return res.map((e) => Student.fromMap(e as Map<String, dynamic>)).toList();
+        return res
+            .map((e) => Student.fromMap(e as Map<String, dynamic>))
+            .toList();
       }
     } catch (_) {}
     return [];
@@ -32,7 +41,10 @@ class StudentApi {
 
   Future<Student?> addStudent(Student student) async {
     try {
-      final res = await client.post('/controller/students', body: student.toMap());
+      final res = await client.post(
+        '/controller/students',
+        body: student.toMap(),
+      );
       return res != null ? Student.fromMap(res as Map<String, dynamic>) : null;
     } catch (_) {
       return null;
@@ -41,7 +53,10 @@ class StudentApi {
 
   Future<Student?> updateStudent(Student student) async {
     try {
-      final res = await client.put('/controller/students/${student.id}', body: student.toMap());
+      final res = await client.put(
+        '/controller/students/${student.id}',
+        body: student.toMap(),
+      );
       return res != null ? Student.fromMap(res as Map<String, dynamic>) : null;
     } catch (_) {
       return null;

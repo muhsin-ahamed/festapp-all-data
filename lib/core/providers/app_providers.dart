@@ -45,7 +45,9 @@ final programRepositoryProvider = Provider<ProgramRepository>((ref) {
 
 final registrationRepositoryProvider = Provider<RegistrationRepository>((ref) {
   final useNodeBackend = ref.watch(useNodeBackendProvider);
-  return useNodeBackend ? ApiRegistrationRepository() : SupabaseRegistrationRepository();
+  return useNodeBackend
+      ? ApiRegistrationRepository()
+      : SupabaseRegistrationRepository();
 });
 
 final resultRepositoryProvider = Provider<ResultRepository>((ref) {
@@ -108,7 +110,9 @@ final excelServiceProvider = Provider<ExcelService>((ref) {
 });
 
 final tvServiceProvider = ChangeNotifierProvider<TvService>((ref) {
-  return TvService(tvSettingsRepository: ref.watch(tvSettingsRepositoryProvider));
+  return TvService(
+    tvSettingsRepository: ref.watch(tvSettingsRepositoryProvider),
+  );
 });
 
 final demoDataServiceProvider = Provider<DemoDataService>((ref) {

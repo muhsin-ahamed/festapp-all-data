@@ -65,7 +65,9 @@ class User {
       role: UserRole.fromCode(map['role'] ?? '') ?? UserRole.festController,
       teamId: map['teamId'],
       juryId: map['juryId'],
-      createdAt: map['createdAt'] != null ? DateTime.parse(map['createdAt']) : DateTime.now(),
+      createdAt: map['createdAt'] != null
+          ? DateTime.parse(map['createdAt'])
+          : DateTime.now(),
     );
   }
 }
