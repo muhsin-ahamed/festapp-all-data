@@ -33,7 +33,9 @@ export class StudentService {
       throw { statusCode: 404, message: 'Assigned team does not exist.', code: 'TEAM_NOT_FOUND' };
     }
 
-    const id = `std_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const id = (studentData as any).id && typeof (studentData as any).id === 'string' && (studentData as any).id.trim().length > 0
+      ? (studentData as any).id.trim()
+      : `std_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const student: StudentEntity = {
       ...studentData,
       id,

@@ -5,6 +5,7 @@ import '../models/program_model.dart';
 import '../models/registration_model.dart';
 import '../models/result_model.dart';
 import 'app_repositories.dart';
+import 'supabase_repositories_impl.dart';
 import '../api/api_client.dart';
 import '../api/student_api.dart';
 import '../api/program_api.dart';
@@ -14,10 +15,19 @@ final ApiClient globalApiClient = ApiClient();
 
 class ApiStudentRepository implements StudentRepository {
   final StudentApi _api = StudentApi(globalApiClient);
+  final SupabaseStudentRepository _supabase = SupabaseStudentRepository();
 
   @override
   Future<List<Student>> getStudents() async {
-    return await _api.getStudents();
+    try {
+      final list = await _api.getStudents();
+      if (list.isNotEmpty) return list;
+    } catch (_) {}
+    try {
+      return await _supabase.getStudents();
+    } catch (_) {
+      return [];
+    }
   }
 
   @override
@@ -32,39 +42,78 @@ class ApiStudentRepository implements StudentRepository {
 
   @override
   Future<Student?> getByChaseNumber(String chaseNumber) async {
-    return await _api.getByChaseNumber(chaseNumber);
+    try {
+      final s = await _api.getByChaseNumber(chaseNumber);
+      if (s != null) return s;
+    } catch (_) {}
+    try {
+      return await _supabase.getByChaseNumber(chaseNumber);
+    } catch (_) {
+      return null;
+    }
   }
 
   @override
   Future<List<Student>> getByTeam(String teamId) async {
-    return await _api.getStudents(teamId: teamId);
+    try {
+      final list = await _api.getStudents(teamId: teamId);
+      if (list.isNotEmpty) return list;
+    } catch (_) {}
+    try {
+      return await _supabase.getByTeam(teamId);
+    } catch (_) {
+      return [];
+    }
   }
 
   @override
   Future<List<Student>> getBySection(FestSection section) async {
-    return await _api.getStudents(section: section.name);
+    try {
+      final list = await _api.getStudents(section: section.name);
+      if (list.isNotEmpty) return list;
+    } catch (_) {}
+    try {
+      return await _supabase.getBySection(section);
+    } catch (_) {
+      return [];
+    }
   }
 
   @override
   Future<void> addStudent(Student student) async {
-    await _api.addStudent(student);
+    try {
+      await _api.addStudent(student);
+    } catch (_) {}
+    try {
+      await _supabase.addStudent(student);
+    } catch (_) {}
   }
 
   @override
   Future<void> addStudents(List<Student> students) async {
     for (final student in students) {
-      await _api.addStudent(student);
+      await addStudent(student);
     }
   }
 
   @override
   Future<void> updateStudent(Student student) async {
-    await _api.updateStudent(student);
+    try {
+      await _api.updateStudent(student);
+    } catch (_) {}
+    try {
+      await _supabase.updateStudent(student);
+    } catch (_) {}
   }
 
   @override
   Future<void> deleteStudent(String id) async {
-    await _api.deleteStudent(id);
+    try {
+      await _api.deleteStudent(id);
+    } catch (_) {}
+    try {
+      await _supabase.deleteStudent(id);
+    } catch (_) {}
   }
 }
 
@@ -130,10 +179,19 @@ class ApiTeamRepository implements TeamRepository {
 
 class ApiProgramRepository implements ProgramRepository {
   final ProgramApi _api = ProgramApi(globalApiClient);
+  final SupabaseProgramRepository _supabase = SupabaseProgramRepository();
 
   @override
   Future<List<Program>> getPrograms() async {
-    return await _api.getPrograms();
+    try {
+      final list = await _api.getPrograms();
+      if (list.isNotEmpty) return list;
+    } catch (_) {}
+    try {
+      return await _supabase.getPrograms();
+    } catch (_) {
+      return [];
+    }
   }
 
   @override
@@ -160,12 +218,25 @@ class ApiProgramRepository implements ProgramRepository {
 
   @override
   Future<List<Program>> getBySection(FestSection section) async {
-    return await _api.getPrograms(section: section.name);
+    try {
+      final list = await _api.getPrograms(section: section.name);
+      if (list.isNotEmpty) return list;
+    } catch (_) {}
+    try {
+      return await _supabase.getBySection(section);
+    } catch (_) {
+      return [];
+    }
   }
 
   @override
   Future<void> addProgram(Program program) async {
-    await _api.addProgram(program);
+    try {
+      await _api.addProgram(program);
+    } catch (_) {}
+    try {
+      await _supabase.addProgram(program);
+    } catch (_) {}
   }
 
   @override
@@ -177,27 +248,47 @@ class ApiProgramRepository implements ProgramRepository {
 
   @override
   Future<void> updateProgram(Program program) async {
-    await _api.updateProgram(program);
+    try {
+      await _api.updateProgram(program);
+    } catch (_) {}
+    try {
+      await _supabase.updateProgram(program);
+    } catch (_) {}
   }
 
   @override
   Future<void> deleteProgram(String id) async {
-    await _api.deleteProgram(id);
+    try {
+      await _api.deleteProgram(id);
+    } catch (_) {}
+    try {
+      await _supabase.deleteProgram(id);
+    } catch (_) {}
   }
 }
 
 class ApiRegistrationRepository implements RegistrationRepository {
+  final SupabaseRegistrationRepository _supabase =
+      SupabaseRegistrationRepository();
+
   @override
   Future<List<Registration>> getRegistrations() async {
     try {
       final res = await globalApiClient.get('/controller/registrations');
       if (res is List) {
-        return res
+        final list = res
             .map((e) => Registration.fromMap(e as Map<String, dynamic>))
             .toList();
+        if (list.isNotEmpty) {
+          return list;
+        }
       }
     } catch (_) {}
-    return [];
+    try {
+      return await _supabase.getRegistrations();
+    } catch (_) {
+      return [];
+    }
   }
 
   @override
@@ -235,19 +326,53 @@ class ApiRegistrationRepository implements RegistrationRepository {
 
   @override
   Future<void> addRegistration(Registration reg) async {
+    bool apiSuccess = false;
     try {
-      await globalApiClient.post(
-        '/leader/registrations',
-        body: {'studentId': reg.studentId, 'programId': reg.programId},
+      final res = await globalApiClient.post(
+        '/controller/registrations',
+        body: {
+          'id': reg.id,
+          'studentId': reg.studentId,
+          'programId': reg.programId,
+          'teamId': reg.teamId,
+          'registrationNumber': reg.registrationNumber,
+          'status': reg.status.name,
+        },
       );
+      if (res != null) {
+        apiSuccess = true;
+      }
+    } catch (_) {}
+
+    // Always persist to Supabase to guarantee immediate UI visibility and durability
+    try {
+      await _supabase.addRegistration(reg);
+    } catch (_) {
+      if (!apiSuccess) rethrow;
+    }
+  }
+
+  @override
+  Future<void> updateRegistration(Registration reg) async {
+    try {
+      await _supabase.updateRegistration(reg);
     } catch (_) {}
   }
 
   @override
-  Future<void> updateRegistration(Registration reg) async {}
+  Future<void> deleteRegistration(String id) async {
+    bool apiSuccess = false;
+    try {
+      await globalApiClient.delete('/controller/registrations/$id');
+      apiSuccess = true;
+    } catch (_) {}
 
-  @override
-  Future<void> deleteRegistration(String id) async {}
+    try {
+      await _supabase.deleteRegistration(id);
+    } catch (_) {
+      if (!apiSuccess) rethrow;
+    }
+  }
 }
 
 class ApiResultRepository implements ResultRepository {

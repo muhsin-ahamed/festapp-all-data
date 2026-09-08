@@ -10,6 +10,9 @@ import '../../data/models/program_model.dart';
 import '../../data/models/result_model.dart';
 import '../../data/models/student_model.dart';
 import '../../data/models/team_model.dart';
+import '../../data/models/registration_model.dart';
+import '../../data/models/schedule_model.dart';
+import '../../data/models/venue_model.dart';
 import '../../services/qr_service.dart';
 
 class ScanAndQrScreen extends ConsumerStatefulWidget {
@@ -67,6 +70,7 @@ class _ScanAndQrScreenState extends ConsumerState<ScanAndQrScreen> {
 
     final students = ref.read(studentsProvider).value ?? [];
     final programs = ref.read(programsProvider).value ?? [];
+    final registrations = ref.read(registrationsProvider).value ?? [];
 
     // 1. Check for Student by Chase Number or ID or Name
     final matchedStudent =
@@ -85,6 +89,23 @@ class _ScanAndQrScreenState extends ConsumerState<ScanAndQrScreen> {
         _isCameraActive = false;
       });
       return;
+    }
+
+    // 1b. Check if query matches a registration number or student chase in registration
+    final matchedReg = registrations.where((r) {
+      return r.registrationNumber.toLowerCase() == query ||
+          r.registrationNumber.toLowerCase().contains(query);
+    }).firstOrNull;
+    if (matchedReg != null) {
+      final regStudent =
+          students.where((s) => s.id == matchedReg.studentId).firstOrNull;
+      if (regStudent != null) {
+        setState(() {
+          _foundStudent = regStudent;
+          _isCameraActive = false;
+        });
+        return;
+      }
     }
 
     // 2. Check for Program if QrType is program or query matches program code/name
@@ -126,6 +147,9 @@ class _ScanAndQrScreenState extends ConsumerState<ScanAndQrScreen> {
         final teamsAsync = ref.watch(teamsProvider);
         final programsAsync = ref.watch(programsProvider);
         final resultsAsync = ref.watch(publishedResultsProvider);
+        final registrationsAsync = ref.watch(registrationsProvider);
+        final schedulesAsync = ref.watch(schedulesProvider);
+        final venuesAsync = ref.watch(venuesProvider);
 
         final isLoading =
             studentsAsync.isLoading ||
@@ -137,9 +161,13 @@ class _ScanAndQrScreenState extends ConsumerState<ScanAndQrScreen> {
           return const Center(child: CircularProgressIndicator());
         }
 
+        final students = studentsAsync.value ?? [];
         final teams = teamsAsync.value ?? [];
         final programs = programsAsync.value ?? [];
         final results = resultsAsync.value ?? [];
+        final registrations = registrationsAsync.value ?? [];
+        final schedules = schedulesAsync.value ?? [];
+        final venues = venuesAsync.value ?? [];
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -225,7 +253,15 @@ class _ScanAndQrScreenState extends ConsumerState<ScanAndQrScreen> {
 
               // Student Results Card
               if (_foundStudent != null) ...[
-                _buildStudentCard(_foundStudent!, teams, programs, results),
+                _buildStudentCard(
+                  _foundStudent!,
+                  teams,
+                  programs,
+                  results,
+                  registrations,
+                  schedules,
+                  venues,
+                ),
                 const SizedBox(height: 20),
                 Center(
                   child: OutlinedButton.icon(
@@ -252,7 +288,15 @@ class _ScanAndQrScreenState extends ConsumerState<ScanAndQrScreen> {
 
               // Program Result Card
               if (_foundProgram != null) ...[
-                _buildProgramCard(_foundProgram!, results),
+                _buildProgramCard(
+                  _foundProgram!,
+                  results,
+                  registrations,
+                  students,
+                  teams,
+                  schedules,
+                  venues,
+                ),
                 const SizedBox(height: 20),
                 Center(
                   child: OutlinedButton.icon(
@@ -515,10 +559,18 @@ class _ScanAndQrScreenState extends ConsumerState<ScanAndQrScreen> {
     List<Team> teams,
     List<Program> programs,
     List<Result> results,
+    List<Registration> registrations,
+    List<Schedule> schedules,
+    List<Venue> venues,
   ) {
     final team = teams.where((t) => t.id == student.teamId).firstOrNull;
     final studentResults = results
         .where((r) => r.studentId == student.id)
+        .toList();
+    final studentRegistrations = registrations
+        .where((r) =>
+            r.studentId == student.id ||
+            r.registrationNumber.contains(student.chaseNumber))
         .toList();
 
     return Container(
@@ -603,9 +655,418 @@ class _ScanAndQrScreenState extends ConsumerState<ScanAndQrScreen> {
             const SizedBox(height: 16),
           ],
 
+          // REGISTERED PROGRAMS SECTION
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'REGISTERED PROGRAMS (${studentRegistrations.length})',
+                style: GoogleFonts.workSans(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.2,
+                  color: AppTheme.inkSoft,
+                ),
+              ),
+              if (studentRegistrations.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '${studentRegistrations.length} Enrolled',
+                    style: GoogleFonts.workSans(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green.shade800,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          if (studentRegistrations.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppTheme.cream2,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppTheme.line),
+                ),
+                child: Text(
+                  'No registered programs found for this student.',
+                  style: GoogleFonts.workSans(
+                    fontStyle: FontStyle.italic,
+                    color: AppTheme.inkSoft,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: studentRegistrations.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 8),
+              itemBuilder: (ctx, idx) {
+                final reg = studentRegistrations[idx];
+                final prog = programs
+                    .where((p) => p.id == reg.programId)
+                    .firstOrNull;
+                final progName =
+                    prog?.programName ?? 'Program #${reg.programId}';
+                final progCode = prog?.programCode ?? '';
+                final sectionLabel =
+                    prog?.section.label ?? student.section.label;
+                final isStage = prog?.isStageProgram ?? true;
+
+                // Schedule details if available (matching flexibly by id, code, or name)
+                final schedule = schedules.where((s) {
+                  if (s.programId == reg.programId) return true;
+                  if (prog != null) {
+                    if (s.programId == prog.id) return true;
+                    if (s.programId.toLowerCase().trim() ==
+                        prog.programCode.toLowerCase().trim()) {
+                      return true;
+                    }
+                    if (s.programId.toLowerCase().trim() ==
+                        prog.programName.toLowerCase().trim()) {
+                      return true;
+                    }
+                  }
+                  return false;
+                }).firstOrNull;
+
+                final venue =
+                    schedule != null
+                        ? venues.where((v) {
+                          return v.id == schedule.venueId ||
+                              v.name.toLowerCase().trim() ==
+                                  schedule.venueId.toLowerCase().trim();
+                        }).firstOrNull
+                        : null;
+                final venueName =
+                    venue?.name ??
+                    (schedule?.venueId.isNotEmpty == true
+                        ? schedule!.venueId
+                        : 'Venue TBA');
+
+                // Check if result is already available for this program
+                final progResult =
+                    studentResults
+                        .where((r) => r.programId == reg.programId)
+                        .firstOrNull;
+
+                return Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.cream2,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppTheme.line),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppTheme.red.withValues(alpha: 0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.category_rounded,
+                              color: AppTheme.red,
+                              size: 18,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  progName,
+                                  style: GoogleFonts.workSans(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14,
+                                    color: AppTheme.ink,
+                                  ),
+                                ),
+                                if (progCode.isNotEmpty)
+                                  Text(
+                                    'Code: $progCode',
+                                    style: GoogleFonts.workSans(
+                                      fontSize: 11,
+                                      color: AppTheme.inkSoft,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade700,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              reg.status.label,
+                              style: GoogleFonts.workSans(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      // SCHEDULE BANNER (Date, Time, Venue) directly under program
+                      Container(
+                        margin: const EdgeInsets.only(top: 8, bottom: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 7,
+                        ),
+                        decoration: BoxDecoration(
+                          color:
+                              schedule != null
+                                  ? Colors.white
+                                  : Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color:
+                                schedule != null
+                                    ? AppTheme.line
+                                    : Colors.grey.shade300,
+                          ),
+                        ),
+                        child:
+                            schedule != null
+                                ? Wrap(
+                                  spacing: 12,
+                                  runSpacing: 4,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  children: [
+                                    // Date
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.calendar_month_rounded,
+                                          size: 14,
+                                          color: AppTheme.red,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          schedule.date.isNotEmpty
+                                              ? schedule.date
+                                              : 'Date TBA',
+                                          style: GoogleFonts.workSans(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 11.5,
+                                            color: AppTheme.ink,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    // Time
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.access_time_filled_rounded,
+                                          size: 14,
+                                          color: AppTheme.red,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          '${schedule.startTime} - ${schedule.endTime}',
+                                          style: GoogleFonts.workSans(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 11.5,
+                                            color: AppTheme.ink,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    // Venue
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.place_rounded,
+                                          size: 14,
+                                          color: AppTheme.red,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          venueName,
+                                          style: GoogleFonts.workSans(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 11.5,
+                                            color: AppTheme.ink,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                )
+                                : Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.info_outline,
+                                      size: 13,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'Schedule: Date, Time & Venue TBA',
+                                      style: GoogleFonts.workSans(
+                                        fontSize: 11,
+                                        color: Colors.grey.shade600,
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                      ),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: [
+                          Chip(
+                            labelPadding: EdgeInsets.zero,
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                            visualDensity: VisualDensity.compact,
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+                            backgroundColor: AppTheme.cream,
+                            side: const BorderSide(color: AppTheme.line),
+                            label: Text(
+                              sectionLabel,
+                              style: GoogleFonts.workSans(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.ink,
+                              ),
+                            ),
+                          ),
+                          Chip(
+                            labelPadding: EdgeInsets.zero,
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                            visualDensity: VisualDensity.compact,
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+                            backgroundColor: AppTheme.cream,
+                            side: const BorderSide(color: AppTheme.line),
+                            label: Text(
+                              isStage ? 'Stage' : 'Non-Stage',
+                              style: GoogleFonts.workSans(
+                                fontSize: 10.5,
+                                color: AppTheme.inkSoft,
+                              ),
+                            ),
+                          ),
+                          if (schedule != null)
+                            Chip(
+                              labelPadding: EdgeInsets.zero,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                              ),
+                              visualDensity: VisualDensity.compact,
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+                              backgroundColor:
+                                  schedule.status == 'IN_PROGRESS'
+                                      ? Colors.orange.withValues(alpha: 0.15)
+                                      : (schedule.status == 'COMPLETED'
+                                          ? Colors.green.withValues(alpha: 0.15)
+                                          : Colors.blue.withValues(
+                                            alpha: 0.12,
+                                          )),
+                              side: BorderSide(
+                                color:
+                                    schedule.status == 'IN_PROGRESS'
+                                        ? Colors.orange.shade400
+                                        : (schedule.status == 'COMPLETED'
+                                            ? Colors.green.shade400
+                                            : Colors.blue.shade300),
+                              ),
+                              label: Text(
+                                schedule.status,
+                                style: GoogleFonts.workSans(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color:
+                                      schedule.status == 'IN_PROGRESS'
+                                          ? Colors.orange.shade900
+                                          : (schedule.status == 'COMPLETED'
+                                              ? Colors.green.shade800
+                                              : Colors.blue.shade800),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      if (progResult != null) ...[
+                        const SizedBox(height: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color:
+                                AppTheme.mustard.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                                color: AppTheme.mustard
+                                    .withValues(alpha: 0.4)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.emoji_events,
+                                  size: 14, color: AppTheme.mustard),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Result: Position #${progResult.position ?? "-"} • Grade ${progResult.grade} • +${progResult.points} pts',
+                                style: GoogleFonts.workSans(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.ink,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                );
+              },
+            ),
+          const SizedBox(height: 18),
+          const Divider(color: AppTheme.line),
+          const SizedBox(height: 10),
+
           // Results / Accomplishments
           Text(
-            'PERFORMANCE & RESULTS',
+            'PERFORMANCE & RESULTS (${studentResults.length})',
             style: GoogleFonts.workSans(
               fontSize: 12,
               fontWeight: FontWeight.w800,
@@ -727,10 +1188,48 @@ class _ScanAndQrScreenState extends ConsumerState<ScanAndQrScreen> {
     );
   }
 
-  Widget _buildProgramCard(Program program, List<Result> results) {
+  Widget _buildProgramCard(
+    Program program,
+    List<Result> results,
+    List<Registration> registrations,
+    List<Student> students,
+    List<Team> teams,
+    List<Schedule> schedules,
+    List<Venue> venues,
+  ) {
     final progResults = results
         .where((r) => r.programId == program.id)
         .toList();
+    final progRegistrations = registrations
+        .where((r) => r.programId == program.id)
+        .toList();
+
+    final progSchedule = schedules.where((s) {
+      if (s.programId == program.id) return true;
+      if (s.programId.toLowerCase().trim() ==
+          program.programCode.toLowerCase().trim()) {
+        return true;
+      }
+      if (s.programId.toLowerCase().trim() ==
+          program.programName.toLowerCase().trim()) {
+        return true;
+      }
+      return false;
+    }).firstOrNull;
+
+    final progVenue =
+        progSchedule != null
+            ? venues.where((v) {
+              return v.id == progSchedule.venueId ||
+                  v.name.toLowerCase().trim() ==
+                      progSchedule.venueId.toLowerCase().trim();
+            }).firstOrNull
+            : null;
+    final progVenueName =
+        progVenue?.name ??
+        (progSchedule?.venueId.isNotEmpty == true
+            ? progSchedule!.venueId
+            : 'Venue TBA');
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -763,14 +1262,234 @@ class _ScanAndQrScreenState extends ConsumerState<ScanAndQrScreen> {
               fontWeight: FontWeight.bold,
             ),
           ),
+          // SCHEDULE BANNER (Date, Time, Venue) directly under program
+          Container(
+            margin: const EdgeInsets.only(top: 10, bottom: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: progSchedule != null ? AppTheme.cream : Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: progSchedule != null
+                    ? AppTheme.line
+                    : Colors.grey.shade300,
+              ),
+            ),
+            child: progSchedule != null
+                ? Wrap(
+                    spacing: 14,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.calendar_month_rounded,
+                            size: 15,
+                            color: AppTheme.red,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            progSchedule.date.isNotEmpty
+                                ? progSchedule.date
+                                : 'Date TBA',
+                            style: GoogleFonts.workSans(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                              color: AppTheme.ink,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.access_time_filled_rounded,
+                            size: 15,
+                            color: AppTheme.red,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            '${progSchedule.startTime} - ${progSchedule.endTime}',
+                            style: GoogleFonts.workSans(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                              color: AppTheme.ink,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.place_rounded,
+                            size: 15,
+                            color: AppTheme.red,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            progVenueName,
+                            style: GoogleFonts.workSans(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                              color: AppTheme.ink,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: progSchedule.status == 'IN_PROGRESS'
+                              ? Colors.orange.withValues(alpha: 0.15)
+                              : (progSchedule.status == 'COMPLETED'
+                                  ? Colors.green.withValues(alpha: 0.15)
+                                  : Colors.blue.withValues(alpha: 0.12)),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          progSchedule.status,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: progSchedule.status == 'IN_PROGRESS'
+                                ? Colors.orange.shade900
+                                : (progSchedule.status == 'COMPLETED'
+                                    ? Colors.green.shade800
+                                    : Colors.blue.shade800),
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        size: 14,
+                        color: Colors.grey.shade600,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Schedule: Date, Time & Venue TBA',
+                        style: GoogleFonts.workSans(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
           const SizedBox(height: 14),
           const Divider(color: AppTheme.line),
           const SizedBox(height: 10),
+
+          // Registered Students / Participants
+          Text(
+            'REGISTERED PARTICIPANTS (${progRegistrations.length})',
+            style: GoogleFonts.workSans(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.2,
+              color: AppTheme.inkSoft,
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (progRegistrations.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Text(
+                'No students registered for this program yet.',
+                style: GoogleFonts.workSans(
+                  fontStyle: FontStyle.italic,
+                  color: AppTheme.inkSoft,
+                  fontSize: 13,
+                ),
+              ),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: progRegistrations.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 6),
+              itemBuilder: (ctx, idx) {
+                final reg = progRegistrations[idx];
+                final student = students
+                    .where((s) => s.id == reg.studentId)
+                    .firstOrNull;
+                final studentTeam = student != null
+                    ? teams.where((t) => t.id == student.teamId).firstOrNull
+                    : null;
+
+                return ListTile(
+                  dense: true,
+                  tileColor: AppTheme.cream2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    side: const BorderSide(color: AppTheme.line),
+                  ),
+                  leading: CircleAvatar(
+                    backgroundColor: AppTheme.red.withValues(alpha: 0.15),
+                    child: Text(
+                      student?.chaseNumber.isNotEmpty == true
+                          ? student!.chaseNumber.substring(0, 1)
+                          : '#',
+                      style: GoogleFonts.workSans(
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.red,
+                      ),
+                    ),
+                  ),
+                  title: Text(
+                    student?.name ?? 'Student #${reg.studentId}',
+                    style: GoogleFonts.workSans(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Chase #${student?.chaseNumber ?? "-"} • Team: ${studentTeam?.teamName ?? "-"}',
+                    style: GoogleFonts.workSans(fontSize: 11),
+                  ),
+                  trailing: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade700,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      reg.status.label,
+                      style: GoogleFonts.workSans(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          const SizedBox(height: 16),
+          const Divider(color: AppTheme.line),
+          const SizedBox(height: 10),
+
+          // Program Results
           Text(
             'PROGRAM RESULTS (${progResults.length})',
             style: GoogleFonts.workSans(
               fontSize: 12,
               fontWeight: FontWeight.w800,
+              letterSpacing: 1.2,
               color: AppTheme.inkSoft,
             ),
           ),
@@ -792,6 +1511,8 @@ class _ScanAndQrScreenState extends ConsumerState<ScanAndQrScreen> {
               separatorBuilder: (context, index) => const SizedBox(height: 6),
               itemBuilder: (ctx, idx) {
                 final r = progResults[idx];
+                final student =
+                    students.where((s) => s.id == r.studentId).firstOrNull;
                 return ListTile(
                   dense: true,
                   tileColor: AppTheme.cream2,
@@ -799,7 +1520,9 @@ class _ScanAndQrScreenState extends ConsumerState<ScanAndQrScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   title: Text(
-                    'Student ID: ${r.studentId}',
+                    student != null
+                        ? '${student.name} (${student.chaseNumber})'
+                        : 'Student ID: ${r.studentId}',
                     style: GoogleFonts.workSans(fontWeight: FontWeight.bold),
                   ),
                   subtitle: Text(

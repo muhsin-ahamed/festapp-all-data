@@ -455,46 +455,161 @@ class ExcelService {
 
     final students = await studentRepository.getStudents();
     final programs = await programRepository.getPrograms();
+    final teams = await teamRepository.getTeams();
+    final defaultTeamId = teams.isNotEmpty ? teams.first.id : 'team_01';
 
-    for (int i = 1; i < sheet.maxRows; i++) {
+    // Maps for fast lookups and in-memory updates
+    final Map<String, Student> studentChaseMap = {
+      for (var s in students) s.chaseNumber.trim().toLowerCase(): s,
+    };
+    final Map<String, Program> programKeyMap = {
+      for (var p in programs) '${p.programName.trim().toLowerCase()}_${p.section.name}': p,
+    };
+
+    final List<Student> newStudentsToSave = [];
+    final List<Program> newProgramsToSave = [];
+
+    if (sheet.maxRows == 0) {
+      return ExcelImportResult<Registration>(
+        totalRows: 0,
+        validRows: 0,
+        invalidRows: 0,
+        duplicateRows: 0,
+        importedRows: 0,
+        errors: ['Excel file is empty.'],
+        validItems: [],
+      );
+    }
+
+    // Detect column indexes from row 0
+    int chaseCol = 0;
+    int nameCol = 1;
+    int progCol = 2;
+    int secCol = 3;
+
+    final headerRow = sheet.row(0);
+    bool hasHeader = false;
+    for (int col = 0; col < headerRow.length; col++) {
+      final val = headerRow[col]?.value?.toString().trim().toLowerCase() ?? '';
+      if (val.contains('chse') || val.contains('chase') || val.contains('chest')) {
+        chaseCol = col;
+        hasHeader = true;
+      } else if (val.contains('name') || val.contains('student')) {
+        nameCol = col;
+        hasHeader = true;
+      } else if (val.contains('prog')) {
+        progCol = col;
+        hasHeader = true;
+      } else if (val.contains('sec') || val.contains('setion') || val.contains('section')) {
+        secCol = col;
+        hasHeader = true;
+      }
+    }
+
+    final startRow = hasHeader ? 1 : 0;
+
+    for (int i = startRow; i < sheet.maxRows; i++) {
       final row = sheet.row(i);
-      if (row.isEmpty || row.every((cell) => cell?.value == null)) continue;
+      if (row.isEmpty ||
+          row.every((cell) =>
+              cell?.value == null || cell!.value.toString().trim().isEmpty)) {
+        continue;
+      }
       total++;
 
       try {
-        final chaseNumber = row[0]?.value?.toString().trim() ?? '';
-        final studentName = row[1]?.value?.toString().trim() ?? '';
-        final programName = row[2]?.value?.toString().trim() ?? '';
-        final sectionStr = ''; // Section removed per user request
+        final chaseNumber = (chaseCol < row.length
+                ? row[chaseCol]?.value?.toString().trim()
+                : '') ??
+            '';
+        final studentName = (nameCol < row.length
+                ? row[nameCol]?.value?.toString().trim()
+                : '') ??
+            '';
+        final programName = (progCol < row.length
+                ? row[progCol]?.value?.toString().trim()
+                : '') ??
+            '';
+        final sectionStr = (secCol < row.length
+                ? row[secCol]?.value?.toString().trim()
+                : '') ??
+            '';
 
         if (chaseNumber.isEmpty || programName.isEmpty) {
           invalid++;
-          errors.add('Row ${i + 1}: Missing ches.no or program name.');
+          errors.add('Row ${i + 1}: Missing chse no or program name.');
           continue;
         }
 
-        final student = students.firstWhere(
-          (s) => s.chaseNumber.toLowerCase() == chaseNumber.toLowerCase(),
-          orElse: () => throw Exception(
-            'Student with chase number "$chaseNumber" not found.',
-          ),
-        );
+        final parsedSection =
+            FestSection.fromString(sectionStr, chaseNumber);
 
-        final program = programs.firstWhere(
-          (p) =>
-              p.programName.toLowerCase() == programName.toLowerCase() &&
-              (sectionStr.isEmpty ||
-                  p.section.label.toLowerCase() == sectionStr.toLowerCase()),
-          orElse: () => throw Exception(
-            'Program "$programName" (Section: $sectionStr) not found.',
-          ),
-        );
+        // 1. Find or auto-create student
+        Student? student = studentChaseMap[chaseNumber.toLowerCase()];
+        if (student == null) {
+          student = Student(
+            id: const Uuid().v4(),
+            chaseNumber: chaseNumber,
+            name: studentName.isNotEmpty
+                ? studentName
+                : 'Student $chaseNumber',
+            gender: 'Male',
+            dateOfBirth: '2010-01-01',
+            section: parsedSection,
+            teamId: defaultTeamId,
+            phone: '',
+            className: '',
+            schoolName: '',
+            qrCode: chaseNumber,
+          );
+          studentChaseMap[chaseNumber.toLowerCase()] = student;
+          newStudentsToSave.add(student);
+        } else if (studentName.isNotEmpty &&
+            (student.name.startsWith('Student ') || student.name.isEmpty)) {
+          student = student.copyWith(name: studentName);
+          studentChaseMap[chaseNumber.toLowerCase()] = student;
+        }
+
+        // 2. Find or auto-create program
+        final progKey = '${programName.toLowerCase()}_${parsedSection.name}';
+        Program? program = programKeyMap[progKey];
+        if (program == null) {
+          program = programs
+              .where((p) =>
+                  p.programName.trim().toLowerCase() ==
+                  programName.toLowerCase())
+              .firstOrNull;
+          if (program == null) {
+            final progIndex =
+                programs.length + newProgramsToSave.length + 1;
+            final codePart = programName
+                .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')
+                .toUpperCase();
+            final shortCode = codePart.length >= 4
+                ? codePart.substring(0, 4)
+                : codePart.padRight(4, 'X');
+            program = Program(
+              id: 'prog_${const Uuid().v4()}',
+              programCode: 'P$shortCode-$progIndex',
+              programName: programName,
+              section: parsedSection,
+              category: ProgramCategory.stage,
+              isStageProgram: true,
+              isGeneral: false,
+              maxParticipants: 1,
+              duration: '10 min',
+              status: 'UPCOMING',
+            );
+            programKeyMap[progKey] = program;
+            newProgramsToSave.add(program);
+          }
+        }
 
         final comboKey = '${student.id}_${program.id}';
         if (existingComboKeys.contains(comboKey)) {
           duplicate++;
           errors.add(
-            'Row ${i + 1}: Registration already exists for Student: $chaseNumber and Program: $programName.',
+            'Row ${i + 1}: Registration already exists for Student: $chaseNumber (${student.name}) and Program: $programName.',
           );
           continue;
         }
@@ -506,6 +621,7 @@ class ExcelService {
           teamId: student.teamId,
           registrationNumber:
               'REG-${student.chaseNumber}-${program.programCode}',
+          status: RegistrationStatus.approved,
         );
 
         validRegistrations.add(registration);
@@ -519,6 +635,15 @@ class ExcelService {
       }
     }
 
+    // Persist new students & programs in batch if any were created
+    if (newStudentsToSave.isNotEmpty) {
+      await studentRepository.addStudents(newStudentsToSave);
+    }
+    if (newProgramsToSave.isNotEmpty) {
+      await programRepository.addPrograms(newProgramsToSave);
+    }
+
+    // Persist valid registrations
     for (var reg in validRegistrations) {
       await registrationRepository.addRegistration(reg);
     }
@@ -539,16 +664,63 @@ class ExcelService {
     final sheet = excel['Registrations_Template'];
 
     sheet.appendRow([
-      TextCellValue('ches.no'),
+      TextCellValue('chse no'),
       TextCellValue('name'),
       TextCellValue('program'),
+      TextCellValue('setion'),
     ]);
 
     sheet.appendRow([
-      TextCellValue('101'),
-      TextCellValue('John Doe'),
-      TextCellValue('Solo Song'),
+      TextCellValue('SB7886'),
+      TextCellValue('MUHAMMED SHAHAL'),
+      TextCellValue('WRITING ARB'),
+      TextCellValue('SUB JUNOR'),
     ]);
+
+    sheet.appendRow([
+      TextCellValue('SB6774'),
+      TextCellValue('RAZEEL THANGAL'),
+      TextCellValue('WRITING ARB'),
+      TextCellValue('SUB JUNOR'),
+    ]);
+
+    return Uint8List.fromList(excel.save() ?? []);
+  }
+
+  Uint8List exportRegistrationsToExcel(
+    List<Registration> registrations, {
+    Map<String, Student>? studentMap,
+    Map<String, Program>? programMap,
+    Map<String, Team>? teamMap,
+  }) {
+    final excel = Excel.createExcel();
+    final sheet = excel['Registrations'];
+
+    sheet.appendRow([
+      TextCellValue('chse no'),
+      TextCellValue('name'),
+      TextCellValue('program'),
+      TextCellValue('setion'),
+      TextCellValue('team'),
+      TextCellValue('registration_no'),
+      TextCellValue('status'),
+    ]);
+
+    for (final reg in registrations) {
+      final student = studentMap?[reg.studentId];
+      final program = programMap?[reg.programId];
+      final team = teamMap?[reg.teamId];
+
+      sheet.appendRow([
+        TextCellValue(student?.chaseNumber ?? ''),
+        TextCellValue(student?.name ?? ''),
+        TextCellValue(program?.programName ?? ''),
+        TextCellValue(program?.section.label ?? student?.section.label ?? ''),
+        TextCellValue(team?.teamName ?? ''),
+        TextCellValue(reg.registrationNumber),
+        TextCellValue(reg.status.label),
+      ]);
+    }
 
     return Uint8List.fromList(excel.save() ?? []);
   }
@@ -958,24 +1130,15 @@ class ExcelService {
           endTime = '10:30';
         }
 
-        // Duplicate check (same program on same date at same start time)
-        final isDuplicate = existingSchedules.any(
-          (s) =>
-              s.programId == matchedProg!.id &&
-              s.date == dateStr &&
-              s.startTime == startTime,
+        // If schedule already exists for this program, update it with uploaded venue/date/time; otherwise create new
+        final existingIndex = existingSchedules.indexWhere(
+          (s) => s.programId == matchedProg!.id,
         );
 
-        if (isDuplicate) {
-          duplicate++;
-          errors.add(
-            'Row ${i + 1}: Duplicate schedule for "${matchedProg.programName}" on $dateStr at $startTime.',
-          );
-          continue;
-        }
-
         final schedule = Schedule(
-          id: 'sch_${const Uuid().v4()}',
+          id: existingIndex != -1
+              ? existingSchedules[existingIndex].id
+              : 'sch_${const Uuid().v4()}',
           programId: matchedProg.id,
           venueId: venueId,
           date: dateStr.isEmpty ? '2026-09-05' : dateStr,
@@ -984,8 +1147,12 @@ class ExcelService {
           status: 'SCHEDULED',
         );
 
+        if (existingIndex != -1) {
+          existingSchedules[existingIndex] = schedule;
+        } else {
+          existingSchedules.add(schedule);
+        }
         validSchedules.add(schedule);
-        existingSchedules.add(schedule);
         valid++;
       } catch (e) {
         invalid++;

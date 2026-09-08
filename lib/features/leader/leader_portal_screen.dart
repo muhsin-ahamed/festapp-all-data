@@ -1285,10 +1285,11 @@ class _LeaderPortalScreenState extends ConsumerState<LeaderPortalScreen>
                         .addRegistration(reg);
                     triggerDataRefresh(ref);
 
+                    if (!mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                          'Successfully registered ${activeStudent.name} for ${targetProg.programName}!',
+                          'Successfully registered ${activeStudent?.name ?? ''} for ${targetProg.programName}!',
                         ),
                         backgroundColor: Colors.green,
                       ),

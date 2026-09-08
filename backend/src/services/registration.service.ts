@@ -38,7 +38,9 @@ export class RegistrationService {
     }
 
     // 4. Verify Section Compatibility
-    if (program.section.toUpperCase() !== 'GENERAL' && student.section.toUpperCase() !== program.section.toUpperCase()) {
+    const cleanStudentSec = (student.section || '').toString().replace(/[\s\-_]/g, '').toUpperCase();
+    const cleanProgSec = (program.section || '').toString().replace(/[\s\-_]/g, '').toUpperCase();
+    if (cleanProgSec !== 'GENERAL' && cleanStudentSec !== cleanProgSec) {
       throw {
         statusCode: 422,
         message: `Section mismatch: Student section '${student.section}' cannot register for '${program.section}' program.`,

@@ -283,3 +283,48 @@ export async function getAuditLogs(req: Request, res: Response, next: NextFuncti
     next(error);
   }
 }
+
+// Program Registrations Management
+export async function getRegistrations(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { teamId, studentId, programId, status } = req.query;
+    const registrations = await registrationService.getRegistrations({
+      teamId: teamId as string,
+      studentId: studentId as string,
+      programId: programId as string,
+      status: status as string,
+    });
+    return sendSuccess(res, registrations, 'Registrations list');
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function addRegistration(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { studentId, programId } = req.body;
+    const created = await registrationService.createRegistration(
+      studentId,
+      programId,
+      undefined, // Fest Controller has no team restriction
+      req.user?.username
+    );
+    return sendSuccess(res, created, 'Registration created successfully', 201);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function deleteRegistration(req: Request, res: Response, next: NextFunction) {
+  try {
+    await registrationService.deleteRegistration(
+      req.params.id,
+      undefined, // Fest Controller has no team restriction
+      req.user?.username
+    );
+    return sendSuccess(res, {}, 'Registration deleted successfully');
+  } catch (error) {
+    next(error);
+  }
+}
+

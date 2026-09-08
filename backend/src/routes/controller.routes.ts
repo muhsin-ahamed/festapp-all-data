@@ -4,6 +4,7 @@ import { authenticate } from '../middleware/auth.middleware';
 import { authorize } from '../middleware/role.middleware';
 import { validateRequest } from '../middleware/validation.middleware';
 import { createStudentSchema } from '../validators/student.validator';
+import { createRegistrationSchema } from '../validators/registration.validator';
 
 const router = Router();
 
@@ -31,6 +32,11 @@ router.get('/programs', Controller.getPrograms);
 router.post('/programs', Controller.addProgram);
 router.put('/programs/:id', Controller.updateProgram);
 router.delete('/programs/:id', Controller.deleteProgram);
+
+// Program Registrations Management
+router.get('/registrations', Controller.getRegistrations);
+router.post('/registrations', validateRequest({ body: createRegistrationSchema }), Controller.addRegistration);
+router.delete('/registrations/:id', Controller.deleteRegistration);
 
 // Results Workflow
 router.get('/results', Controller.getResults);

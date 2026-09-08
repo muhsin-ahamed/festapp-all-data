@@ -11,6 +11,7 @@ import '../../data/models/team_model.dart';
 import '../../data/models/program_model.dart';
 import '../../data/models/result_model.dart';
 import '../../data/models/schedule_model.dart';
+import '../../data/models/venue_model.dart';
 import 'scan_and_qr_screen.dart';
 
 class PublicPortalScreen extends ConsumerStatefulWidget {
@@ -25,6 +26,11 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
   late TabController _tabController;
   final _searchController = TextEditingController();
 
+  String _publicScheduleSearch = '';
+  String _publicScheduleDate = 'ALL';
+  String _publicScheduleVenue = 'ALL';
+  final _publicScheduleController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -38,6 +44,7 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
   void dispose() {
     _tabController.dispose();
     _searchController.dispose();
+    _publicScheduleController.dispose();
     super.dispose();
   }
 
@@ -104,6 +111,7 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
             publishedResultsAsync,
             programsAsync,
             schedulesAsync,
+            venuesAsync,
           ),
           // 2. Live Tab
           _buildLiveTab(
@@ -234,7 +242,13 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
     AsyncValue<List<Result>> resultsAsync,
     AsyncValue<List<Program>> programsAsync,
     AsyncValue<List<Schedule>> schedulesAsync,
+    AsyncValue<List<Venue>> venuesAsync,
   ) {
+    final progs = programsAsync.value ?? [];
+    final vens = venuesAsync.value ?? [];
+    final progMap = {for (var p in progs) p.id: p};
+    final venMap = {for (var v in vens) v.id: v};
+
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -445,8 +459,19 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: sampleScheds.length,
                       separatorBuilder: (_, _) => const SizedBox(height: 10),
-                      itemBuilder: (context, idx) {
+                      itemBuilder: (ctx, idx) {
                         final sched = sampleScheds[idx];
+                        final prog = progMap[sched.programId];
+                        final ven = venMap[sched.venueId];
+                        final progTitle = prog?.programName ??
+                            (sched.programId.isNotEmpty
+                                ? sched.programId
+                                : 'Scheduled Program');
+                        final venName = ven?.name ??
+                            (sched.venueId.isNotEmpty
+                                ? sched.venueId
+                                : 'Main Stage');
+
                         return AppCard(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 16,
@@ -468,14 +493,14 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'Program #${sched.programId}',
+                                        progTitle,
                                         style: GoogleFonts.workSans(
                                           fontWeight: FontWeight.w700,
                                           fontSize: 14,
                                         ),
                                       ),
                                       Text(
-                                        '${sched.date} • ${sched.startTime}',
+                                        '${sched.date} • ${sched.startTime} • 📍 $venName',
                                         style: GoogleFonts.workSans(
                                           color: AppTheme.inkSoft,
                                           fontSize: 12,
@@ -680,33 +705,526 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
   Widget _buildScheduleTab(
     AsyncValue<List<Schedule>> schedulesAsync,
     AsyncValue<List<Program>> programsAsync,
-    AsyncValue<List<dynamic>> venuesAsync,
+    AsyncValue<List<Venue>> venuesAsync,
   ) {
+    final schedules = schedulesAsync.value ?? [];
+    final programs = programsAsync.value ?? [];
+    final venues = venuesAsync.value ?? [];
+
+    final Map<String, Program> progMap = {for (var p in programs) p.id: p};
+    final Map<String, Venue> venMap = {for (var v in venues) v.id: v};
+
+    // Filter schedules
+    final q = _publicScheduleSearch.trim().toLowerCase();
+    final filteredSchedules =
+        schedules.where((s) {
+          final prog = progMap[s.programId];
+          final venue = venMap[s.venueId];
+          if (q.isNotEmpty) {
+            final matchesProg =
+                prog?.programName.toLowerCase().contains(q) == true ||
+                prog?.programCode.toLowerCase().contains(q) == true;
+            final matchesVenue =
+                venue?.name.toLowerCase().contains(q) == true ||
+                s.venueId.toLowerCase().contains(q);
+            final matchesDate = s.date.toLowerCase().contains(q);
+            final matchesTime =
+                s.startTime.toLowerCase().contains(q) ||
+                s.endTime.toLowerCase().contains(q);
+            if (!matchesProg && !matchesVenue && !matchesDate && !matchesTime) {
+              return false;
+            }
+          }
+          if (_publicScheduleDate != 'ALL' &&
+              s.date.trim() != _publicScheduleDate) {
+            return false;
+          }
+          if (_publicScheduleVenue != 'ALL' &&
+              s.venueId != _publicScheduleVenue) {
+            return false;
+          }
+          return true;
+        }).toList();
+
+    // Sort chronologically by date and start time
+    filteredSchedules.sort((a, b) {
+      final dateCmp = a.date.compareTo(b.date);
+      if (dateCmp != 0) return dateCmp;
+      return a.startTime.compareTo(b.startTime);
+    });
+
+    final uniqueDates =
+        schedules
+            .map((s) => s.date.trim())
+            .where((d) => d.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
+
     return SingleChildScrollView(
+      padding: const EdgeInsets.all(18),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.all(18),
-            child: Container(
+          // Banner
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [AppTheme.ink, Color(0xFF1E293B)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.event_note_rounded,
+                      color: AppTheme.cream,
+                      size: 26,
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      'EVENT & STAGE SCHEDULE',
+                      style: GoogleFonts.rye(
+                        fontSize: 20,
+                        color: AppTheme.cream,
+                        letterSpacing: 1.1,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Browse program dates, stages, venues, and performance timings.',
+                  style: GoogleFonts.workSans(
+                    color: AppTheme.cream.withValues(alpha: 0.8),
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Search and Filters
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppTheme.line),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _publicScheduleController,
+                        decoration: InputDecoration(
+                          hintText: 'Search by program name, code, or stage...',
+                          prefixIcon: const Icon(
+                            Icons.search,
+                            size: 20,
+                            color: AppTheme.red,
+                          ),
+                          suffixIcon:
+                              _publicScheduleSearch.isNotEmpty
+                                  ? IconButton(
+                                    icon: const Icon(Icons.clear, size: 18),
+                                    onPressed: () {
+                                      setState(() {
+                                        _publicScheduleController.clear();
+                                        _publicScheduleSearch = '';
+                                      });
+                                    },
+                                  )
+                                  : null,
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: const BorderSide(color: AppTheme.line),
+                          ),
+                        ),
+                        onChanged: (val) {
+                          setState(() {
+                            _publicScheduleSearch = val;
+                          });
+                        },
+                      ),
+                    ),
+                    if (venues.isNotEmpty) ...[
+                      const SizedBox(width: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: AppTheme.line),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: _publicScheduleVenue,
+                            isDense: true,
+                            items: [
+                              const DropdownMenuItem(
+                                value: 'ALL',
+                                child: Text('All Venues / Stages'),
+                              ),
+                              ...venues.map(
+                                (v) => DropdownMenuItem(
+                                  value: v.id,
+                                  child: Text(v.name),
+                                ),
+                              ),
+                            ],
+                            onChanged: (val) {
+                              if (val != null) {
+                                setState(() {
+                                  _publicScheduleVenue = val;
+                                });
+                              }
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                if (uniqueDates.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        Text(
+                          'Date:',
+                          style: GoogleFonts.workSans(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            color: AppTheme.inkSoft,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ChoiceChip(
+                          label: const Text('All Dates'),
+                          selected: _publicScheduleDate == 'ALL',
+                          visualDensity: VisualDensity.compact,
+                          onSelected: (_) {
+                            setState(() {
+                              _publicScheduleDate = 'ALL';
+                            });
+                          },
+                        ),
+                        ...uniqueDates.map(
+                          (d) => Padding(
+                            padding: const EdgeInsets.only(left: 6),
+                            child: ChoiceChip(
+                              label: Text(d),
+                              selected: _publicScheduleDate == d,
+                              visualDensity: VisualDensity.compact,
+                              onSelected: (_) {
+                                setState(() {
+                                  _publicScheduleDate = d;
+                                });
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+
+          // Schedule Cards
+          if (filteredSchedules.isEmpty)
+            Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
               decoration: BoxDecoration(
                 color: AppTheme.cream2,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: AppTheme.line),
               ),
-              child: Text(
-                'No stage schedules available.',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.workSans(
-                  color: AppTheme.inkSoft,
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w600,
-                ),
+              child: Column(
+                children: [
+                  const Icon(
+                    Icons.event_busy_rounded,
+                    size: 44,
+                    color: AppTheme.inkSoft,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    schedules.isEmpty
+                        ? 'No stage schedules published yet.'
+                        : 'No schedules matching your search/filter.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.workSans(
+                      color: AppTheme.ink,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    schedules.isEmpty
+                        ? 'Please check back once event organizers publish the schedule.'
+                        : 'Try adjusting your search keywords or date filter.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.workSans(
+                      color: AppTheme.inkSoft,
+                      fontSize: 12.5,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else ...[
+            Text(
+              'SHOWING ${filteredSchedules.length} SCHEDULES',
+              style: GoogleFonts.workSans(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.2,
+                color: AppTheme.inkSoft,
               ),
             ),
-          ),
-          const SizedBox(height: 12),
+            const SizedBox(height: 10),
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: filteredSchedules.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 10),
+              itemBuilder: (context, idx) {
+                final sch = filteredSchedules[idx];
+                final prog = progMap[sch.programId];
+                final ven = venMap[sch.venueId];
+                final progName =
+                    prog?.programName ??
+                    (sch.programId.isNotEmpty
+                        ? sch.programId
+                        : 'Program #${sch.programId}');
+                final progCode = prog?.programCode ?? '';
+                final section = prog?.section.label ?? 'General';
+                final venName =
+                    ven?.name ??
+                    (sch.venueId.isNotEmpty ? sch.venueId : 'Main Venue');
+                final venLoc = ven?.location ?? '';
+
+                Color statusBg = Colors.blue.withValues(alpha: 0.12);
+                Color statusFg = Colors.blue.shade800;
+                String statusLabel = sch.status;
+                if (sch.status == 'IN_PROGRESS') {
+                  statusBg = Colors.orange.withValues(alpha: 0.15);
+                  statusFg = Colors.orange.shade900;
+                  statusLabel = 'LIVE NOW';
+                } else if (sch.status == 'COMPLETED') {
+                  statusBg = Colors.green.withValues(alpha: 0.15);
+                  statusFg = Colors.green.shade800;
+                  statusLabel = 'COMPLETED';
+                } else if (sch.status == 'CANCELLED') {
+                  statusBg = Colors.red.withValues(alpha: 0.12);
+                  statusFg = Colors.red.shade800;
+                  statusLabel = 'CANCELLED';
+                }
+
+                return AppCard(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Time Box
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppTheme.cream2,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: AppTheme.line),
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.access_time,
+                                  size: 16,
+                                  color: AppTheme.red,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  sch.startTime,
+                                  style: GoogleFonts.workSans(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    color: AppTheme.ink,
+                                  ),
+                                ),
+                                Text(
+                                  sch.endTime,
+                                  style: GoogleFonts.workSans(
+                                    fontSize: 11,
+                                    color: AppTheme.inkSoft,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          // Program Details
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        progName,
+                                        style: GoogleFonts.workSans(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 15,
+                                          color: AppTheme.ink,
+                                        ),
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 3,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: statusBg,
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        statusLabel,
+                                        style: TextStyle(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.bold,
+                                          color: statusFg,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    if (progCode.isNotEmpty) ...[
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.cream,
+                                          borderRadius: BorderRadius.circular(
+                                            4,
+                                          ),
+                                          border: Border.all(
+                                            color: AppTheme.line,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          progCode,
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                    ],
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.blue.withValues(
+                                          alpha: 0.1,
+                                        ),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        section,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.blue.shade800,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.place,
+                                      size: 14,
+                                      color: AppTheme.red,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      venLoc.isNotEmpty
+                                          ? '$venName ($venLoc)'
+                                          : venName,
+                                      style: GoogleFonts.workSans(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 12.5,
+                                        color: AppTheme.ink,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    const Icon(
+                                      Icons.calendar_month,
+                                      size: 14,
+                                      color: AppTheme.inkSoft,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      sch.date.isNotEmpty
+                                          ? sch.date
+                                          : 'Date TBA',
+                                      style: GoogleFonts.workSans(
+                                        fontSize: 12,
+                                        color: AppTheme.inkSoft,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
+          const SizedBox(height: 20),
           const PatternStrip(height: 12),
         ],
       ),

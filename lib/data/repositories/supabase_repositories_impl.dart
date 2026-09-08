@@ -419,7 +419,15 @@ class SupabaseVenueRepository implements VenueRepository {
       final items = (res as List)
           .map((e) => Venue.fromMap(e as Map<String, dynamic>))
           .toList();
-      if (items.isNotEmpty) return items;
+      if (items.isNotEmpty) {
+        final remoteIds = items.map((v) => v.id).toSet();
+        for (final v in _localVenues) {
+          if (!remoteIds.contains(v.id)) {
+            items.add(v);
+          }
+        }
+        return items;
+      }
     } catch (_) {}
     return List.from(_localVenues);
   }
@@ -444,8 +452,12 @@ class SupabaseVenueRepository implements VenueRepository {
   @override
   Future<void> addVenue(Venue venue) async {
     try {
-      await _safeInsert(_table, venue.toMap());
-    } catch (_) {}
+      await _safeUpsert(_table, venue.toMap());
+    } catch (_) {
+      try {
+        await _safeInsert(_table, venue.toMap());
+      } catch (_) {}
+    }
     _localVenues.removeWhere((v) => v.id == venue.id);
     _localVenues.add(venue);
   }
@@ -498,7 +510,15 @@ class SupabaseScheduleRepository implements ScheduleRepository {
       final items = (res as List)
           .map((e) => Schedule.fromMap(e as Map<String, dynamic>))
           .toList();
-      if (items.isNotEmpty) return items;
+      if (items.isNotEmpty) {
+        final remoteIds = items.map((s) => s.id).toSet();
+        for (final s in _localSchedules) {
+          if (!remoteIds.contains(s.id)) {
+            items.add(s);
+          }
+        }
+        return items;
+      }
     } catch (_) {}
     return List.from(_localSchedules);
   }
@@ -535,8 +555,12 @@ class SupabaseScheduleRepository implements ScheduleRepository {
   @override
   Future<void> addSchedule(Schedule schedule) async {
     try {
-      await _safeInsert(_table, schedule.toMap());
-    } catch (_) {}
+      await _safeUpsert(_table, schedule.toMap());
+    } catch (_) {
+      try {
+        await _safeInsert(_table, schedule.toMap());
+      } catch (_) {}
+    }
     _localSchedules.removeWhere((s) => s.id == schedule.id);
     _localSchedules.add(schedule);
   }

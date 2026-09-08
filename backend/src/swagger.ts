@@ -10,6 +10,10 @@ const options: swaggerJSDoc.Options = {
     },
     servers: [
       {
+        url: 'https://festapp-all-data.onrender.com',
+        description: 'Production server',
+      },
+      {
         url: 'http://localhost:3000',
         description: 'Development server',
       },

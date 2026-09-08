@@ -62,12 +62,21 @@ class _ControllerPortalScreenState
   final _progMaxParticipantsController = TextEditingController(text: '1');
   FestSection _progSection = FestSection.subJunior;
 
+  // Program Registrations State & Controllers
+  String _regSearchQuery = '';
+  String _selectedRegSectionFilter = 'ALL';
+  String? _selectedRegProgramFilter;
+  final _regChaseController = TextEditingController();
+  final _regStudentNameController = TextEditingController();
+  final _regProgramNameController = TextEditingController();
+  FestSection _regSection = FestSection.subJunior;
+
   // Schedule & Venue State & Controllers
   String _scheduleSearchQuery = '';
   String _selectedScheduleDateFilter = 'ALL';
   String _selectedScheduleVenueFilter = 'ALL';
-  String _selectedScheduleSectionFilter = 'ALL';
-
+  String _selectedScheduleStatusFilter = 'ALL';
+  final _scheduleSearchController = TextEditingController();
   final _schDateController = TextEditingController(text: '2026-09-05');
   final _schStartTimeController = TextEditingController(text: '09:00');
   final _schEndTimeController = TextEditingController(text: '10:30');
@@ -105,6 +114,7 @@ class _ControllerPortalScreenState
     _progCodeController.dispose();
     _progNameController.dispose();
     _progMaxParticipantsController.dispose();
+    _scheduleSearchController.dispose();
     _schDateController.dispose();
     _schStartTimeController.dispose();
     _schEndTimeController.dispose();
@@ -118,6 +128,9 @@ class _ControllerPortalScreenState
     _userPhoneController.dispose();
     _userEmailController.dispose();
     _userJuryCodeController.dispose();
+    _regChaseController.dispose();
+    _regStudentNameController.dispose();
+    _regProgramNameController.dispose();
     super.dispose();
   }
 
@@ -144,6 +157,10 @@ class _ControllerPortalScreenState
       SidebarNavItem(icon: Icons.people_alt_rounded, label: 'Students'),
       SidebarNavItem(icon: Icons.groups_rounded, label: 'Teams'),
       SidebarNavItem(icon: Icons.category_rounded, label: 'Programs'),
+      SidebarNavItem(
+        icon: Icons.app_registration_rounded,
+        label: 'Program Registrations',
+      ),
       SidebarNavItem(
         icon: Icons.calendar_month_rounded,
         label: 'Schedule & Venue',
@@ -172,7 +189,14 @@ class _ControllerPortalScreenState
         _buildTeamsSection(teamsAsync),
         // 3. Programs Management
         _buildProgramsSection(programsAsync),
-        // 4. Schedule & Venue Management
+        // 4. Program Registrations Management
+        _buildProgramRegistrationsSection(
+          registrationsAsync,
+          studentsAsync,
+          programsAsync,
+          teamsAsync,
+        ),
+        // 5. Schedule & Venue Management
         _buildScheduleAndVenueSection(
           schedulesAsync,
           venuesAsync,
@@ -181,18 +205,18 @@ class _ControllerPortalScreenState
           registrationsAsync,
           teamsAsync,
         ),
-        // 5. Result Upload & Verification Workflow
+        // 6. Result Upload & Verification Workflow
         _buildResultUploadSection(
           programsAsync,
           studentsAsync,
           teamsAsync,
           resultsAsync,
         ),
-        // 6. TV Control & Announcements
+        // 7. TV Control & Announcements
         _buildTvControlSection(),
-        // 7. Excel Import
+        // 8. Excel Import
         _buildExcelImportSection(),
-        // 8. User Logins Management (Team Leaders & Jury)
+        // 9. User Logins Management (Team Leaders & Jury)
         _buildUserManagementSection(
           usersAsync,
           leadersAsync,
@@ -200,7 +224,7 @@ class _ControllerPortalScreenState
           teamsAsync,
           programsAsync,
         ),
-        // 9. Settings & Demo Data Generator
+        // 10. Settings & Demo Data Generator
         _buildSettingsSection(),
       ],
     );
@@ -842,7 +866,7 @@ class _ControllerPortalScreenState
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Text(
-                  'When importing program registrations using Excel, your file must have these 3 columns exactly as written:',
+                  'When importing program registrations using Excel, your file must have these 4 columns exactly as written:',
                 ),
                 const SizedBox(height: 16),
                 Table(
@@ -851,6 +875,7 @@ class _ControllerPortalScreenState
                     0: FlexColumnWidth(1.2),
                     1: FlexColumnWidth(1.5),
                     2: FlexColumnWidth(1.5),
+                    3: FlexColumnWidth(1.2),
                   },
                   children: const [
                     TableRow(
@@ -859,7 +884,7 @@ class _ControllerPortalScreenState
                         Padding(
                           padding: EdgeInsets.all(8),
                           child: Text(
-                            'ches.no',
+                            'chse no',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 13,
@@ -889,31 +914,50 @@ class _ControllerPortalScreenState
                             ),
                           ),
                         ),
-                      ],
-                    ),
-                    TableRow(
-                      children: [
-                        Padding(padding: EdgeInsets.all(8), child: Text('101')),
                         Padding(
                           padding: EdgeInsets.all(8),
-                          child: Text('John Doe'),
-                        ),
-                        Padding(
-                          padding: EdgeInsets.all(8),
-                          child: Text('Solo Song'),
+                          child: Text(
+                            'setion',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: Colors.blue,
+                            ),
+                          ),
                         ),
                       ],
                     ),
                     TableRow(
                       children: [
-                        Padding(padding: EdgeInsets.all(8), child: Text('102')),
+                        Padding(padding: EdgeInsets.all(8), child: Text('SB7886')),
                         Padding(
                           padding: EdgeInsets.all(8),
-                          child: Text('Sarah Smith'),
+                          child: Text('MUHAMMED SHAHAL'),
                         ),
                         Padding(
                           padding: EdgeInsets.all(8),
-                          child: Text('Elocution English'),
+                          child: Text('WRITING ARB'),
+                        ),
+                        Padding(
+                          padding: EdgeInsets.all(8),
+                          child: Text('SUB JUNOR'),
+                        ),
+                      ],
+                    ),
+                    TableRow(
+                      children: [
+                        Padding(padding: EdgeInsets.all(8), child: Text('SB6774')),
+                        Padding(
+                          padding: EdgeInsets.all(8),
+                          child: Text('RAZEEL THANGAL'),
+                        ),
+                        Padding(
+                          padding: EdgeInsets.all(8),
+                          child: Text('WRITING ARB'),
+                        ),
+                        Padding(
+                          padding: EdgeInsets.all(8),
+                          child: Text('SUB JUNOR'),
                         ),
                       ],
                     ),
@@ -2748,8 +2792,9 @@ class _ControllerPortalScreenState
                           )
                           .toList(),
                       onChanged: (val) {
-                        if (val != null)
+                        if (val != null) {
                           setDialogState(() => _progSection = val);
+                        }
                       },
                     ),
                     const SizedBox(height: 10),
@@ -3052,46 +3097,1113 @@ class _ControllerPortalScreenState
   }
 
   void _confirmDeleteAllPrograms(List<Program> programs) {
+    bool isDeleting = false;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Confirm Delete All Programs'),
+              content: isDeleting
+                  ? const Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text('Deleting programs... This may take a while.'),
+                      ],
+                    )
+                  : Text(
+                      'Are you sure you want to delete all ${programs.length} programs? This action cannot be undone and will delete associated schedules and results.',
+                    ),
+              actions: [
+                if (!isDeleting)
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancel'),
+                  ),
+                if (!isDeleting)
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                    ),
+                    onPressed: () async {
+                      setState(() => isDeleting = true);
+                      int successCount = 0;
+                      int failCount = 0;
+                      try {
+                        final repo = ref.read(programRepositoryProvider);
+                        final uniquePrograms = {
+                          for (var p in programs) p.id: p,
+                        }.values.toList();
+                        for (final p in uniquePrograms) {
+                          try {
+                            await repo.deleteProgram(p.id);
+                            successCount++;
+                          } catch (e) {
+                            failCount++;
+                          }
+                        }
+                      } finally {
+                        triggerDataRefresh(ref);
+                        if (context.mounted) {
+                          Navigator.pop(context);
+                          if (failCount == 0) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'All programs deleted successfully.',
+                                ),
+                              ),
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Deleted $successCount programs. $failCount failed (maybe already deleted).',
+                                ),
+                              ),
+                            );
+                          }
+                        }
+                      }
+                    },
+                    child: const Text('Delete All'),
+                  ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // --- PROGRAM REGISTRATIONS MANAGEMENT SECTION ---
+  Widget _buildProgramRegistrationsSection(
+    AsyncValue<List<Registration>> registrationsAsync,
+    AsyncValue<List<Student>> studentsAsync,
+    AsyncValue<List<Program>> programsAsync,
+    AsyncValue<List<Team>> teamsAsync,
+  ) {
+    final students = studentsAsync.value ?? [];
+    final programs = programsAsync.value ?? [];
+    final teams = teamsAsync.value ?? [];
+    final studentMap = {for (var s in students) s.id: s};
+    final programMap = {for (var p in programs) p.id: p};
+    final teamMap = {for (var t in teams) t.id: t};
+
+    Student? findStudent(String id) {
+      if (studentMap.containsKey(id)) return studentMap[id];
+      final lowerId = id.trim().toLowerCase();
+      return students
+          .where((s) =>
+              s.id.toLowerCase() == lowerId ||
+              s.chaseNumber.trim().toLowerCase() == lowerId)
+          .firstOrNull;
+    }
+
+    Program? findProgram(String id) {
+      if (programMap.containsKey(id)) return programMap[id];
+      final lowerId = id.trim().toLowerCase();
+      return programs
+          .where((p) =>
+              p.id.toLowerCase() == lowerId ||
+              p.programCode.trim().toLowerCase() == lowerId ||
+              p.programName.trim().toLowerCase() == lowerId)
+          .firstOrNull;
+    }
+
+    return Scaffold(
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showAddRegistrationDialog(students, programs, teams),
+        icon: const Icon(Icons.add),
+        label: const Text('Register Program'),
+      ),
+      body: registrationsAsync.when(
+        data: (registrations) {
+          // Distinct counts
+          final distinctStudentsCount =
+              registrations.map((r) => r.studentId).toSet().length;
+          final distinctProgramsCount =
+              registrations.map((r) => r.programId).toSet().length;
+          final subJuniorCount = registrations.where((r) {
+            final s = findStudent(r.studentId);
+            final p = findProgram(r.programId);
+            return s?.section == FestSection.subJunior ||
+                p?.section == FestSection.subJunior;
+          }).length;
+          final seniorCount = registrations.where((r) {
+            final s = findStudent(r.studentId);
+            final p = findProgram(r.programId);
+            return s?.section == FestSection.senior ||
+                p?.section == FestSection.senior;
+          }).length;
+
+          // Filter registrations
+          final filtered = registrations.where((r) {
+            final student = findStudent(r.studentId);
+            final prog = findProgram(r.programId);
+
+            String chase = student?.chaseNumber.toLowerCase() ?? '';
+            String name = student?.name.toLowerCase() ?? '';
+            String progName = prog?.programName.toLowerCase() ?? '';
+            String regNum = r.registrationNumber.toLowerCase();
+
+            if (chase.isEmpty && regNum.startsWith('reg-')) {
+              final parts = regNum.split('-');
+              if (parts.length >= 2) {
+                chase = parts[1];
+              }
+            }
+
+            final q = _regSearchQuery.trim().toLowerCase();
+            if (q.isNotEmpty) {
+              final match = chase.contains(q) ||
+                  name.contains(q) ||
+                  progName.contains(q) ||
+                  regNum.contains(q);
+              if (!match) return false;
+            }
+
+            if (_selectedRegSectionFilter != 'ALL') {
+              final filterClean = _selectedRegSectionFilter
+                  .replaceAll(RegExp(r'[\s\-_]'), '')
+                  .toLowerCase();
+              final progSecNameClean = prog?.section.name
+                  .replaceAll(RegExp(r'[\s\-_]'), '')
+                  .toLowerCase();
+              final progSecLabelClean = prog?.section.label
+                  .replaceAll(RegExp(r'[\s\-_]'), '')
+                  .toLowerCase();
+              final studSecNameClean = student?.section.name
+                  .replaceAll(RegExp(r'[\s\-_]'), '')
+                  .toLowerCase();
+              final studSecLabelClean = student?.section.label
+                  .replaceAll(RegExp(r'[\s\-_]'), '')
+                  .toLowerCase();
+
+              final matchProg = (progSecNameClean == filterClean ||
+                  progSecLabelClean == filterClean);
+              final matchStud = (studSecNameClean == filterClean ||
+                  studSecLabelClean == filterClean);
+
+              if (!matchProg && !matchStud) {
+                return false;
+              }
+            }
+
+            if (_selectedRegProgramFilter != null &&
+                _selectedRegProgramFilter != 'ALL') {
+              if (r.programId != _selectedRegProgramFilter &&
+                  prog?.id != _selectedRegProgramFilter) {
+                return false;
+              }
+            }
+
+            return true;
+          }).toList();
+
+          return Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Top Header & Action Buttons
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 16,
+                  runSpacing: 16,
+                  children: [
+                    Text(
+                      'Program Registrations (${registrations.length})',
+                      style: GoogleFonts.inter(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        _buildExcelFormatButton(
+                          onTap: _showRegistrationExcelFormatDialog,
+                        ),
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.file_upload),
+                          label: const Text('Import Excel'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primaryColor,
+                            foregroundColor: Colors.white,
+                          ),
+                          onPressed: _importRegistrationsFromExcel,
+                        ),
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.download),
+                          label: const Text('Template'),
+                          onPressed: () async {
+                            final excelService =
+                                ref.read(excelServiceProvider);
+                            final bytes =
+                                excelService.generateRegistrationTemplate();
+                            await Printing.sharePdf(
+                              bytes: bytes,
+                              filename: 'registration_excel_template.xlsx',
+                            );
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Downloaded Registrations Excel Template.',
+                                  ),
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.file_download),
+                          label: const Text('Export Excel'),
+                          onPressed: () async {
+                            final excelService =
+                                ref.read(excelServiceProvider);
+                            final bytes =
+                                excelService.exportRegistrationsToExcel(
+                              registrations,
+                              studentMap: studentMap,
+                              programMap: programMap,
+                              teamMap: teamMap,
+                            );
+                            await Printing.sharePdf(
+                              bytes: bytes,
+                              filename: 'program_registrations_export.xlsx',
+                            );
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Exported ${registrations.length} registrations to Excel format.',
+                                  ),
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.person_add_alt_1),
+                          label: const Text('Manual Register'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green.shade700,
+                            foregroundColor: Colors.white,
+                          ),
+                          onPressed: () => _showAddRegistrationDialog(
+                            students,
+                            programs,
+                            teams,
+                          ),
+                        ),
+                        if (registrations.isNotEmpty)
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.delete_sweep_rounded),
+                            label: const Text('Delete All'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              foregroundColor: Colors.white,
+                            ),
+                            onPressed: () =>
+                                _confirmDeleteAllRegistrations(registrations),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Metric Cards
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    _buildRegMetricCard(
+                      'Total Registrations',
+                      registrations.length.toString(),
+                      Icons.app_registration_rounded,
+                      Colors.blue,
+                    ),
+                    _buildRegMetricCard(
+                      'Registered Students',
+                      distinctStudentsCount.toString(),
+                      Icons.people_rounded,
+                      Colors.purple,
+                    ),
+                    _buildRegMetricCard(
+                      'Active Programs',
+                      distinctProgramsCount.toString(),
+                      Icons.category_rounded,
+                      Colors.teal,
+                    ),
+                    _buildRegMetricCard(
+                      'Sub Junior Regs',
+                      subJuniorCount.toString(),
+                      Icons.child_care_rounded,
+                      Colors.orange,
+                    ),
+                    _buildRegMetricCard(
+                      'Senior Regs',
+                      seniorCount.toString(),
+                      Icons.school_rounded,
+                      Colors.indigo,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Search & Filter Bar
+                Card(
+                  margin: EdgeInsets.zero,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                decoration: const InputDecoration(
+                                  hintText:
+                                      'Search by Chest No (e.g. SB7886), Student Name, or Program...',
+                                  prefixIcon: Icon(Icons.search),
+                                  isDense: true,
+                                  border: OutlineInputBorder(
+                                    borderRadius:
+                                        BorderRadius.all(Radius.circular(10)),
+                                  ),
+                                ),
+                                onChanged: (val) {
+                                  setState(() {
+                                    _regSearchQuery = val;
+                                  });
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            const Text(
+                              'Section:',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                            for (final sec in [
+                              'ALL',
+                              'SUB_JUNIOR',
+                              'SENIOR',
+                              'SUPER_SENIOR',
+                              'GENERAL',
+                              'GROUP'
+                            ])
+                              FilterChip(
+                                label: Text(sec.replaceAll('_', ' ')),
+                                selected: _selectedRegSectionFilter == sec,
+                                onSelected: (sel) {
+                                  setState(() {
+                                    _selectedRegSectionFilter =
+                                        sel ? sec : 'ALL';
+                                  });
+                                },
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Registrations Data List
+                Expanded(
+                  child: filtered.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                Icons.app_registration_outlined,
+                                size: 54,
+                                color: AppTheme.inkSoft,
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                registrations.isEmpty
+                                    ? 'No program registrations found yet.'
+                                    : 'No registrations matching your search/filter.',
+                                style: GoogleFonts.inter(
+                                  color: AppTheme.inkSoft,
+                                  fontSize: 15,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Wrap(
+                                spacing: 10,
+                                children: [
+                                  ElevatedButton.icon(
+                                    icon: const Icon(Icons.person_add_alt_1),
+                                    label: const Text('Manual Register'),
+                                    onPressed: () =>
+                                        _showAddRegistrationDialog(
+                                      students,
+                                      programs,
+                                      teams,
+                                    ),
+                                  ),
+                                  OutlinedButton.icon(
+                                    icon: const Icon(Icons.file_upload),
+                                    label: const Text('Import Excel'),
+                                    onPressed: _importRegistrationsFromExcel,
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          itemCount: filtered.length,
+                          itemBuilder: (context, idx) {
+                            final r = filtered[idx];
+                            final s = findStudent(r.studentId);
+                            final p = findProgram(r.programId);
+                            final t = teamMap[r.teamId.isNotEmpty
+                                ? r.teamId
+                                : (s?.teamId ?? '')];
+                            String chaseNo = s?.chaseNumber ?? '';
+                            String studentName = s?.name ?? '';
+                            String progName = p?.programName ?? '';
+
+                            if (chaseNo.isEmpty && r.registrationNumber.startsWith('REG-')) {
+                              final parts = r.registrationNumber.split('-');
+                              if (parts.length >= 2) {
+                                chaseNo = parts[1];
+                              }
+                              if (parts.length >= 3 && progName.isEmpty) {
+                                progName = parts.sublist(2).join('-');
+                              }
+                            }
+                            if (studentName.isEmpty) {
+                              studentName = chaseNo.isNotEmpty
+                                  ? 'Student ($chaseNo)'
+                                  : 'Student #${r.studentId}';
+                            }
+                            if (progName.isEmpty) {
+                              progName = 'Program #${r.programId}';
+                            }
+                            if (chaseNo.isEmpty) {
+                              chaseNo = '-';
+                            }
+                            final sectionLabel = p?.section.label ??
+                                s?.section.label ??
+                                'Sub Junior';
+
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              child: ListTile(
+                                leading: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue.shade50,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: Colors.blue.shade200,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    chaseNo,
+                                    style: GoogleFonts.workSans(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.blue.shade900,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                                title: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        studentName,
+                                        style: GoogleFonts.inter(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.green.shade50,
+                                        borderRadius:
+                                            BorderRadius.circular(6),
+                                        border: Border.all(
+                                          color: Colors.green.shade300,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        r.status.label,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.green.shade800,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                subtitle: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.category_rounded,
+                                          size: 14,
+                                          color: AppTheme.red,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          progName,
+                                          style: GoogleFonts.workSans(
+                                            fontWeight: FontWeight.w600,
+                                            color: AppTheme.ink,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Chip(
+                                          labelPadding: EdgeInsets.zero,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                          ),
+                                          visualDensity:
+                                              VisualDensity.compact,
+                                          materialTapTargetSize:
+                                              MaterialTapTargetSize.shrinkWrap,
+                                          backgroundColor: AppTheme.cream,
+                                          side: const BorderSide(
+                                            color: AppTheme.line,
+                                          ),
+                                          label: Text(
+                                            sectionLabel,
+                                            style: const TextStyle(
+                                              fontSize: 10.5,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Reg #: ${r.registrationNumber} • Team: ${t?.teamName ?? "-"}',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                trailing: IconButton(
+                                  icon: const Icon(
+                                    Icons.delete_outline,
+                                    color: Colors.red,
+                                  ),
+                                  tooltip: 'Delete Registration',
+                                  onPressed: () => _confirmDeleteRegistration(
+                                    r,
+                                    studentName,
+                                    progName,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, stack) =>
+            Center(child: Text('Error loading registrations: $err')),
+      ),
+    );
+  }
+
+  Widget _buildRegMetricCard(
+    String title,
+    String count,
+    IconData icon,
+    Color color,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                count,
+                style: GoogleFonts.inter(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: color,
+                ),
+              ),
+              Text(
+                title,
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  color: AppTheme.inkSoft,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddRegistrationDialog(
+    List<Student> students,
+    List<Program> programs,
+    List<Team> teams,
+  ) {
+    _regChaseController.clear();
+    _regStudentNameController.clear();
+    _regProgramNameController.clear();
+    _regSection = FestSection.subJunior;
+
+    final availableSections = FestSection.values.toList();
+    bool isSubmitting = false;
+
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text('Confirm Delete All Programs'),
-          content: Text(
-            'Are you sure you want to delete all ${programs.length} programs? This action cannot be undone and will delete associated schedules and results.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              onPressed: () async {
-                try {
-                  final repo = ref.read(programRepositoryProvider);
-                  for (final p in programs) {
-                    await repo.deleteProgram(p.id);
-                  }
-                  triggerDataRefresh(ref);
-                  if (mounted) Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('All programs deleted successfully.'),
-                    ),
-                  );
-                } catch (e) {
-                  if (mounted) Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Failed to delete programs: $e')),
-                  );
-                }
-              },
-              child: const Text('Delete All'),
-            ),
-          ],
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Row(
+                children: const [
+                  Icon(Icons.app_registration_rounded, color: AppTheme.red),
+                  SizedBox(width: 8),
+                  Text('Register Student to Program'),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: SizedBox(
+                  width: 480,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Enter student and program details matching the registration form:',
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Chest No input with auto-matching existing student
+                      AppTextField(
+                        label: 'Chest No (chse no) *',
+                        controller: _regChaseController,
+                        hint: 'e.g. SB7886',
+                        onChanged: (val) {
+                          final clean = val.trim().toLowerCase();
+                          final matched = students
+                              .where((s) =>
+                                  s.chaseNumber.trim().toLowerCase() == clean)
+                              .firstOrNull;
+                          if (matched != null) {
+                            setDialogState(() {
+                              _regStudentNameController.text = matched.name;
+                              _regSection = matched.section;
+                            });
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 10),
+
+                      // Student Name
+                      AppTextField(
+                        label: 'Student Name (name) *',
+                        controller: _regStudentNameController,
+                        hint: 'e.g. MUHAMMED SHAHAL',
+                      ),
+                      const SizedBox(height: 10),
+
+                      // Program Name with Quick Selection or Type
+                      Row(
+                        children: [
+                          Expanded(
+                            child: AppTextField(
+                              label: 'Program Name (program) *',
+                              controller: _regProgramNameController,
+                              hint: 'e.g. WRITING ARB',
+                            ),
+                          ),
+                          if (programs.isNotEmpty) ...[
+                            const SizedBox(width: 6),
+                            PopupMenuButton<Program>(
+                              icon: const Icon(
+                                Icons.arrow_drop_down_circle_outlined,
+                                color: AppTheme.red,
+                              ),
+                              tooltip: 'Pick existing program',
+                              onSelected: (p) {
+                                setDialogState(() {
+                                  _regProgramNameController.text =
+                                      p.programName;
+                                  _regSection = p.section;
+                                });
+                              },
+                              itemBuilder: (ctx) {
+                                return programs.map((p) {
+                                  return PopupMenuItem<Program>(
+                                    value: p,
+                                    child: Text(
+                                      '${p.programName} (${p.section.label})',
+                                    ),
+                                  );
+                                }).toList();
+                              },
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+
+                      // Section Dropdown
+                      AppDropdown<FestSection>(
+                        label: 'Section (setion)',
+                        value: _regSection,
+                        items: availableSections
+                            .map(
+                              (s) => DropdownMenuItem(
+                                value: s,
+                                child: Text(s.label),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (val) {
+                          if (val != null) {
+                            setDialogState(() => _regSection = val);
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryColor,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          final chase = _regChaseController.text.trim();
+                          final sName = _regStudentNameController.text.trim();
+                          final pName = _regProgramNameController.text.trim();
+                          final section = _regSection;
+
+                          if (chase.isEmpty || pName.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Chest number and program name are required.',
+                                ),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                            return;
+                          }
+
+                          setDialogState(() => isSubmitting = true);
+
+                          try {
+                            // 1. Find or create student
+                            var student = students
+                                .where((s) =>
+                                    s.chaseNumber.trim().toLowerCase() ==
+                                    chase.toLowerCase())
+                                .firstOrNull;
+                            if (student == null) {
+                              final defaultTeamId =
+                                  teams.isNotEmpty ? teams.first.id : 'team_01';
+                              final newStudent = Student(
+                                id: 'std_${const Uuid().v4()}',
+                                chaseNumber: chase,
+                                name: sName.isNotEmpty ? sName : 'Student $chase',
+                                gender: 'Male',
+                                dateOfBirth: '2010-01-01',
+                                section: section,
+                                teamId: defaultTeamId,
+                                phone: '',
+                                className: '',
+                                schoolName: '',
+                                qrCode: chase,
+                              );
+                              await ref
+                                  .read(studentRepositoryProvider)
+                                  .addStudent(newStudent);
+                              final fetched = await ref
+                                  .read(studentRepositoryProvider)
+                                  .getByChaseNumber(chase);
+                              student = fetched ?? newStudent;
+                            } else if (sName.isNotEmpty &&
+                                (student.name.startsWith('Student ') ||
+                                    student.name.isEmpty)) {
+                              student = student.copyWith(name: sName);
+                              await ref
+                                  .read(studentRepositoryProvider)
+                                  .updateStudent(student);
+                            }
+
+                            // 2. Find or create program
+                            var program = programs
+                                .where((p) =>
+                                    p.programName.trim().toLowerCase() ==
+                                        pName.toLowerCase() &&
+                                    p.section == section)
+                                .firstOrNull ??
+                                programs
+                                    .where((p) =>
+                                        p.programName.trim().toLowerCase() ==
+                                        pName.toLowerCase())
+                                    .firstOrNull;
+
+                            if (program == null) {
+                              final progIndex = programs.length + 1;
+                              final codePart = pName
+                                  .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')
+                                  .toUpperCase();
+                              final shortCode = codePart.length >= 4
+                                  ? codePart.substring(0, 4)
+                                  : codePart.padRight(4, 'X');
+                              final progCode = 'P$shortCode-$progIndex';
+                              final newProg = Program(
+                                id: 'prog_${const Uuid().v4()}',
+                                programCode: progCode,
+                                programName: pName,
+                                section: section,
+                                category: ProgramCategory.stage,
+                                isStageProgram: true,
+                                isGeneral: false,
+                                maxParticipants: 1,
+                                duration: '10 min',
+                                status: 'UPCOMING',
+                              );
+                              await ref
+                                  .read(programRepositoryProvider)
+                                  .addProgram(newProg);
+                              final fetchedProg = await ref
+                                  .read(programRepositoryProvider)
+                                  .getByCode(progCode);
+                              program = fetchedProg ?? newProg;
+                            }
+
+                            // 3. Check duplicate registration
+                            final existingReg = await ref
+                                .read(registrationRepositoryProvider)
+                                .getByStudentAndProgram(student.id, program.id);
+                            if (existingReg != null) {
+                              setDialogState(() => isSubmitting = false);
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Registration already exists for $chase in ${program.programName}.',
+                                    ),
+                                    backgroundColor: Colors.orange,
+                                  ),
+                                );
+                              }
+                              return;
+                            }
+
+                            // 4. Create registration
+                            final newReg = Registration(
+                              id: const Uuid().v4(),
+                              studentId: student.id,
+                              programId: program.id,
+                              teamId: student.teamId,
+                              registrationNumber:
+                                  'REG-${student.chaseNumber}-${program.programCode}',
+                              status: RegistrationStatus.approved,
+                            );
+                            await ref
+                                .read(registrationRepositoryProvider)
+                                .addRegistration(newReg);
+
+                            triggerDataRefresh(ref);
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Registered $chase (${student.name}) for ${program.programName}!',
+                                  ),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                            }
+                          } catch (err) {
+                            setDialogState(() => isSubmitting = false);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Registration failed: $err'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Register Program'),
+                ),
+              ],
+            );
+          },
         );
       },
+    );
+  }
+
+  void _confirmDeleteRegistration(
+    Registration reg,
+    String studentName,
+    String programName,
+  ) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Registration'),
+        content: Text(
+          'Are you sure you want to remove registration for $studentName in $programName?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await ref
+                  .read(registrationRepositoryProvider)
+                  .deleteRegistration(reg.id);
+              triggerDataRefresh(ref);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Registration removed.')),
+                );
+              }
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDeleteAllRegistrations(List<Registration> registrations) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete All Registrations'),
+        content: Text(
+          'Are you sure you want to delete all ${registrations.length} registrations? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              for (final r in registrations) {
+                await ref
+                    .read(registrationRepositoryProvider)
+                    .deleteRegistration(r.id);
+              }
+              triggerDataRefresh(ref);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Deleted ${registrations.length} registrations.',
+                    ),
+                  ),
+                );
+              }
+            },
+            child: const Text('Delete All'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -4988,142 +6100,6 @@ class _ControllerPortalScreenState
     return 0;
   }
 
-  bool _checkTimeOverlap(
-    String start1,
-    String end1,
-    String start2,
-    String end2,
-  ) {
-    final s1 = _parseTimeToMinutes(start1);
-    final e1 = _parseTimeToMinutes(end1);
-    final s2 = _parseTimeToMinutes(start2);
-    final e2 = _parseTimeToMinutes(end2);
-    if (s1 == 0 || e1 == 0 || s2 == 0 || e2 == 0) return false;
-    return (s1 < e2) && (s2 < e1);
-  }
-
-  List<ScheduleConflict> _analyzeScheduleConflicts({
-    required List<Schedule> schedules,
-    required List<Program> programs,
-    required List<Venue> venues,
-    required List<Student> students,
-    required List<Registration> registrations,
-    required List<Team> teams,
-  }) {
-    final List<ScheduleConflict> conflicts = [];
-    final Map<String, Program> progMap = {for (var p in programs) p.id: p};
-    final Map<String, Venue> venMap = {for (var v in venues) v.id: v};
-    final Map<String, Student> studMap = {for (var s in students) s.id: s};
-    final Map<String, Team> teamMap = {for (var t in teams) t.id: t};
-
-    final Map<String, List<Registration>> regsByProg = {};
-    for (var r in registrations) {
-      regsByProg.putIfAbsent(r.programId, () => []).add(r);
-    }
-
-    final Set<String> checkedKeys = {};
-
-    for (int i = 0; i < schedules.length; i++) {
-      for (int j = i + 1; j < schedules.length; j++) {
-        final s1 = schedules[i];
-        final s2 = schedules[j];
-
-        if (s1.date.trim() != s2.date.trim() || s1.date.isEmpty) continue;
-
-        if (_checkTimeOverlap(
-          s1.startTime,
-          s1.endTime,
-          s2.startTime,
-          s2.endTime,
-        )) {
-          final p1 = progMap[s1.programId];
-          final p2 = progMap[s2.programId];
-          if (p1 == null || p2 == null) continue;
-
-          final v1 = venMap[s1.venueId];
-          final v2 = venMap[s2.venueId];
-
-          // 1. Venue Double-Booking Check
-          if (s1.venueId.isNotEmpty && s1.venueId == s2.venueId) {
-            final key = 'VENUE_${s1.id}_${s2.id}';
-            if (!checkedKeys.contains(key)) {
-              checkedKeys.add(key);
-              final dummyStud = Student(
-                id: 'venue_clash_${v1?.id}',
-                chaseNumber: 'VENUE-CLASH',
-                name: 'Venue Double Booking (${v1?.name ?? 'Venue'})',
-                gender: '',
-                dateOfBirth: '',
-                section: p1.section,
-                teamId: '',
-                phone: '',
-                className: '',
-                schoolName: '',
-                qrCode: '',
-              );
-              conflicts.add(
-                ScheduleConflict(
-                  student: dummyStud,
-                  program1: p1,
-                  program2: p2,
-                  schedule1: s1,
-                  schedule2: s2,
-                  venue1: v1,
-                  venue2: v2,
-                  conflictType: 'VENUE_OVERLAP',
-                  description:
-                      'Venue "${v1?.name ?? 'Venue'}" is double-booked for "${p1.programName}" (${s1.startTime}-${s1.endTime}) and "${p2.programName}" (${s2.startTime}-${s2.endTime}) on ${s1.date}.',
-                ),
-              );
-            }
-          }
-
-          // 2. Student Cross-Venue / Cross-Program Overlap Check
-          final p1Regs = regsByProg[p1.id] ?? [];
-          final p2Regs = regsByProg[p2.id] ?? [];
-          final p1StudentIds = p1Regs.map((r) => r.studentId).toSet();
-
-          for (var r2 in p2Regs) {
-            if (p1StudentIds.contains(r2.studentId)) {
-              final stud = studMap[r2.studentId];
-              if (stud != null) {
-                final key = 'STUD_${stud.id}_${s1.id}_${s2.id}';
-                if (!checkedKeys.contains(key)) {
-                  checkedKeys.add(key);
-                  final tm = teamMap[stud.teamId];
-                  final v1Name = v1?.name ?? 'Venue 1';
-                  final v2Name = v2?.name ?? 'Venue 2';
-                  final sameVenue = s1.venueId == s2.venueId;
-                  final venueNotice = sameVenue
-                      ? 'the SAME venue ($v1Name)'
-                      : 'DIFFERENT venues ($v1Name vs $v2Name)';
-
-                  conflicts.add(
-                    ScheduleConflict(
-                      student: stud,
-                      team: tm,
-                      program1: p1,
-                      program2: p2,
-                      schedule1: s1,
-                      schedule2: s2,
-                      venue1: v1,
-                      venue2: v2,
-                      conflictType: 'STUDENT_OVERLAP',
-                      description:
-                          'Student ${stud.name} (Chase #${stud.chaseNumber}, Team: ${tm?.teamName ?? 'N/A'}) already has program "${p1.programName}" scheduled at $v1Name (${s1.startTime}-${s1.endTime}), but is also registered for "${p2.programName}" at $v2Name (${s2.startTime}-${s2.endTime}) on ${s1.date} ($venueNotice).',
-                    ),
-                  );
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-
-    return conflicts;
-  }
-
   Widget _buildScheduleAndVenueSection(
     AsyncValue<List<Schedule>> schedulesAsync,
     AsyncValue<List<Venue>> venuesAsync,
@@ -5135,55 +6111,61 @@ class _ControllerPortalScreenState
     final schedules = schedulesAsync.value ?? [];
     final venues = venuesAsync.value ?? [];
     final programs = programsAsync.value ?? [];
-    final students = studentsAsync.value ?? [];
-    final registrations = registrationsAsync.value ?? [];
-    final teams = teamsAsync.value ?? [];
-
-    final conflicts = _analyzeScheduleConflicts(
-      schedules: schedules,
-      programs: programs,
-      venues: venues,
-      students: students,
-      registrations: registrations,
-      teams: teams,
-    );
 
     final Map<String, Program> progMap = {for (var p in programs) p.id: p};
     final Map<String, Venue> venMap = {for (var v in venues) v.id: v};
 
+    // Filter schedules
+    final q = _scheduleSearchQuery.trim().toLowerCase();
     final filteredSchedules = schedules.where((s) {
       final prog = progMap[s.programId];
-      final ven = venMap[s.venueId];
-      final matchesSearch =
-          _scheduleSearchQuery.isEmpty ||
-          (prog?.programName.toLowerCase().contains(
-                _scheduleSearchQuery.toLowerCase(),
-              ) ??
-              false) ||
-          (prog?.programCode.toLowerCase().contains(
-                _scheduleSearchQuery.toLowerCase(),
-              ) ??
-              false) ||
-          (ven?.name.toLowerCase().contains(
-                _scheduleSearchQuery.toLowerCase(),
-              ) ??
-              false);
-
-      final matchesDate =
-          _selectedScheduleDateFilter == 'ALL' ||
-          s.date == _selectedScheduleDateFilter;
-      final matchesVenue =
-          _selectedScheduleVenueFilter == 'ALL' ||
-          s.venueId == _selectedScheduleVenueFilter;
-      final matchesSection =
-          _selectedScheduleSectionFilter == 'ALL' ||
-          (prog?.section.name == _selectedScheduleSectionFilter);
-
-      return matchesSearch && matchesDate && matchesVenue && matchesSection;
+      final venue = venMap[s.venueId];
+      if (q.isNotEmpty) {
+        final matchesProg =
+            prog?.programName.toLowerCase().contains(q) == true ||
+            prog?.programCode.toLowerCase().contains(q) == true;
+        final matchesVenue =
+            venue?.name.toLowerCase().contains(q) == true ||
+            s.venueId.toLowerCase().contains(q);
+        final matchesDate = s.date.toLowerCase().contains(q);
+        final matchesTime =
+            s.startTime.toLowerCase().contains(q) ||
+            s.endTime.toLowerCase().contains(q);
+        if (!matchesProg && !matchesVenue && !matchesDate && !matchesTime) {
+          return false;
+        }
+      }
+      if (_selectedScheduleDateFilter != 'ALL' &&
+          s.date.trim() != _selectedScheduleDateFilter) {
+        return false;
+      }
+      if (_selectedScheduleVenueFilter != 'ALL' &&
+          s.venueId != _selectedScheduleVenueFilter) {
+        return false;
+      }
+      if (_selectedScheduleStatusFilter != 'ALL' &&
+          s.status != _selectedScheduleStatusFilter) {
+        return false;
+      }
+      return true;
     }).toList();
 
-    final availableDates =
-        schedules.map((s) => s.date).where((d) => d.isNotEmpty).toSet().toList()
+    // Sort chronologically by date and start time
+    filteredSchedules.sort((a, b) {
+      final dateCmp = a.date.compareTo(b.date);
+      if (dateCmp != 0) return dateCmp;
+      return _parseTimeToMinutes(a.startTime).compareTo(
+        _parseTimeToMinutes(b.startTime),
+      );
+    });
+
+    // Unique dates from schedules
+    final uniqueDates =
+        schedules
+            .map((s) => s.date.trim())
+            .where((d) => d.isNotEmpty)
+            .toSet()
+            .toList()
           ..sort();
 
     return SingleChildScrollView(
@@ -5191,6 +6173,7 @@ class _ControllerPortalScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header Bar
           Wrap(
             alignment: WrapAlignment.spaceBetween,
             crossAxisAlignment: WrapCrossAlignment.center,
@@ -5210,7 +6193,7 @@ class _ControllerPortalScreenState
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Manage event dates, venues, program schedules, and inspect student timing clashes.',
+                    'Manage festival dates, stages, venues, and program schedules.',
                     style: GoogleFonts.workSans(
                       color: AppTheme.inkSoft,
                       fontSize: 13,
@@ -5223,34 +6206,6 @@ class _ControllerPortalScreenState
                 runSpacing: 8,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  ElevatedButton.icon(
-                    icon: Icon(
-                      conflicts.isNotEmpty
-                          ? Icons.warning_amber_rounded
-                          : Icons.check_circle_outline_rounded,
-                      size: 18,
-                    ),
-                    label: Text('Check Clashes (${conflicts.length})'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: conflicts.isNotEmpty
-                          ? AppTheme.red
-                          : Colors.teal,
-                      foregroundColor: AppTheme.cream,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
-                      ),
-                    ),
-                    onPressed: () {
-                      _showConflictReportDialog(
-                        context,
-                        conflicts: conflicts,
-                        schedules: schedules,
-                        programs: programs,
-                        venues: venues,
-                      );
-                    },
-                  ),
                   ElevatedButton.icon(
                     icon: const Icon(Icons.add_rounded, size: 18),
                     label: const Text('+ Add Schedule'),
@@ -5268,11 +6223,21 @@ class _ControllerPortalScreenState
                         programs: programs,
                         venues: venues,
                         schedules: schedules,
-                        students: students,
-                        registrations: registrations,
-                        teams: teams,
                       );
                     },
+                  ),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.add_location_alt_rounded, size: 18),
+                    label: const Text('+ Add Venue'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.teal,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                    ),
+                    onPressed: () => _showAddVenueDialog(context),
                   ),
                   ElevatedButton.icon(
                     icon: const Icon(Icons.upload_file_rounded, size: 18),
@@ -5297,8 +6262,12 @@ class _ControllerPortalScreenState
                       ),
                       side: const BorderSide(color: AppTheme.line),
                     ),
-                    onPressed: () =>
-                        _exportSchedulesToExcel(schedules, progMap, venMap),
+                    onPressed:
+                        () => _exportSchedulesToExcel(
+                          schedules,
+                          progMap,
+                          venMap,
+                        ),
                   ),
                   OutlinedButton.icon(
                     icon: const Icon(
@@ -5325,6 +6294,7 @@ class _ControllerPortalScreenState
           ),
           const SizedBox(height: 20),
 
+          // Stat Cards
           Row(
             children: [
               Expanded(
@@ -5339,7 +6309,7 @@ class _ControllerPortalScreenState
               Expanded(
                 child: StatCard(
                   title: 'Total Venues',
-                  value: '0',
+                  value: '${venues.length}',
                   icon: Icons.place_rounded,
                   color: AppTheme.mustard,
                 ),
@@ -5347,332 +6317,785 @@ class _ControllerPortalScreenState
               const SizedBox(width: 16),
               Expanded(
                 child: StatCard(
-                  title: 'Schedule Clashes',
-                  value: '${conflicts.length}',
-                  icon: Icons.error_outline_rounded,
-                  color: conflicts.isNotEmpty ? AppTheme.red : Colors.green,
+                  title: 'In Progress / Live',
+                  value:
+                      '${schedules.where((s) => s.status == 'IN_PROGRESS').length}',
+                  icon: Icons.play_circle_outline_rounded,
+                  color: Colors.orange,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: StatCard(
+                  title: 'Completed',
+                  value:
+                      '${schedules.where((s) => s.status == 'COMPLETED').length}',
+                  icon: Icons.check_circle_outline_rounded,
+                  color: Colors.green,
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 24),
+
+          // Venues Overview Strip
+          if (venues.isNotEmpty) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.line),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.place, size: 20, color: AppTheme.red),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Venues (${venues.length}):',
+                    style: GoogleFonts.workSans(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: AppTheme.ink,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children:
+                            venues.map((v) {
+                              final count =
+                                  schedules
+                                      .where((s) => s.venueId == v.id)
+                                      .length;
+                              return Container(
+                                margin: const EdgeInsets.only(right: 8),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.cream2,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: AppTheme.line),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      v.name,
+                                      style: GoogleFonts.workSans(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 1,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.ink.withValues(
+                                          alpha: 0.08,
+                                        ),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Text(
+                                        '$count prog',
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppTheme.inkSoft,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+
+          // Search and Filters Card
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppTheme.line),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _scheduleSearchController,
+                        decoration: InputDecoration(
+                          hintText:
+                              'Search schedule by program name, code, venue, date...',
+                          prefixIcon: const Icon(Icons.search, size: 20),
+                          suffixIcon:
+                              _scheduleSearchQuery.isNotEmpty
+                                  ? IconButton(
+                                    icon: const Icon(Icons.clear, size: 18),
+                                    onPressed: () {
+                                      setState(() {
+                                        _scheduleSearchController.clear();
+                                        _scheduleSearchQuery = '';
+                                      });
+                                    },
+                                  )
+                                  : null,
+                          isDense: true,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: const BorderSide(color: AppTheme.line),
+                          ),
+                        ),
+                        onChanged: (val) {
+                          setState(() {
+                            _scheduleSearchQuery = val;
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Venue Filter Dropdown
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppTheme.line),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _selectedScheduleVenueFilter,
+                          isDense: true,
+                          items: [
+                            const DropdownMenuItem(
+                              value: 'ALL',
+                              child: Text('All Venues'),
+                            ),
+                            ...venues.map(
+                              (v) => DropdownMenuItem(
+                                value: v.id,
+                                child: Text(v.name),
+                              ),
+                            ),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) {
+                              setState(() {
+                                _selectedScheduleVenueFilter = val;
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Status Filter Dropdown
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppTheme.line),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _selectedScheduleStatusFilter,
+                          isDense: true,
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'ALL',
+                              child: Text('All Status'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'SCHEDULED',
+                              child: Text('SCHEDULED'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'IN_PROGRESS',
+                              child: Text('IN_PROGRESS'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'COMPLETED',
+                              child: Text('COMPLETED'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'CANCELLED',
+                              child: Text('CANCELLED'),
+                            ),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) {
+                              setState(() {
+                                _selectedScheduleStatusFilter = val;
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (uniqueDates.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        Text(
+                          'Dates:',
+                          style: GoogleFonts.workSans(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            color: AppTheme.inkSoft,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ChoiceChip(
+                          label: const Text('All Dates'),
+                          selected: _selectedScheduleDateFilter == 'ALL',
+                          visualDensity: VisualDensity.compact,
+                          onSelected: (_) {
+                            setState(() {
+                              _selectedScheduleDateFilter = 'ALL';
+                            });
+                          },
+                        ),
+                        ...uniqueDates.map(
+                          (d) => Padding(
+                            padding: const EdgeInsets.only(left: 6),
+                            child: ChoiceChip(
+                              label: Text(d),
+                              selected: _selectedScheduleDateFilter == d,
+                              visualDensity: VisualDensity.compact,
+                              onSelected: (_) {
+                                setState(() {
+                                  _selectedScheduleDateFilter = d;
+                                });
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Schedule List / Table
+          if (filteredSchedules.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(40),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppTheme.line),
+              ),
+              child: Column(
+                children: [
+                  const Icon(
+                    Icons.calendar_today_outlined,
+                    size: 48,
+                    color: AppTheme.inkSoft,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    schedules.isEmpty
+                        ? 'No Schedules Uploaded Yet'
+                        : 'No schedules matching your filter',
+                    style: GoogleFonts.workSans(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    schedules.isEmpty
+                        ? 'Click "+ Add Schedule" or "Import PDF / Excel" above to add schedules.'
+                        : 'Try clearing your search query or changing the date/venue filters.',
+                    style: GoogleFonts.workSans(
+                      fontSize: 13,
+                      color: AppTheme.inkSoft,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'SCHEDULED PROGRAMS (${filteredSchedules.length})',
+                  style: GoogleFonts.workSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.2,
+                    color: AppTheme.inkSoft,
+                  ),
+                ),
+                Text(
+                  'Showing ${filteredSchedules.length} of ${schedules.length} total',
+                  style: GoogleFonts.workSans(
+                    fontSize: 12,
+                    color: AppTheme.inkSoft,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: filteredSchedules.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (ctx, idx) {
+                final sch = filteredSchedules[idx];
+                final prog = progMap[sch.programId];
+                final ven = venMap[sch.venueId];
+                final venName =
+                    ven?.name ??
+                    (sch.venueId.isNotEmpty ? sch.venueId : 'TBA');
+                final progName =
+                    prog?.programName ?? 'Program #${sch.programId}';
+                final progCode = prog?.programCode ?? '';
+                final section = prog?.section.label ?? 'General';
+
+                Color statusColor = Colors.blue;
+                if (sch.status == 'IN_PROGRESS') statusColor = Colors.orange;
+                if (sch.status == 'COMPLETED') statusColor = Colors.green;
+                if (sch.status == 'CANCELLED') statusColor = Colors.red;
+
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppTheme.line),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.02),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      // Order Number
+                      Container(
+                        width: 32,
+                        height: 32,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: AppTheme.cream2,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppTheme.line),
+                        ),
+                        child: Text(
+                          '${idx + 1}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      // Program Details
+                      Expanded(
+                        flex: 3,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              progName,
+                              style: GoogleFonts.workSans(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
+                                color: AppTheme.ink,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                if (progCode.isNotEmpty) ...[
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.cream,
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(color: AppTheme.line),
+                                    ),
+                                    child: Text(
+                                      progCode,
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                ],
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    section,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.blue.shade800,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Date & Time
+                      Expanded(
+                        flex: 2,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.calendar_month,
+                                  size: 14,
+                                  color: AppTheme.red,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  sch.date.isNotEmpty ? sch.date : 'Date TBA',
+                                  style: GoogleFonts.workSans(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12.5,
+                                    color: AppTheme.ink,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.access_time,
+                                  size: 14,
+                                  color: Colors.blueGrey,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '${sch.startTime} - ${sch.endTime}',
+                                  style: GoogleFonts.workSans(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppTheme.inkSoft,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Venue
+                      Expanded(
+                        flex: 2,
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.place,
+                              size: 16,
+                              color: AppTheme.red,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                venName,
+                                style: GoogleFonts.workSans(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                  color: AppTheme.ink,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Status Dropdown / Badge
+                      PopupMenuButton<String>(
+                        tooltip: 'Change Status',
+                        initialValue: sch.status,
+                        onSelected: (newStatus) async {
+                          final updated = sch.copyWith(status: newStatus);
+                          await ref
+                              .read(scheduleRepositoryProvider)
+                              .updateSchedule(updated);
+                          triggerDataRefresh(ref);
+                        },
+                        itemBuilder:
+                            (_) => const [
+                              PopupMenuItem(
+                                value: 'SCHEDULED',
+                                child: Text('SCHEDULED'),
+                              ),
+                              PopupMenuItem(
+                                value: 'IN_PROGRESS',
+                                child: Text('IN_PROGRESS (Live)'),
+                              ),
+                              PopupMenuItem(
+                                value: 'COMPLETED',
+                                child: Text('COMPLETED'),
+                              ),
+                              PopupMenuItem(
+                                value: 'CANCELLED',
+                                child: Text('CANCELLED'),
+                              ),
+                            ],
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: statusColor.withValues(alpha: 0.4),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                sch.status,
+                                style: TextStyle(
+                                  color: statusColor,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 11,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Icon(
+                                Icons.arrow_drop_down,
+                                size: 14,
+                                color: statusColor,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      // Actions
+                      IconButton(
+                        icon: const Icon(
+                          Icons.edit_outlined,
+                          size: 18,
+                          color: Colors.blueGrey,
+                        ),
+                        tooltip: 'Edit Schedule',
+                        onPressed: () {
+                          _showAddEditScheduleDialog(
+                            context,
+                            scheduleToEdit: sch,
+                            programs: programs,
+                            venues: venues,
+                            schedules: schedules,
+                          );
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          size: 18,
+                          color: AppTheme.red,
+                        ),
+                        tooltip: 'Delete Schedule',
+                        onPressed: () => _confirmDeleteSchedule(sch, prog),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
           const SizedBox(height: 24),
         ],
       ),
     );
   }
 
-  void _showConflictReportDialog(
-    BuildContext context, {
-    required List<ScheduleConflict> conflicts,
-    required List<Schedule> schedules,
-    required List<Program> programs,
-    required List<Venue> venues,
-  }) {
+  void _showAddVenueDialog(BuildContext context) {
+    _venueNameController.clear();
+    _venueLocationController.clear();
+    _venueCapacityController.text = '100';
+    _venueDescController.clear();
+
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (ctx) {
         return AlertDialog(
           title: Row(
-            children: [
-              Icon(
-                conflicts.isEmpty
-                    ? Icons.check_circle
-                    : Icons.warning_amber_rounded,
-                color: conflicts.isEmpty ? Colors.teal : AppTheme.red,
-                size: 26,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  conflicts.isEmpty
-                      ? 'No Schedule Clashes Found'
-                      : 'Schedule & Venue Clash Analysis (${conflicts.length})',
-                  style: GoogleFonts.workSans(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                  ),
-                ),
-              ),
+            children: const [
+              Icon(Icons.place_rounded, color: AppTheme.red),
+              SizedBox(width: 10),
+              Text('Add New Venue'),
             ],
           ),
           content: SizedBox(
-            width: 720,
-            child: conflicts.isEmpty
-                ? Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE6F4EA),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.teal.shade300),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.verified_rounded,
-                          size: 48,
-                          color: Colors.teal,
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Everything Looks Clear!',
-                          style: GoogleFonts.workSans(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.teal.shade900,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'No students are registered for overlapping programs on the same date and time, and no venues have double-bookings.',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.workSans(
-                            fontSize: 13,
-                            color: Colors.teal.shade800,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFEF2F2),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0xFFFCA5A5)),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.info_outline,
-                                color: AppTheme.red,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  'The following students or venues have overlapping program time slots on the same date. Review details below to adjust schedule dates or venues.',
-                                  style: GoogleFonts.workSans(
-                                    fontSize: 12.5,
-                                    color: const Color(0xFF991B1B),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: conflicts.length,
-                          itemBuilder: (ctx, idx) {
-                            final c = conflicts[idx];
-                            final isVenueClash =
-                                c.conflictType == 'VENUE_OVERLAP';
-
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: isVenueClash
-                                      ? Colors.orange.shade300
-                                      : AppTheme.line,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.03),
-                                    blurRadius: 4,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      CircleAvatar(
-                                        radius: 14,
-                                        backgroundColor: isVenueClash
-                                            ? Colors.orange.shade100
-                                            : AppTheme.cream,
-                                        child: Text(
-                                          '${idx + 1}',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.bold,
-                                            color: isVenueClash
-                                                ? Colors.orange.shade900
-                                                : AppTheme.ink,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: Text(
-                                          isVenueClash
-                                              ? '🚨 Venue Double-Booking: ${c.venue1?.name}'
-                                              : '👤 Student: ${c.student.name} (${c.student.chaseNumber}) ${c.team != null ? '- Team ${c.team!.teamName}' : ''}',
-                                          style: GoogleFonts.workSans(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.bold,
-                                            color: AppTheme.ink,
-                                          ),
-                                        ),
-                                      ),
-                                      Chip(
-                                        label: Text(c.schedule1.date),
-                                        labelStyle: const TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                        backgroundColor: AppTheme.cream,
-                                      ),
-                                    ],
-                                  ),
-                                  const Divider(height: 16),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Container(
-                                          padding: const EdgeInsets.all(10),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFFF8FAFC),
-                                            borderRadius: BorderRadius.circular(
-                                              6,
-                                            ),
-                                            border: Border.all(
-                                              color: const Color(0xFFE2E8F0),
-                                            ),
-                                          ),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                'Program 1:',
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Colors.grey.shade600,
-                                                ),
-                                              ),
-                                              Text(
-                                                '${c.program1.programName} (${c.program1.programCode})',
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 12.5,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 2),
-                                              Text(
-                                                '📍 Venue: ${c.venue1?.name ?? 'TBA'}',
-                                                style: const TextStyle(
-                                                  fontSize: 11.5,
-                                                ),
-                                              ),
-                                              Text(
-                                                '⏰ Time: ${c.schedule1.startTime} - ${c.schedule1.endTime}',
-                                                style: const TextStyle(
-                                                  fontSize: 11.5,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                      const Padding(
-                                        padding: EdgeInsets.symmetric(
-                                          horizontal: 8.0,
-                                        ),
-                                        child: Icon(
-                                          Icons.swap_horiz_rounded,
-                                          color: AppTheme.red,
-                                        ),
-                                      ),
-                                      Expanded(
-                                        child: Container(
-                                          padding: const EdgeInsets.all(10),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFFF8FAFC),
-                                            borderRadius: BorderRadius.circular(
-                                              6,
-                                            ),
-                                            border: Border.all(
-                                              color: const Color(0xFFE2E8F0),
-                                            ),
-                                          ),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                'Program 2:',
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Colors.grey.shade600,
-                                                ),
-                                              ),
-                                              Text(
-                                                '${c.program2.programName} (${c.program2.programCode})',
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 12.5,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 2),
-                                              Text(
-                                                '📍 Venue: ${c.venue2?.name ?? 'TBA'}',
-                                                style: const TextStyle(
-                                                  fontSize: 11.5,
-                                                ),
-                                              ),
-                                              Text(
-                                                '⏰ Time: ${c.schedule2.startTime} - ${c.schedule2.endTime}',
-                                                style: const TextStyle(
-                                                  fontSize: 11.5,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    c.description,
-                                    style: GoogleFonts.workSans(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade800,
-                                      fontStyle: FontStyle.italic,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                      ],
+            width: 450,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: _venueNameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Venue / Stage Name *',
+                      hintText: 'e.g. Stage 1 (Main Auditorium)',
+                      border: OutlineInputBorder(),
                     ),
                   ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: _venueLocationController,
+                    decoration: const InputDecoration(
+                      labelText: 'Location / Floor',
+                      hintText: 'e.g. Block A, 1st Floor',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: _venueCapacityController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Seating Capacity',
+                      hintText: '100',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: _venueDescController,
+                    decoration: const InputDecoration(
+                      labelText: 'Description (Optional)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.red,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () async {
+                final name = _venueNameController.text.trim();
+                if (name.isEmpty) return;
+                final venue = Venue(
+                  id: 'ven_${const Uuid().v4()}',
+                  name: name,
+                  location:
+                      _venueLocationController.text.trim().isEmpty
+                          ? 'Main Site'
+                          : _venueLocationController.text.trim(),
+                  capacity:
+                      int.tryParse(_venueCapacityController.text.trim()) ?? 100,
+                  description: _venueDescController.text.trim(),
+                );
+                await ref.read(venueRepositoryProvider).addVenue(venue);
+                triggerDataRefresh(ref);
+                if (ctx.mounted) {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Venue added successfully.')),
+                  );
+                }
+              },
+              child: const Text('Save Venue'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _confirmDeleteSchedule(Schedule schedule, Program? prog) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Delete Schedule?'),
+          content: Text(
+            'Are you sure you want to remove the schedule for "${prog?.programName ?? 'this program'}" on ${schedule.date} at ${schedule.startTime}?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.red,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () async {
+                await ref
+                    .read(scheduleRepositoryProvider)
+                    .deleteSchedule(schedule.id);
+                triggerDataRefresh(ref);
+                if (ctx.mounted) {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Schedule removed.')),
+                  );
+                }
+              },
+              child: const Text('Delete'),
             ),
           ],
         );
@@ -5686,9 +7109,6 @@ class _ControllerPortalScreenState
     required List<Program> programs,
     required List<Venue> venues,
     required List<Schedule> schedules,
-    required List<Student> students,
-    required List<Registration> registrations,
-    required List<Team> teams,
   }) {
     String? selectedProgId =
         scheduleToEdit?.programId ??
@@ -5711,41 +7131,6 @@ class _ControllerPortalScreenState
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            List<ScheduleConflict> liveConflicts = [];
-            if (selectedProgId != null && selectedVenueId != null) {
-              final testSchedule = Schedule(
-                id: scheduleToEdit?.id ?? 'temp_sch',
-                programId: selectedProgId!,
-                venueId: selectedVenueId!,
-                date: dateController.text.trim(),
-                startTime: startTimeController.text.trim(),
-                endTime: endTimeController.text.trim(),
-                status: status,
-              );
-
-              final testSchedulesList =
-                  schedules
-                      .where((s) => s.id != (scheduleToEdit?.id ?? 'temp_sch'))
-                      .toList()
-                    ..add(testSchedule);
-
-              liveConflicts =
-                  _analyzeScheduleConflicts(
-                        schedules: testSchedulesList,
-                        programs: programs,
-                        venues: venues,
-                        students: students,
-                        registrations: registrations,
-                        teams: teams,
-                      )
-                      .where(
-                        (c) =>
-                            c.schedule1.id == testSchedule.id ||
-                            c.schedule2.id == testSchedule.id,
-                      )
-                      .toList();
-            }
-
             return AlertDialog(
               title: Row(
                 children: [
@@ -5770,14 +7155,15 @@ class _ControllerPortalScreenState
                           labelText: 'Select Program',
                           border: OutlineInputBorder(),
                         ),
-                        items: programs.map((p) {
-                          return DropdownMenuItem(
-                            value: p.id,
-                            child: Text(
-                              '[${p.programCode}] ${p.programName} (${p.section.label})',
-                            ),
-                          );
-                        }).toList(),
+                        items:
+                            programs.map((p) {
+                              return DropdownMenuItem(
+                                value: p.id,
+                                child: Text(
+                                  '[${p.programCode}] ${p.programName} (${p.section.label})',
+                                ),
+                              );
+                            }).toList(),
                         onChanged: (val) {
                           setDialogState(() {
                             selectedProgId = val;
@@ -5791,12 +7177,13 @@ class _ControllerPortalScreenState
                           labelText: 'Select Venue',
                           border: OutlineInputBorder(),
                         ),
-                        items: venues.map((v) {
-                          return DropdownMenuItem(
-                            value: v.id,
-                            child: Text('${v.name} (${v.location})'),
-                          );
-                        }).toList(),
+                        items:
+                            venues.map((v) {
+                              return DropdownMenuItem(
+                                value: v.id,
+                                child: Text('${v.name} (${v.location})'),
+                              );
+                            }).toList(),
                         onChanged: (val) {
                           setDialogState(() {
                             selectedVenueId = val;
@@ -5880,50 +7267,6 @@ class _ControllerPortalScreenState
                           }
                         },
                       ),
-                      if (liveConflicts.isNotEmpty) ...[
-                        const SizedBox(height: 16),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFEF2F2),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0xFFFCA5A5)),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.warning_amber_rounded,
-                                    color: AppTheme.red,
-                                    size: 18,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Warning: ${liveConflicts.length} Conflict(s) Detected!',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: AppTheme.red,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 4),
-                              ...liveConflicts.map(
-                                (lc) => Text(
-                                  '• ${lc.description}',
-                                  style: const TextStyle(
-                                    fontSize: 11.5,
-                                    color: Color(0xFF7F1D1D),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
                     ],
                   ),
                 ),
@@ -5939,8 +7282,9 @@ class _ControllerPortalScreenState
                     foregroundColor: Colors.white,
                   ),
                   onPressed: () async {
-                    if (selectedProgId == null || selectedVenueId == null)
+                    if (selectedProgId == null || selectedVenueId == null) {
                       return;
+                    }
                     final sch = Schedule(
                       id: scheduleToEdit?.id ?? const Uuid().v4(),
                       programId: selectedProgId!,
@@ -5988,32 +7332,6 @@ class _ControllerPortalScreenState
       },
     );
   }
-}
-
-class ScheduleConflict {
-  final Student student;
-  final Team? team;
-  final Program program1;
-  final Program program2;
-  final Schedule schedule1;
-  final Schedule schedule2;
-  final Venue? venue1;
-  final Venue? venue2;
-  final String conflictType; // 'STUDENT_OVERLAP' or 'VENUE_OVERLAP'
-  final String description;
-
-  ScheduleConflict({
-    required this.student,
-    this.team,
-    required this.program1,
-    required this.program2,
-    required this.schedule1,
-    required this.schedule2,
-    this.venue1,
-    this.venue2,
-    this.conflictType = 'STUDENT_OVERLAP',
-    required this.description,
-  });
 }
 
 class TeamScoreCard extends StatelessWidget {

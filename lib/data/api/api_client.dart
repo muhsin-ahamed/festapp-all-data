@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 class ApiClient {
   static const String defaultBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://localhost:3000/api',
+    defaultValue: 'https://festapp-all-data.onrender.com/api',
   );
   final String baseUrl;
   String? _authToken;
