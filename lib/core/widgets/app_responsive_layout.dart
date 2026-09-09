@@ -207,8 +207,8 @@ class AppBottomNavBar extends StatelessWidget {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           padding: EdgeInsets.symmetric(
-            horizontal: compact ? 12 : 8,
-            vertical: 8,
+            horizontal: compact ? 10 : 3,
+            vertical: 6,
           ),
           decoration: BoxDecoration(
             color: isSelected
@@ -230,7 +230,7 @@ class AppBottomNavBar extends StatelessWidget {
                 children: [
                   Icon(
                     item.icon,
-                    size: 22,
+                    size: 21,
                     color: isSelected ? activeColor : AppTheme.inkSoft,
                   ),
                   if (item.badgeText != null)
@@ -258,11 +258,11 @@ class AppBottomNavBar extends StatelessWidget {
                     ),
                 ],
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 3),
               Text(
                 item.label,
                 style: GoogleFonts.workSans(
-                  fontSize: 11,
+                  fontSize: 10,
                   fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
                   color: isSelected ? activeColor : AppTheme.inkSoft,
                 ),

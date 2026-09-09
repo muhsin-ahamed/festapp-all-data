@@ -16,6 +16,210 @@ import '../../data/models/schedule_model.dart';
 import '../../data/models/venue_model.dart';
 import '../../services/qr_service.dart';
 
+enum ScheduleDisplayStatus {
+  completed('COMPLETED'),
+  onTime('ON TIME'),
+  upcoming('UPCOMING'),
+  cancelled('CANCELLED');
+
+  final String label;
+  const ScheduleDisplayStatus(this.label);
+}
+
+class ScheduleStatusHelper {
+  static DateTime? parseScheduleDate(String rawDate) {
+    final clean = rawDate.trim();
+    if (clean.isEmpty) return null;
+
+    final direct = DateTime.tryParse(clean);
+    if (direct != null) return direct;
+
+    final parts = clean.split(RegExp(r'[\-/\.]'));
+    if (parts.length == 3) {
+      if (parts[0].length == 4) {
+        final y = int.tryParse(parts[0]);
+        final m = int.tryParse(parts[1]);
+        final d = int.tryParse(parts[2]);
+        if (y != null && m != null && d != null) {
+          return DateTime(y, m, d);
+        }
+      } else if (parts[2].length == 4) {
+        final d = int.tryParse(parts[0]);
+        final m = int.tryParse(parts[1]);
+        final y = int.tryParse(parts[2]);
+        if (y != null && m != null && d != null) {
+          return DateTime(y, m, d);
+        }
+      }
+    }
+
+    const months = [
+      'jan',
+      'feb',
+      'mar',
+      'apr',
+      'may',
+      'jun',
+      'jul',
+      'aug',
+      'sep',
+      'oct',
+      'nov',
+      'dec'
+    ];
+    final words = clean.toLowerCase().split(RegExp(r'[\s,]+'));
+    if (words.length >= 3) {
+      int? year;
+      int? month;
+      int? day;
+      for (final w in words) {
+        final numVal = int.tryParse(w);
+        if (numVal != null) {
+          if (w.length == 4) {
+            year = numVal;
+          } else if (day == null && numVal >= 1 && numVal <= 31) {
+            day = numVal;
+          }
+        } else {
+          for (int m = 0; m < months.length; m++) {
+            if (w.startsWith(months[m])) {
+              month = m + 1;
+              break;
+            }
+          }
+        }
+      }
+      if (year != null && month != null && day != null) {
+        return DateTime(year, month, day);
+      }
+    }
+
+    return null;
+  }
+
+  static TimeOfDay? parseScheduleTime(String rawTime) {
+    final clean = rawTime.trim().toUpperCase();
+    if (clean.isEmpty) return null;
+
+    final isPm = clean.contains('PM');
+    final isAm = clean.contains('AM');
+    final timeOnly = clean.replaceAll('AM', '').replaceAll('PM', '').trim();
+
+    final sep =
+        timeOnly.contains(':') ? ':' : (timeOnly.contains('.') ? '.' : null);
+    if (sep == null) {
+      int? h = int.tryParse(timeOnly);
+      if (h != null) {
+        if (isPm && h < 12) h += 12;
+        if (isAm && h == 12) h = 0;
+        if (h > 23) h = 23;
+        return TimeOfDay(hour: h, minute: 0);
+      }
+      return null;
+    }
+
+    final parts = timeOnly.split(sep);
+    int? hour = int.tryParse(parts[0].trim());
+    int minute = parts.length > 1 ? (int.tryParse(parts[1].trim()) ?? 0) : 0;
+    if (hour == null) return null;
+
+    if (isPm && hour < 12) hour += 12;
+    if (isAm && hour == 12) hour = 0;
+    if (hour > 23) hour = 23;
+    if (minute > 59) minute = 59;
+
+    return TimeOfDay(hour: hour, minute: minute);
+  }
+
+  static ScheduleDisplayStatus getStatus({
+    required Schedule? schedule,
+    bool hasPublishedResult = false,
+    DateTime? currentTime,
+  }) {
+    if (hasPublishedResult) {
+      return ScheduleDisplayStatus.completed;
+    }
+
+    if (schedule == null) {
+      return ScheduleDisplayStatus.upcoming;
+    }
+
+    final rawStatus = schedule.status.trim().toUpperCase();
+    if (rawStatus == 'CANCELLED' || rawStatus == 'CANCELED') {
+      return ScheduleDisplayStatus.cancelled;
+    }
+    if (rawStatus == 'COMPLETED') {
+      return ScheduleDisplayStatus.completed;
+    }
+    if (rawStatus == 'IN_PROGRESS' || rawStatus == 'LIVE') {
+      return ScheduleDisplayStatus.onTime;
+    }
+
+    final now = currentTime ?? DateTime.now();
+    final parsedDate = parseScheduleDate(schedule.date);
+
+    if (parsedDate == null) {
+      return ScheduleDisplayStatus.upcoming;
+    }
+
+    final startTime = parseScheduleTime(schedule.startTime);
+    final endTime = parseScheduleTime(schedule.endTime);
+
+    DateTime startDateTime;
+    DateTime endDateTime;
+
+    if (startTime != null) {
+      startDateTime = DateTime(
+        parsedDate.year,
+        parsedDate.month,
+        parsedDate.day,
+        startTime.hour,
+        startTime.minute,
+      );
+    } else {
+      startDateTime = DateTime(
+        parsedDate.year,
+        parsedDate.month,
+        parsedDate.day,
+        0,
+        0,
+      );
+    }
+
+    if (endTime != null) {
+      endDateTime = DateTime(
+        parsedDate.year,
+        parsedDate.month,
+        parsedDate.day,
+        endTime.hour,
+        endTime.minute,
+      );
+      if (endDateTime.isBefore(startDateTime)) {
+        endDateTime = startDateTime.add(const Duration(hours: 1));
+      }
+    } else if (startTime != null) {
+      endDateTime = startDateTime.add(const Duration(hours: 1));
+    } else {
+      endDateTime = DateTime(
+        parsedDate.year,
+        parsedDate.month,
+        parsedDate.day,
+        23,
+        59,
+        59,
+      );
+    }
+
+    if (now.isAfter(endDateTime)) {
+      return ScheduleDisplayStatus.completed;
+    } else if (now.isBefore(startDateTime)) {
+      return ScheduleDisplayStatus.upcoming;
+    } else {
+      return ScheduleDisplayStatus.onTime;
+    }
+  }
+}
+
 class ScanAndQrScreen extends ConsumerStatefulWidget {
   final bool isEmbedded;
   final String? initialQuery;
@@ -651,6 +855,74 @@ class _ScanAndQrScreenState extends ConsumerState<ScanAndQrScreen> {
     return (clean, 'Festival Day');
   }
 
+  ScheduleDisplayStatus _getScheduleStatus({
+    required Schedule? schedule,
+    bool hasPublishedResult = false,
+  }) {
+    return ScheduleStatusHelper.getStatus(
+      schedule: schedule,
+      hasPublishedResult: hasPublishedResult,
+    );
+  }
+
+  Widget _buildScheduleStatusBadge(ScheduleDisplayStatus status) {
+    Color bg;
+    IconData icon;
+
+    switch (status) {
+      case ScheduleDisplayStatus.completed:
+        bg = Colors.green.shade700;
+        icon = Icons.check_circle_rounded;
+        break;
+      case ScheduleDisplayStatus.onTime:
+        bg = const Color(0xFFD97706); // Warm Amber/Orange
+        icon = Icons.access_time_filled_rounded;
+        break;
+      case ScheduleDisplayStatus.upcoming:
+        bg = const Color(0xFF2563EB); // Vibrant Blue
+        icon = Icons.schedule_rounded;
+        break;
+      case ScheduleDisplayStatus.cancelled:
+        bg = Colors.red.shade700;
+        icon = Icons.cancel_rounded;
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 8,
+        vertical: 3.5,
+      ),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(6),
+        boxShadow: [
+          BoxShadow(
+            color: bg.withValues(alpha: 0.25),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white, size: 11),
+          const SizedBox(width: 4),
+          Text(
+            status.label,
+            style: GoogleFonts.workSans(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 10,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildStudentCard(
     Student student,
     List<Team> teams,
@@ -870,12 +1142,16 @@ class _ScanAndQrScreenState extends ConsumerState<ScanAndQrScreen> {
               children: [
                 const Icon(Icons.group, color: AppTheme.red, size: 18),
                 const SizedBox(width: 8),
-                Text(
-                  'Team: ${team.teamName} (${team.teamCode})',
-                  style: GoogleFonts.workSans(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                    color: AppTheme.ink,
+                Expanded(
+                  child: Text(
+                    'Team: ${team.teamName} (${team.teamCode})',
+                    style: GoogleFonts.workSans(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      color: AppTheme.ink,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
@@ -887,15 +1163,19 @@ class _ScanAndQrScreenState extends ConsumerState<ScanAndQrScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'REGISTERED PROGRAMS (${registeredItems.length})',
-                style: GoogleFonts.workSans(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.2,
-                  color: AppTheme.inkSoft,
+              Flexible(
+                child: Text(
+                  'REGISTERED PROGRAMS (${registeredItems.length})',
+                  style: GoogleFonts.workSans(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.2,
+                    color: AppTheme.inkSoft,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              const SizedBox(width: 8),
               if (registeredItems.isNotEmpty)
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -1030,22 +1310,23 @@ class _ScanAndQrScreenState extends ConsumerState<ScanAndQrScreen> {
                               ],
                             ),
                           ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.green.shade700,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              reg.status.label,
-                              style: GoogleFonts.workSans(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 10,
-                              ),
+                          _buildScheduleStatusBadge(
+                            _getScheduleStatus(
+                              schedule: schedule,
+                              hasPublishedResult: studentPublishedResults.any(
+                                    (r) =>
+                                        r.programId == reg.programId ||
+                                        (item.prog != null &&
+                                            r.programId == item.prog!.id),
+                                  ) ||
+                                  results.any(
+                                    (r) =>
+                                        (r.status == ResultStatus.published ||
+                                            r.publishedAt != null) &&
+                                        (r.programId == reg.programId ||
+                                            (item.prog != null &&
+                                                r.programId == item.prog!.id)),
+                                  ),
                             ),
                           ),
                         ],
@@ -1282,24 +1563,25 @@ class _ScanAndQrScreenState extends ConsumerState<ScanAndQrScreen> {
                                   ],
                                 )
                                 : Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.schedule_rounded,
-                                      size: 14,
-                                      color: Colors.grey.shade600,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      'Schedule: Date, Day, Time & Venue TBA (Pending Schedule)',
-                                      style: GoogleFonts.workSans(
-                                        fontSize: 11.5,
-                                        color: Colors.grey.shade700,
-                                        fontStyle: FontStyle.italic,
+                                    children: [
+                                      Icon(
+                                        Icons.schedule_rounded,
+                                        size: 14,
+                                        color: Colors.grey.shade600,
                                       ),
-                                    ),
-                                  ],
-                                ),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text(
+                                          'Schedule: Date, Day, Time & Venue TBA (Pending Schedule)',
+                                          style: GoogleFonts.workSans(
+                                            fontSize: 11.5,
+                                            color: Colors.grey.shade700,
+                                            fontStyle: FontStyle.italic,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                       ),
                     ],
                   ),
@@ -1438,97 +1720,115 @@ class _ScanAndQrScreenState extends ConsumerState<ScanAndQrScreen> {
                       ),
                     ],
                   ),
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(posIcon, color: posColor, size: 22),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              progName,
-                              style: GoogleFonts.workSans(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 13.5,
-                                color: AppTheme.ink,
-                              ),
-                            ),
-                            if (r.remarks != null && r.remarks!.isNotEmpty)
-                              Text(
-                                r.remarks!,
-                                style: GoogleFonts.workSans(
-                                  fontSize: 11,
-                                  color: AppTheme.inkSoft,
-                                  fontStyle: FontStyle.italic,
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(posIcon, color: posColor, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  progName,
+                                  style: GoogleFonts.workSans(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 13.5,
+                                    color: AppTheme.ink,
+                                  ),
                                 ),
+                                if (r.remarks != null && r.remarks!.isNotEmpty)
+                                  Text(
+                                    r.remarks!,
+                                    style: GoogleFonts.workSans(
+                                      fontSize: 11,
+                                      color: AppTheme.inkSoft,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppTheme.red.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '+${r.points} pts',
+                              style: GoogleFonts.workSans(
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.red,
+                                fontSize: 11.5,
                               ),
-                          ],
-                        ),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      if (r.position != null && r.position! > 0)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: posColor,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            posLabel,
-                            style: GoogleFonts.workSans(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ),
-                      if (r.grade.isNotEmpty) ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppTheme.mustard.withValues(alpha: 0.18),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: AppTheme.mustard.withValues(alpha: 0.5),
-                            ),
-                          ),
-                          child: Text(
-                            'Grade ${r.grade}',
-                            style: GoogleFonts.workSans(
-                              color: AppTheme.ink,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 11,
-                            ),
+                      if ((r.position != null && r.position! > 0) ||
+                          r.grade.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 30),
+                          child: Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: [
+                              if (r.position != null && r.position! > 0)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 3,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: posColor,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    posLabel,
+                                    style: GoogleFonts.workSans(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 10.5,
+                                    ),
+                                  ),
+                                ),
+                              if (r.grade.isNotEmpty)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 3,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        AppTheme.mustard.withValues(alpha: 0.18),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                      color:
+                                          AppTheme.mustard.withValues(alpha: 0.5),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Grade ${r.grade}',
+                                    style: GoogleFonts.workSans(
+                                      color: AppTheme.ink,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 10.5,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
                       ],
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.red.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          '+${r.points} pts',
-                          style: GoogleFonts.workSans(
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.red,
-                            fontSize: 11.5,
-                          ),
-                        ),
-                      ),
                     ],
                   ),
                 );
@@ -1691,36 +1991,19 @@ class _ScanAndQrScreenState extends ConsumerState<ScanAndQrScreen> {
                           ),
                         ],
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: progSchedule.status == 'IN_PROGRESS'
-                              ? Colors.orange.withValues(alpha: 0.15)
-                              : (progSchedule.status == 'COMPLETED'
-                                  ? Colors.green.withValues(alpha: 0.15)
-                                  : Colors.blue.withValues(alpha: 0.12)),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          progSchedule.status,
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: progSchedule.status == 'IN_PROGRESS'
-                                ? Colors.orange.shade900
-                                : (progSchedule.status == 'COMPLETED'
-                                    ? Colors.green.shade800
-                                    : Colors.blue.shade800),
+                      _buildScheduleStatusBadge(
+                        _getScheduleStatus(
+                          schedule: progSchedule,
+                          hasPublishedResult: progResults.any(
+                            (r) =>
+                                r.status == ResultStatus.published ||
+                                r.publishedAt != null,
                           ),
                         ),
                       ),
                     ],
                   )
                 : Row(
-                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
                         Icons.info_outline,
@@ -1728,12 +2011,14 @@ class _ScanAndQrScreenState extends ConsumerState<ScanAndQrScreen> {
                         color: Colors.grey.shade600,
                       ),
                       const SizedBox(width: 6),
-                      Text(
-                        'Schedule: Date, Time & Venue TBA',
-                        style: GoogleFonts.workSans(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                          fontStyle: FontStyle.italic,
+                      Expanded(
+                        child: Text(
+                          'Schedule: Date, Time & Venue TBA',
+                          style: GoogleFonts.workSans(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                            fontStyle: FontStyle.italic,
+                          ),
                         ),
                       ),
                     ],
@@ -1811,19 +2096,14 @@ class _ScanAndQrScreenState extends ConsumerState<ScanAndQrScreen> {
                     'Chase #${student?.chaseNumber ?? "-"} • Team: ${studentTeam?.teamName ?? "-"}',
                     style: GoogleFonts.workSans(fontSize: 11),
                   ),
-                  trailing: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: Colors.green.shade700,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      reg.status.label,
-                      style: GoogleFonts.workSans(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 10,
+                  trailing: _buildScheduleStatusBadge(
+                    _getScheduleStatus(
+                      schedule: progSchedule,
+                      hasPublishedResult: progResults.any(
+                        (r) =>
+                            r.studentId == reg.studentId &&
+                            (r.status == ResultStatus.published ||
+                                r.publishedAt != null),
                       ),
                     ),
                   ),

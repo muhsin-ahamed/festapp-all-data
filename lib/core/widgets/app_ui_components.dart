@@ -4,6 +4,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../constants/app_constants.dart';
 import '../theme/app_theme.dart';
+import '../../services/sound_service.dart';
 export 'app_sidebar.dart';
 export 'app_responsive_layout.dart';
 
@@ -879,6 +880,8 @@ class TeamScoreCard extends StatelessWidget {
                     fontSize: 14.5,
                     color: AppTheme.ink,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 if (leaderText.isNotEmpty)
                   Text(
@@ -888,6 +891,8 @@ class TeamScoreCard extends StatelessWidget {
                       color: AppTheme.inkSoft,
                       fontWeight: FontWeight.w600,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
               ],
             ),
@@ -1045,14 +1050,22 @@ class ResultCard extends StatelessWidget {
               fontSize: 13.5,
               color: isEmpty ? AppTheme.inkSoft : AppTheme.ink,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
-        Text(
-          !isEmpty ? team : '—',
-          style: GoogleFonts.workSans(
-            color: AppTheme.inkSoft,
-            fontSize: 11.5,
-            fontWeight: FontWeight.w600,
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            !isEmpty ? team : '—',
+            style: GoogleFonts.workSans(
+              color: AppTheme.inkSoft,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.right,
           ),
         ),
       ],
@@ -1061,31 +1074,192 @@ class ResultCard extends StatelessWidget {
 }
 
 // --- 12. QRScannerWidget ---
-class QRScannerWidget extends StatelessWidget {
+class QRScannerWidget extends StatefulWidget {
   final ValueChanged<String> onScanned;
+  final double? height;
 
-  const QRScannerWidget({super.key, required this.onScanned});
+  const QRScannerWidget({
+    super.key,
+    required this.onScanned,
+    this.height,
+  });
+
+  @override
+  State<QRScannerWidget> createState() => _QRScannerWidgetState();
+}
+
+class _QRScannerWidgetState extends State<QRScannerWidget> {
+  DateTime? _lastScannedTime;
+  String? _lastScannedPayload;
+  bool _isProcessing = false;
+
+  void _handleBarcode(String raw) {
+    final clean = raw.trim();
+    if (clean.isEmpty) return;
+
+    final now = DateTime.now();
+    // Cooldown: prevent multiple triggers for the same QR code or rapid-fire frames
+    if (_isProcessing) return;
+    if (_lastScannedTime != null &&
+        now.difference(_lastScannedTime!).inMilliseconds < 1500) {
+      if (_lastScannedPayload == clean) {
+        return;
+      }
+    }
+
+    _isProcessing = true;
+    _lastScannedTime = now;
+    _lastScannedPayload = clean;
+
+    // Play scanner beep sound effect & tactile haptic pulse
+    SoundService.playQrScanSound();
+
+    widget.onScanned(clean);
+
+    Future.delayed(const Duration(milliseconds: 1200), () {
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+        });
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 300,
+      height: widget.height ?? 300,
       decoration: BoxDecoration(
         color: AppTheme.ink,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: _isProcessing
+              ? AppTheme.green
+              : AppTheme.red.withValues(alpha: 0.5),
+          width: 2,
+        ),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: MobileScanner(
-          onDetect: (capture) {
-            final List<Barcode> barcodes = capture.barcodes;
-            for (final barcode in barcodes) {
-              if (barcode.rawValue != null) {
-                onScanned(barcode.rawValue!);
-                break;
-              }
-            }
-          },
+        borderRadius: BorderRadius.circular(14),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            MobileScanner(
+              onDetect: (capture) {
+                final List<Barcode> barcodes = capture.barcodes;
+                for (final barcode in barcodes) {
+                  final raw = barcode.rawValue;
+                  if (raw != null && raw.isNotEmpty) {
+                    _handleBarcode(raw);
+                    break;
+                  }
+                }
+              },
+            ),
+            // Viewfinder Reticle Overlay
+            _buildScannerOverlay(),
+            // Scan confirmation flash badge
+            if (_isProcessing)
+              Positioned(
+                bottom: 16,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppTheme.green,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        blurRadius: 8,
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.check_circle,
+                          color: Colors.white, size: 16),
+                      const SizedBox(width: 6),
+                      Text(
+                        'QR Scanned!',
+                        style: GoogleFonts.workSans(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildScannerOverlay() {
+    return IgnorePointer(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final boxSize = (constraints.maxHeight * 0.68).clamp(160.0, 220.0);
+          return SizedBox(
+            width: boxSize,
+            height: boxSize,
+            child: Stack(
+              children: [
+                // Corner Brackets
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  child: _buildCorner(isTop: true, isLeft: true),
+                ),
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: _buildCorner(isTop: true, isLeft: false),
+                ),
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  child: _buildCorner(isTop: false, isLeft: true),
+                ),
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: _buildCorner(isTop: false, isLeft: false),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildCorner({required bool isTop, required bool isLeft}) {
+    const size = 22.0;
+    const thickness = 3.5;
+    final color = _isProcessing ? AppTheme.green : AppTheme.red;
+
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        border: Border(
+          top: isTop
+              ? BorderSide(color: color, width: thickness)
+              : BorderSide.none,
+          bottom: !isTop
+              ? BorderSide(color: color, width: thickness)
+              : BorderSide.none,
+          left: isLeft
+              ? BorderSide(color: color, width: thickness)
+              : BorderSide.none,
+          right: !isLeft
+              ? BorderSide(color: color, width: thickness)
+              : BorderSide.none,
         ),
       ),
     );

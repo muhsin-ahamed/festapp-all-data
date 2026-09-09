@@ -590,6 +590,16 @@ class _ControllerPortalScreenState
                             );
                           },
                         ),
+                        if (students.isNotEmpty)
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.delete_sweep_rounded),
+                            label: const Text('Delete All Students'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              foregroundColor: Colors.white,
+                            ),
+                            onPressed: () => _confirmDeleteAllStudents(students),
+                          ),
                       ],
                     ),
                   ],
@@ -1923,6 +1933,126 @@ class _ControllerPortalScreenState
     );
   }
 
+  void _confirmResetOfficialVenues(
+    List<Venue> currentVenues,
+    List<Schedule> currentSchedules,
+  ) {
+    bool isProcessing = false;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return AlertDialog(
+              title: Row(
+                children: const [
+                  Icon(
+                    Icons.cleaning_services_rounded,
+                    color: Colors.teal,
+                    size: 26,
+                  ),
+                  SizedBox(width: 10),
+                  Text('Reset Official Venues'),
+                ],
+              ),
+              content: isProcessing
+                  ? const Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text('Organizing venues... Please wait.'),
+                      ],
+                    )
+                  : const Text(
+                      'This will clean up any orphaned venue entries and ensure all 6 official festival venues (S1, S2, S8, S3, LIBRARY, Auditorium) are active in the system.',
+                    ),
+              actions: [
+                if (!isProcessing)
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancel'),
+                  ),
+                if (!isProcessing)
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.teal,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: () async {
+                      setModalState(() => isProcessing = true);
+                      try {
+                        final venueRepo = ref.read(venueRepositoryProvider);
+                        final usedVenueIds =
+                            currentSchedules.map((s) => s.venueId).toSet();
+                        final officialNames = [
+                          'S1',
+                          'S2',
+                          'S8',
+                          'S3',
+                          'LIBRARY',
+                          'Auditorium'
+                        ];
+
+                        // Delete orphaned venues not in official list and not in schedules
+                        for (final v in currentVenues) {
+                          final isUsed = usedVenueIds.contains(v.id);
+                          final isOfficial = officialNames.any((name) =>
+                              v.name.trim().toLowerCase() ==
+                              name.toLowerCase());
+                          if (!isUsed && !isOfficial) {
+                            try {
+                              await venueRepo.deleteVenue(v.id);
+                            } catch (_) {}
+                          }
+                        }
+
+                        // Ensure each official venue exists
+                        for (final name in officialNames) {
+                          final exists = currentVenues.any((v) =>
+                              v.name.trim().toLowerCase() ==
+                              name.toLowerCase());
+                          if (!exists) {
+                            try {
+                              await venueRepo.addVenue(
+                                Venue(
+                                  id:
+                                      'ven_${name.toLowerCase()}_${DateTime.now().millisecondsSinceEpoch}',
+                                  name: name,
+                                  location: 'Main Site',
+                                  capacity: name == 'Auditorium' ? 500 : 100,
+                                  description: 'Official Fest Venue',
+                                ),
+                              );
+                            } catch (_) {}
+                          }
+                        }
+                      } finally {
+                        triggerDataRefresh(ref);
+                        if (context.mounted) {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Official venues verified: S1, S2, S8, S3, LIBRARY, Auditorium',
+                              ),
+                              backgroundColor: Colors.teal,
+                            ),
+                          );
+                        }
+                      }
+                    },
+                    child: const Text('Confirm Reset'),
+                  ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   void _showImportResultDialog(String title, ExcelImportResult result) {
     showDialog(
       context: context,
@@ -2164,6 +2294,89 @@ class _ControllerPortalScreenState
     );
   }
 
+  void _confirmDeleteAllStudents(List<Student> students) {
+    bool isDeleting = false;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return AlertDialog(
+              title: const Text('Confirm Delete All Students'),
+              content: isDeleting
+                  ? const Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text('Deleting students... Please wait.'),
+                      ],
+                    )
+                  : Text(
+                      'Are you sure you want to delete all ${students.length} students? This action cannot be undone and will delete associated candidate registrations.',
+                    ),
+              actions: [
+                if (!isDeleting)
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancel'),
+                  ),
+                if (!isDeleting)
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: () async {
+                      setModalState(() => isDeleting = true);
+                      int successCount = 0;
+                      int failCount = 0;
+                      try {
+                        final repo = ref.read(studentRepositoryProvider);
+                        final uniqueStudents = {
+                          for (var s in students) s.id: s,
+                        }.values.toList();
+                        for (final s in uniqueStudents) {
+                          try {
+                            await repo.deleteStudent(s.id);
+                            successCount++;
+                          } catch (_) {
+                            failCount++;
+                          }
+                        }
+                      } finally {
+                        triggerDataRefresh(ref);
+                        if (context.mounted) {
+                          Navigator.pop(context);
+                          if (failCount == 0) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('All students deleted successfully.'),
+                              ),
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Deleted $successCount students. $failCount failed.',
+                                ),
+                              ),
+                            );
+                          }
+                        }
+                      }
+                    },
+                    child: const Text('Delete All'),
+                  ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   // --- 2. TEAMS SECTION ---
   Widget _buildTeamsSection(AsyncValue<List<Team>> teamsAsync) {
     return Scaffold(
@@ -2231,6 +2444,16 @@ class _ControllerPortalScreenState
                           label: const Text('Add New Team'),
                           onPressed: _showAddTeamDialog,
                         ),
+                        if (teams.isNotEmpty)
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.delete_sweep_rounded),
+                            label: const Text('Delete All Teams'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              foregroundColor: Colors.white,
+                            ),
+                            onPressed: () => _confirmDeleteAllTeams(teams),
+                          ),
                       ],
                     ),
                   ],
@@ -2765,6 +2988,89 @@ class _ControllerPortalScreenState
                           }
                         },
                 ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _confirmDeleteAllTeams(List<Team> teams) {
+    bool isDeleting = false;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return AlertDialog(
+              title: const Text('Confirm Delete All Teams'),
+              content: isDeleting
+                  ? const Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text('Deleting teams... Please wait.'),
+                      ],
+                    )
+                  : Text(
+                      'Are you sure you want to delete all ${teams.length} teams? This action cannot be undone.',
+                    ),
+              actions: [
+                if (!isDeleting)
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancel'),
+                  ),
+                if (!isDeleting)
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: () async {
+                      setModalState(() => isDeleting = true);
+                      int successCount = 0;
+                      int failCount = 0;
+                      try {
+                        final repo = ref.read(teamRepositoryProvider);
+                        final uniqueTeams = {
+                          for (var t in teams) t.id: t,
+                        }.values.toList();
+                        for (final t in uniqueTeams) {
+                          try {
+                            await repo.deleteTeam(t.id);
+                            successCount++;
+                          } catch (_) {
+                            failCount++;
+                          }
+                        }
+                      } finally {
+                        triggerDataRefresh(ref);
+                        if (context.mounted) {
+                          Navigator.pop(context);
+                          if (failCount == 0) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('All teams deleted successfully.'),
+                              ),
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Deleted $successCount teams. $failCount failed.',
+                                ),
+                              ),
+                            );
+                          }
+                        }
+                      }
+                    },
+                    child: const Text('Delete All'),
+                  ),
               ],
             );
           },
@@ -6603,6 +6909,31 @@ class _ControllerPortalScreenState
     final Map<String, Program> progMap = {for (var p in programs) p.id: p};
     final Map<String, Venue> venMap = {for (var v in venues) v.id: v};
 
+    // Official festival venues
+    final officialVenues = ['S1', 'S2', 'S8', 'S3', 'LIBRARY', 'Auditorium'];
+    final displayVenues = <String>[];
+    for (final ov in officialVenues) {
+      if (!displayVenues.contains(ov)) displayVenues.add(ov);
+    }
+    for (final v in venues) {
+      final vName = v.name.trim();
+      if (vName.isNotEmpty &&
+          !displayVenues.any((dv) => dv.toLowerCase() == vName.toLowerCase())) {
+        displayVenues.add(vName);
+      }
+    }
+
+    // Schedule counts per venue
+    final Map<String, int> venueScheduleCount = {};
+    for (final s in schedules) {
+      final ven = venMap[s.venueId];
+      final vName = (ven?.name ?? s.venueId).trim();
+      venueScheduleCount[vName.toUpperCase()] =
+          (venueScheduleCount[vName.toUpperCase()] ?? 0) + 1;
+      venueScheduleCount[s.venueId] =
+          (venueScheduleCount[s.venueId] ?? 0) + 1;
+    }
+
     // Filter schedules
     final filteredSchedules = schedules.where((s) {
       if (_selectedScheduleDateFilter != 'ALL' &&
@@ -6612,6 +6943,16 @@ class _ControllerPortalScreenState
       if (_selectedScheduleStatusFilter != 'ALL' &&
           s.status != _selectedScheduleStatusFilter) {
         return false;
+      }
+      if (_selectedScheduleVenueFilter != 'ALL') {
+        final ven = venMap[s.venueId];
+        final venName = (ven?.name ?? s.venueId).trim().toLowerCase();
+        final selectedTarget =
+            _selectedScheduleVenueFilter.trim().toLowerCase();
+        if (s.venueId.toLowerCase() != selectedTarget &&
+            venName != selectedTarget) {
+          return false;
+        }
       }
       return true;
     }).toList();
@@ -6634,7 +6975,7 @@ class _ControllerPortalScreenState
             .toList()
           ..sort();
 
-    return SingleChildScrollView(
+    return Padding(
       padding: const EdgeInsets.all(24.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -6753,6 +7094,25 @@ class _ControllerPortalScreenState
                       side: const BorderSide(color: AppTheme.red),
                     ),
                     onPressed: _confirmClearSchedules,
+                  ),
+                  OutlinedButton.icon(
+                    icon: const Icon(
+                      Icons.cleaning_services_rounded,
+                      size: 18,
+                      color: Colors.teal,
+                    ),
+                    label: const Text(
+                      'Clean & Reset Venues',
+                      style: TextStyle(color: Colors.teal),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      side: const BorderSide(color: Colors.teal),
+                    ),
+                    onPressed: () => _confirmResetOfficialVenues(venues, schedules),
                   ),
                 ],
               ),
@@ -6916,81 +7276,136 @@ class _ControllerPortalScreenState
                     ),
                   ),
                 ],
+                const SizedBox(height: 12),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      Text(
+                        'Venues:',
+                        style: GoogleFonts.workSans(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          color: AppTheme.inkSoft,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ChoiceChip(
+                        label: Text('All Venues (${schedules.length})'),
+                        selected: _selectedScheduleVenueFilter == 'ALL',
+                        visualDensity: VisualDensity.compact,
+                        onSelected: (_) {
+                          setState(() {
+                            _selectedScheduleVenueFilter = 'ALL';
+                          });
+                        },
+                      ),
+                      ...displayVenues.map((vName) {
+                        final count =
+                            venueScheduleCount[vName.toUpperCase()] ??
+                            venueScheduleCount[vName] ??
+                            0;
+                        final isSelected =
+                            _selectedScheduleVenueFilter.toLowerCase() ==
+                            vName.toLowerCase();
+                        return Padding(
+                          padding: const EdgeInsets.only(left: 6),
+                          child: ChoiceChip(
+                            label: Text('$vName ($count)'),
+                            selected: isSelected,
+                            visualDensity: VisualDensity.compact,
+                            onSelected: (_) {
+                              setState(() {
+                                _selectedScheduleVenueFilter =
+                                    isSelected ? 'ALL' : vName;
+                              });
+                            },
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
 
           // Schedule List / Table
-          if (filteredSchedules.isEmpty)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(40),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppTheme.line),
-              ),
-              child: Column(
-                children: [
-                  const Icon(
-                    Icons.calendar_today_outlined,
-                    size: 48,
-                    color: AppTheme.inkSoft,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    schedules.isEmpty
-                        ? 'No Schedules Uploaded Yet'
-                        : 'No schedules matching your filter',
-                    style: GoogleFonts.workSans(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.ink,
+          Expanded(
+            child: filteredSchedules.isEmpty
+                ? Center(
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(40),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppTheme.line),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.calendar_today_outlined,
+                            size: 48,
+                            color: AppTheme.inkSoft,
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            schedules.isEmpty
+                                ? 'No Schedules Uploaded Yet'
+                                : 'No schedules matching your filter',
+                            style: GoogleFonts.workSans(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.ink,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            schedules.isEmpty
+                                ? 'Click "+ Add Schedule" or "Import PDF / Excel" above to add schedules.'
+                                : 'Try clearing your search query or changing the date/venue filters.',
+                            style: GoogleFonts.workSans(
+                              fontSize: 13,
+                              color: AppTheme.inkSoft,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    schedules.isEmpty
-                        ? 'Click "+ Add Schedule" or "Import PDF / Excel" above to add schedules.'
-                        : 'Try clearing your search query or changing the date/venue filters.',
-                    style: GoogleFonts.workSans(
-                      fontSize: 13,
-                      color: AppTheme.inkSoft,
-                    ),
-                  ),
-                ],
-              ),
-            )
-          else ...[
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'SCHEDULED PROGRAMS (${filteredSchedules.length})',
-                  style: GoogleFonts.workSans(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.2,
-                    color: AppTheme.inkSoft,
-                  ),
-                ),
-                Text(
-                  'Showing ${filteredSchedules.length} of ${schedules.length} total',
-                  style: GoogleFonts.workSans(
-                    fontSize: 12,
-                    color: AppTheme.inkSoft,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: filteredSchedules.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (ctx, idx) {
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'SCHEDULED PROGRAMS (${filteredSchedules.length})',
+                            style: GoogleFonts.workSans(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.2,
+                              color: AppTheme.inkSoft,
+                            ),
+                          ),
+                          Text(
+                            'Showing ${filteredSchedules.length} of ${schedules.length} total',
+                            style: GoogleFonts.workSans(
+                              fontSize: 12,
+                              color: AppTheme.inkSoft,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Expanded(
+                        child: ListView.separated(
+                          itemCount: filteredSchedules.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 10),
+                          itemBuilder: (ctx, idx) {
                 final sch = filteredSchedules[idx];
                 final prog = progMap[sch.programId];
                 final ven = venMap[sch.venueId];
@@ -7272,9 +7687,11 @@ class _ControllerPortalScreenState
                   ),
                 );
               },
-            ),
-          ],
-          const SizedBox(height: 24),
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
         ],
       ),
     );

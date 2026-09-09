@@ -179,46 +179,37 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             const SizedBox(height: 16),
                           ],
                           if (_isScanningQr) ...[
-                            Container(
-                              height: 300,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: AppTheme.primaryColor,
-                                ),
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: QRScannerWidget(
-                                  onScanned: (payload) {
-                                    final scanRes = QrService.parseQrPayload(
-                                      payload,
-                                    );
-                                    if (scanRes.type ==
-                                        QrScanType.juryLoginProgram) {
-                                      setState(() => _isScanningQr = false);
-                                      if (scanRes.username != null &&
-                                          scanRes.password != null) {
-                                        _handleLogin(
-                                          scanRes.username,
-                                          scanRes.password,
-                                          scanRes.programId,
-                                        );
-                                      } else {
-                                        setState(
-                                          () => _errorMessage =
-                                              'Invalid Jury Login QR code',
-                                        );
-                                      }
+                            SizedBox(
+                              height: isMobile ? 240 : 280,
+                              child: QRScannerWidget(
+                                onScanned: (payload) {
+                                  final scanRes = QrService.parseQrPayload(
+                                    payload,
+                                  );
+                                  if (scanRes.type ==
+                                      QrScanType.juryLoginProgram) {
+                                    setState(() => _isScanningQr = false);
+                                    if (scanRes.username != null &&
+                                        scanRes.password != null) {
+                                      _handleLogin(
+                                        scanRes.username,
+                                        scanRes.password,
+                                        scanRes.programId,
+                                      );
                                     } else {
-                                      setState(() {
-                                        _errorMessage =
-                                            'Scanned QR is not a Jury Login QR';
-                                        _isScanningQr = false;
-                                      });
+                                      setState(
+                                        () => _errorMessage =
+                                            'Invalid Jury Login QR code',
+                                      );
                                     }
-                                  },
-                                ),
+                                  } else {
+                                    setState(() {
+                                      _errorMessage =
+                                          'Scanned QR is not a Jury Login QR';
+                                      _isScanningQr = false;
+                                    });
+                                  }
+                                },
                               ),
                             ),
                             const SizedBox(height: 16),

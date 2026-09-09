@@ -26,10 +26,7 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
   late TabController _tabController;
   final _searchController = TextEditingController();
 
-  String _publicScheduleSearch = '';
   String _publicScheduleDate = 'ALL';
-  String _publicScheduleVenue = 'ALL';
-  final _publicScheduleController = TextEditingController();
 
   @override
   void initState() {
@@ -44,7 +41,6 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
   void dispose() {
     _tabController.dispose();
     _searchController.dispose();
-    _publicScheduleController.dispose();
     super.dispose();
   }
 
@@ -168,13 +164,15 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
             children: [
               const Icon(Icons.search_rounded, color: AppTheme.red, size: 20),
               const SizedBox(width: 8),
-              Text(
-                'SEARCH STUDENT BY CHASE NUMBER OR SCAN QR',
-                style: GoogleFonts.workSans(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.2,
-                  color: AppTheme.ink,
+              Expanded(
+                child: Text(
+                  'SEARCH STUDENT BY CHASE NUMBER OR SCAN QR',
+                  style: GoogleFonts.workSans(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.2,
+                    color: AppTheme.ink,
+                  ),
                 ),
               ),
             ],
@@ -480,36 +478,45 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.event,
-                                    color: AppTheme.red,
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        progTitle,
-                                        style: GoogleFonts.workSans(
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 14,
-                                        ),
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.event,
+                                      color: AppTheme.red,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            progTitle,
+                                            style: GoogleFonts.workSans(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 14,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          Text(
+                                            '${sched.date} • ${sched.startTime} • 📍 $venName',
+                                            style: GoogleFonts.workSans(
+                                              color: AppTheme.inkSoft,
+                                              fontSize: 12,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
                                       ),
-                                      Text(
-                                        '${sched.date} • ${sched.startTime} • 📍 $venName',
-                                        style: GoogleFonts.workSans(
-                                          color: AppTheme.inkSoft,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                                    ),
+                                  ],
+                                ),
                               ),
+                              const SizedBox(width: 8),
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 10,
@@ -767,12 +774,14 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
                       size: 26,
                     ),
                     const SizedBox(width: 10),
-                    Text(
-                      'EVENT & STAGE SCHEDULE',
-                      style: GoogleFonts.rye(
-                        fontSize: 20,
-                        color: AppTheme.cream,
-                        letterSpacing: 1.1,
+                    Expanded(
+                      child: Text(
+                        'EVENT & STAGE SCHEDULE',
+                        style: GoogleFonts.rye(
+                          fontSize: 20,
+                          color: AppTheme.cream,
+                          letterSpacing: 1.1,
+                        ),
                       ),
                     ),
                   ],
@@ -1072,39 +1081,51 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
                                   ],
                                 ),
                                 const SizedBox(height: 8),
-                                Row(
+                                Wrap(
+                                  spacing: 12,
+                                  runSpacing: 4,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
                                   children: [
-                                    const Icon(
-                                      Icons.place,
-                                      size: 14,
-                                      color: AppTheme.red,
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.place,
+                                          size: 14,
+                                          color: AppTheme.red,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          venLoc.isNotEmpty
+                                              ? '$venName ($venLoc)'
+                                              : venName,
+                                          style: GoogleFonts.workSans(
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 12.5,
+                                            color: AppTheme.ink,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      venLoc.isNotEmpty
-                                          ? '$venName ($venLoc)'
-                                          : venName,
-                                      style: GoogleFonts.workSans(
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 12.5,
-                                        color: AppTheme.ink,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    const Icon(
-                                      Icons.calendar_month,
-                                      size: 14,
-                                      color: AppTheme.inkSoft,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      sch.date.isNotEmpty
-                                          ? sch.date
-                                          : 'Date TBA',
-                                      style: GoogleFonts.workSans(
-                                        fontSize: 12,
-                                        color: AppTheme.inkSoft,
-                                      ),
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.calendar_month,
+                                          size: 14,
+                                          color: AppTheme.inkSoft,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          sch.date.isNotEmpty
+                                              ? sch.date
+                                              : 'Date TBA',
+                                          style: GoogleFonts.workSans(
+                                            fontSize: 12,
+                                            color: AppTheme.inkSoft,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),

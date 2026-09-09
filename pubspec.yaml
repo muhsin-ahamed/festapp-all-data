@@ -47,6 +47,7 @@ dependencies:
   google_fonts: ^8.2.1
   uuid: ^4.6.0
   file_picker: ^12.1.1
+  audioplayers: ^6.8.1
 
 dev_dependencies:
   flutter_test:
@@ -72,6 +73,7 @@ flutter:
 
   assets:
     - assets/images/
+    - assets/sounds/
 
   # To add assets to your application, add an assets section, like this:
   # assets:
