@@ -182,13 +182,14 @@ class _ControllerPortalScreenState
           programsAsync,
           resultsAsync,
           venuesAsync,
+          registrationsAsync,
         ),
         // 1. Students Management
         _buildStudentsSection(studentsAsync, teamsAsync),
         // 2. Teams Management
         _buildTeamsSection(teamsAsync),
         // 3. Programs Management
-        _buildProgramsSection(programsAsync),
+        _buildProgramsSection(programsAsync, studentsAsync, teamsAsync),
         // 4. Program Registrations Management
         _buildProgramRegistrationsSection(
           registrationsAsync,
@@ -285,12 +286,14 @@ class _ControllerPortalScreenState
     AsyncValue<List<Program>> programsAsync,
     AsyncValue<List<Result>> resultsAsync,
     AsyncValue<List<Venue>> venuesAsync,
+    AsyncValue<List<Registration>> registrationsAsync,
   ) {
     final students = studentsAsync.value ?? [];
     final teams = teamsAsync.value ?? [];
     final programs = programsAsync.value ?? [];
     final results = resultsAsync.value ?? [];
     final venues = venuesAsync.value ?? [];
+    final registrations = registrationsAsync.value ?? [];
 
     final pendingDrafts = results
         .where(
@@ -319,9 +322,9 @@ class _ControllerPortalScreenState
           const SizedBox(height: 16),
           LayoutBuilder(
             builder: (context, constraints) {
-              final crossCount = constraints.maxWidth > 900
+              final crossCount = constraints.maxWidth > 1100
                   ? 4
-                  : (constraints.maxWidth > 600 ? 2 : 1);
+                  : (constraints.maxWidth > 700 ? 3 : (constraints.maxWidth > 500 ? 2 : 1));
               return GridView(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -351,6 +354,12 @@ class _ControllerPortalScreenState
                     color: Colors.orange,
                   ),
                   StatCard(
+                    title: 'Registrations',
+                    value: '${registrations.length}',
+                    icon: Icons.app_registration_rounded,
+                    color: Colors.deepOrange,
+                  ),
+                  StatCard(
                     title: 'Pending Drafts',
                     value: '$pendingDrafts',
                     icon: Icons.pending_actions,
@@ -371,6 +380,117 @@ class _ControllerPortalScreenState
                 ],
               );
             },
+          ),
+          const SizedBox(height: 24),
+
+          // Program Registration Quick Action Center
+          AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.app_registration_rounded,
+                        color: Colors.orange,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Program Registration Center',
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Register participants to events via Excel spreadsheet (chse no, name, program, setion) or manual entry.',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              color: AppTheme.inkSoft,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    _buildExcelFormatButton(
+                      onTap: _showRegistrationExcelFormatDialog,
+                      label: 'Understand Excel Format',
+                    ),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.file_upload),
+                      label: const Text('Upload Registration Excel'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: _importRegistrationsFromExcel,
+                    ),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.person_add_alt_1),
+                      label: const Text('Manual Register'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green.shade700,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () => _showAddRegistrationDialog(
+                        students,
+                        programs,
+                        teams,
+                      ),
+                    ),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.download),
+                      label: const Text('Download Template'),
+                      onPressed: () async {
+                        final excelService = ref.read(excelServiceProvider);
+                        final bytes = excelService.generateRegistrationTemplate();
+                        await Printing.sharePdf(
+                          bytes: bytes,
+                          filename: 'registration_excel_template.xlsx',
+                        );
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Downloaded Registrations Excel Template.',
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                    TextButton.icon(
+                      icon: const Icon(Icons.arrow_forward_rounded),
+                      label: const Text('View All Registrations'),
+                      onPressed: () {
+                        setState(() => _selectedNavIndex = 4);
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 32),
           Text(
@@ -528,7 +648,10 @@ class _ControllerPortalScreenState
     );
   }
 
-  Widget _buildExcelFormatButton({required VoidCallback onTap}) {
+  Widget _buildExcelFormatButton({
+    required VoidCallback onTap,
+    String label = 'Excel Format',
+  }) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
@@ -549,7 +672,7 @@ class _ControllerPortalScreenState
             ),
             const SizedBox(width: 6),
             Text(
-              'Excel Format',
+              label,
               style: GoogleFonts.inter(
                 color: const Color(0xFF9E2A2B),
                 fontWeight: FontWeight.w600,
@@ -854,121 +977,181 @@ class _ControllerPortalScreenState
       builder: (context) {
         return AlertDialog(
           title: Row(
-            children: [
-              const Icon(Icons.table_chart, color: Colors.orange),
-              const SizedBox(width: 10),
-              const Text('Registration Excel Format (3 Columns)'),
+            children: const [
+              Icon(Icons.table_chart, color: Colors.orange),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Program Registration Excel Format (4 Columns)',
+                  style: TextStyle(fontSize: 18),
+                ),
+              ),
             ],
           ),
           content: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'When importing program registrations using Excel, your file must have these 4 columns exactly as written:',
-                ),
-                const SizedBox(height: 16),
-                Table(
-                  border: TableBorder.all(color: Colors.grey.shade300),
-                  columnWidths: const {
-                    0: FlexColumnWidth(1.2),
-                    1: FlexColumnWidth(1.5),
-                    2: FlexColumnWidth(1.5),
-                    3: FlexColumnWidth(1.2),
-                  },
-                  children: const [
-                    TableRow(
-                      decoration: BoxDecoration(color: Color(0xFFF1F5F9)),
-                      children: [
-                        Padding(
-                          padding: EdgeInsets.all(8),
-                          child: Text(
-                            'chse no',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                              color: Colors.blue,
+            child: SizedBox(
+              width: 580,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'To import program registrations, your Excel spreadsheet (.xlsx / .xls) must have these 4 columns in the header row:',
+                    style: TextStyle(fontSize: 13, height: 1.4),
+                  ),
+                  const SizedBox(height: 14),
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Table(
+                      border: TableBorder.symmetric(
+                        inside: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      columnWidths: const {
+                        0: FlexColumnWidth(1.2),
+                        1: FlexColumnWidth(1.6),
+                        2: FlexColumnWidth(1.5),
+                        3: FlexColumnWidth(1.4),
+                      },
+                      children: const [
+                        TableRow(
+                          decoration: BoxDecoration(color: Color(0xFFF1F5F9)),
+                          children: [
+                            Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              child: Text(
+                                'chse no',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                  color: Colors.blue,
+                                ),
+                              ),
                             ),
-                          ),
+                            Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              child: Text(
+                                'name',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                  color: Colors.blue,
+                                ),
+                              ),
+                            ),
+                            Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              child: Text(
+                                'program',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                  color: Colors.blue,
+                                ),
+                              ),
+                            ),
+                            Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              child: Text(
+                                'setion',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                  color: Colors.blue,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        Padding(
-                          padding: EdgeInsets.all(8),
-                          child: Text(
-                            'name',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                              color: Colors.blue,
+                        TableRow(
+                          children: [
+                            Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              child: Text('SB7882', style: TextStyle(fontWeight: FontWeight.w600)),
                             ),
-                          ),
+                            Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              child: Text('JIYAN'),
+                            ),
+                            Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              child: Text('QIRATH'),
+                            ),
+                            Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              child: Text('SUB JUNOR'),
+                            ),
+                          ],
                         ),
-                        Padding(
-                          padding: EdgeInsets.all(8),
-                          child: Text(
-                            'program',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                              color: Colors.blue,
+                        TableRow(
+                          decoration: BoxDecoration(color: Color(0xFFFAFBFD)),
+                          children: [
+                            Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              child: Text('SB7165', style: TextStyle(fontWeight: FontWeight.w600)),
                             ),
-                          ),
-                        ),
-                        Padding(
-                          padding: EdgeInsets.all(8),
-                          child: Text(
-                            'setion',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                              color: Colors.blue,
+                            Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              child: Text('SAEED ALI'),
                             ),
-                          ),
+                            Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              child: Text('QIRATH'),
+                            ),
+                            Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              child: Text('SUB JUNOR'),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                    TableRow(
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50.withOpacity(0.6),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Padding(padding: EdgeInsets.all(8), child: Text('SB7886')),
-                        Padding(
-                          padding: EdgeInsets.all(8),
-                          child: Text('MUHAMMED SHAHAL'),
+                        const Text(
+                          'Column Specifications:',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: Colors.blue,
+                          ),
                         ),
-                        Padding(
-                          padding: EdgeInsets.all(8),
-                          child: Text('WRITING ARB'),
-                        ),
-                        Padding(
-                          padding: EdgeInsets.all(8),
-                          child: Text('SUB JUNOR'),
-                        ),
+                        const SizedBox(height: 6),
+                        _buildFormatBullet('chse no', 'Student Chest Number (e.g. SB7882, SB7165).'),
+                        _buildFormatBullet('name', 'Candidate / Student full name (e.g. JIYAN, SAEED ALI).'),
+                        _buildFormatBullet('program', 'Competition / Program name (e.g. QIRATH). Auto-created if new!'),
+                        _buildFormatBullet('setion', 'Category (e.g. SUB JUNOR / Sub Junior, Senior, Super Senior, General).'),
                       ],
                     ),
-                    TableRow(
-                      children: [
-                        Padding(padding: EdgeInsets.all(8), child: Text('SB6774')),
-                        Padding(
-                          padding: EdgeInsets.all(8),
-                          child: Text('RAZEEL THANGAL'),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: const [
+                      Icon(Icons.check_circle_outline, color: Colors.green, size: 16),
+                      SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Auto-creates students and programs if they are not already in the system. Duplicate registrations are automatically skipped.',
+                          style: TextStyle(fontSize: 12, color: Colors.black87),
                         ),
-                        Padding(
-                          padding: EdgeInsets.all(8),
-                          child: Text('WRITING ARB'),
-                        ),
-                        Padding(
-                          padding: EdgeInsets.all(8),
-                          child: Text('SUB JUNOR'),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Note: The student must exist in the system before registering them to a program. Program name should match the existing program name.',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-              ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
           actions: [
@@ -991,6 +1174,18 @@ class _ControllerPortalScreenState
                 }
               },
             ),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.file_upload),
+              label: const Text('Upload Excel File Now'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+                _importRegistrationsFromExcel();
+              },
+            ),
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('Close'),
@@ -998,6 +1193,31 @@ class _ControllerPortalScreenState
           ],
         );
       },
+    );
+  }
+
+  Widget _buildFormatBullet(String colName, String description) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '• $colName: ',
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+              color: Colors.black87,
+            ),
+          ),
+          Expanded(
+            child: Text(
+              description,
+              style: const TextStyle(fontSize: 12, color: Colors.black87),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -2551,7 +2771,14 @@ class _ControllerPortalScreenState
   }
 
   // --- 3. PROGRAMS SECTION ---
-  Widget _buildProgramsSection(AsyncValue<List<Program>> programsAsync) {
+  Widget _buildProgramsSection(
+    AsyncValue<List<Program>> programsAsync,
+    AsyncValue<List<Student>> studentsAsync,
+    AsyncValue<List<Team>> teamsAsync,
+  ) {
+    final students = studentsAsync.value ?? [];
+    final teams = teamsAsync.value ?? [];
+
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddProgramDialog,
@@ -2583,6 +2810,106 @@ class _ControllerPortalScreenState
                       runSpacing: 8,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
+                        PopupMenuButton<String>(
+                          tooltip: 'Program Registration Options',
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.shade50,
+                              border: Border.all(color: Colors.orange.shade400),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.app_registration_rounded,
+                                  color: Colors.orange,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Register Candidates',
+                                  style: GoogleFonts.inter(
+                                    color: Colors.orange.shade900,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                const Icon(
+                                  Icons.arrow_drop_down,
+                                  color: Colors.orange,
+                                  size: 18,
+                                ),
+                              ],
+                            ),
+                          ),
+                          onSelected: (val) {
+                            if (val == 'format') {
+                              _showRegistrationExcelFormatDialog();
+                            } else if (val == 'upload') {
+                              _importRegistrationsFromExcel();
+                            } else if (val == 'manual') {
+                              _showAddRegistrationDialog(
+                                students,
+                                programs,
+                                teams,
+                              );
+                            } else if (val == 'view') {
+                              setState(() => _selectedNavIndex = 4);
+                            }
+                          },
+                          itemBuilder: (ctx) => [
+                            const PopupMenuItem(
+                              value: 'format',
+                              child: ListTile(
+                                leading: Icon(
+                                  Icons.help_outline,
+                                  color: Colors.orange,
+                                ),
+                                title: Text('Understand Excel Format'),
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
+                            const PopupMenuItem(
+                              value: 'upload',
+                              child: ListTile(
+                                leading: Icon(
+                                  Icons.upload_file,
+                                  color: Colors.blue,
+                                ),
+                                title: Text('Upload Registrations Excel'),
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
+                            const PopupMenuItem(
+                              value: 'manual',
+                              child: ListTile(
+                                leading: Icon(
+                                  Icons.person_add_alt_1,
+                                  color: Colors.green,
+                                ),
+                                title: Text('Manual Register'),
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
+                            const PopupMenuItem(
+                              value: 'view',
+                              child: ListTile(
+                                leading: Icon(
+                                  Icons.table_rows,
+                                  color: Colors.purple,
+                                ),
+                                title: Text('View All Registrations'),
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
+                          ],
+                        ),
                         _buildExcelFormatButton(
                           onTap: _showProgramExcelFormatDialog,
                         ),
@@ -2718,12 +3045,24 @@ class _ControllerPortalScreenState
                                   children: [
                                     IconButton(
                                       icon: const Icon(
+                                        Icons.person_add_alt_1,
+                                        color: Colors.green,
+                                      ),
+                                      tooltip: 'Register Candidate for this Program',
+                                      onPressed: () => _showAddRegistrationDialog(
+                                        students,
+                                        programs,
+                                        teams,
+                                        defaultProgram: p,
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(
                                         Icons.edit_outlined,
                                         color: Colors.blueAccent,
                                       ),
                                       tooltip: 'Edit Program',
-                                      onPressed: () =>
-                                          _showEditProgramDialog(p),
+                                      onPressed: () => _showEditProgramDialog(p),
                                     ),
                                     IconButton(
                                       icon: const Icon(
@@ -3331,12 +3670,13 @@ class _ControllerPortalScreenState
                       children: [
                         _buildExcelFormatButton(
                           onTap: _showRegistrationExcelFormatDialog,
+                          label: 'Understand Excel Format',
                         ),
                         ElevatedButton.icon(
                           icon: const Icon(Icons.file_upload),
-                          label: const Text('Import Excel'),
+                          label: const Text('Upload Registrations Excel'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primaryColor,
+                            backgroundColor: Colors.orange,
                             foregroundColor: Colors.white,
                           ),
                           onPressed: _importRegistrationsFromExcel,
@@ -3556,13 +3896,32 @@ class _ControllerPortalScreenState
                                   fontSize: 15,
                                 ),
                               ),
-                              const SizedBox(height: 12),
+                              const SizedBox(height: 14),
                               Wrap(
                                 spacing: 10,
+                                runSpacing: 10,
+                                alignment: WrapAlignment.center,
                                 children: [
+                                  _buildExcelFormatButton(
+                                    onTap: _showRegistrationExcelFormatDialog,
+                                    label: 'Understand Excel Format',
+                                  ),
+                                  ElevatedButton.icon(
+                                    icon: const Icon(Icons.file_upload),
+                                    label: const Text('Upload Registrations Excel'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.orange,
+                                      foregroundColor: Colors.white,
+                                    ),
+                                    onPressed: _importRegistrationsFromExcel,
+                                  ),
                                   ElevatedButton.icon(
                                     icon: const Icon(Icons.person_add_alt_1),
                                     label: const Text('Manual Register'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.green.shade700,
+                                      foregroundColor: Colors.white,
+                                    ),
                                     onPressed: () =>
                                         _showAddRegistrationDialog(
                                       students,
@@ -3571,9 +3930,19 @@ class _ControllerPortalScreenState
                                     ),
                                   ),
                                   OutlinedButton.icon(
-                                    icon: const Icon(Icons.file_upload),
-                                    label: const Text('Import Excel'),
-                                    onPressed: _importRegistrationsFromExcel,
+                                    icon: const Icon(Icons.download),
+                                    label: const Text('Download Template'),
+                                    onPressed: () async {
+                                      final excelService =
+                                          ref.read(excelServiceProvider);
+                                      final bytes = excelService
+                                          .generateRegistrationTemplate();
+                                      await Printing.sharePdf(
+                                        bytes: bytes,
+                                        filename:
+                                            'registration_excel_template.xlsx',
+                                      );
+                                    },
                                   ),
                                 ],
                               ),
@@ -3805,12 +4174,13 @@ class _ControllerPortalScreenState
   void _showAddRegistrationDialog(
     List<Student> students,
     List<Program> programs,
-    List<Team> teams,
-  ) {
+    List<Team> teams, {
+    Program? defaultProgram,
+  }) {
     _regChaseController.clear();
     _regStudentNameController.clear();
-    _regProgramNameController.clear();
-    _regSection = FestSection.subJunior;
+    _regProgramNameController.text = defaultProgram?.programName ?? '';
+    _regSection = defaultProgram?.section ?? FestSection.subJunior;
 
     final availableSections = FestSection.values.toList();
     bool isSubmitting = false;
@@ -3845,7 +4215,7 @@ class _ControllerPortalScreenState
                       AppTextField(
                         label: 'Chest No (chse no) *',
                         controller: _regChaseController,
-                        hint: 'e.g. SB7886',
+                        hint: 'e.g. SB7882',
                         onChanged: (val) {
                           final clean = val.trim().toLowerCase();
                           final matched = students
@@ -3866,7 +4236,7 @@ class _ControllerPortalScreenState
                       AppTextField(
                         label: 'Student Name (name) *',
                         controller: _regStudentNameController,
-                        hint: 'e.g. MUHAMMED SHAHAL',
+                        hint: 'e.g. JIYAN',
                       ),
                       const SizedBox(height: 10),
 
@@ -3877,7 +4247,7 @@ class _ControllerPortalScreenState
                             child: AppTextField(
                               label: 'Program Name (program) *',
                               controller: _regProgramNameController,
-                              hint: 'e.g. WRITING ARB',
+                              hint: 'e.g. QIRATH',
                             ),
                           ),
                           if (programs.isNotEmpty) ...[
@@ -4677,7 +5047,7 @@ class _ControllerPortalScreenState
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Expected Sheet Columns: ches.no, name, program',
+                  'Expected Sheet Columns: chse no, name, program, setion',
                   style: GoogleFonts.inter(
                     color: AppTheme.inkSoft,
                     fontSize: 13,
@@ -4691,6 +5061,7 @@ class _ControllerPortalScreenState
                   children: [
                     _buildExcelFormatButton(
                       onTap: _showRegistrationExcelFormatDialog,
+                      label: 'Understand Excel Format',
                     ),
                     ElevatedButton.icon(
                       icon: const Icon(Icons.upload_file),

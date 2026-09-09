@@ -328,3 +328,28 @@ export async function deleteRegistration(req: Request, res: Response, next: Next
   }
 }
 
+export async function importRegistrationsExcel(req: Request, res: Response, next: NextFunction) {
+  try {
+    const file = (req as any).file;
+    if (!file && !req.body.buffer) {
+      return sendError(res, 'Excel file upload required', 400, 'NO_FILE');
+    }
+    const fileBuffer = file?.buffer || Buffer.from(req.body.buffer, 'base64');
+    const summary = await excelService.importRegistrationsFromBuffer(fileBuffer, req.user?.username);
+    return sendSuccess(res, summary, 'Registrations Excel import completed');
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function downloadRegistrationTemplate(req: Request, res: Response, next: NextFunction) {
+  try {
+    const buffer = excelService.generateRegistrationTemplateBuffer();
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=registration_excel_template.xlsx');
+    return res.send(buffer);
+  } catch (error) {
+    next(error);
+  }
+}
+

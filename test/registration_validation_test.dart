@@ -32,5 +32,23 @@ void main() {
         expect(canRegister(false, 4), isFalse);
       },
     );
+
+    test('Parses section "SUB JUNOR" to subJunior', () {
+      expect(FestSection.fromString('SUB JUNOR'), equals(FestSection.subJunior));
+      expect(FestSection.fromString(' SUB JUNOR '), equals(FestSection.subJunior));
+      expect(
+        FestSection.fromString('SUB JUNOR', 'SB7882'),
+        equals(FestSection.subJunior),
+      );
+      expect(
+        FestSection.fromString('SUB JUNOR', 'SB7165'),
+        equals(FestSection.subJunior),
+      );
+    });
+
+    test('Parses chest numbers with SB prefix to subJunior', () {
+      expect(FestSection.fromString('', 'SB7882'), equals(FestSection.subJunior));
+      expect(FestSection.fromString('', 'SB7165'), equals(FestSection.subJunior));
+    });
   });
 }

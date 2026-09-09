@@ -491,7 +491,10 @@ class ExcelService {
     bool hasHeader = false;
     for (int col = 0; col < headerRow.length; col++) {
       final val = headerRow[col]?.value?.toString().trim().toLowerCase() ?? '';
-      if (val.contains('chse') || val.contains('chase') || val.contains('chest')) {
+      if (val.contains('chse') ||
+          val.contains('chase') ||
+          val.contains('chest') ||
+          val.contains('ches')) {
         chaseCol = col;
         hasHeader = true;
       } else if (val.contains('name') || val.contains('student')) {
@@ -500,7 +503,10 @@ class ExcelService {
       } else if (val.contains('prog')) {
         progCol = col;
         hasHeader = true;
-      } else if (val.contains('sec') || val.contains('setion') || val.contains('section')) {
+      } else if (val.contains('sec') ||
+          val.contains('setion') ||
+          val.contains('section') ||
+          val.contains('category')) {
         secCol = col;
         hasHeader = true;
       }
@@ -671,16 +677,16 @@ class ExcelService {
     ]);
 
     sheet.appendRow([
-      TextCellValue('SB7886'),
-      TextCellValue('MUHAMMED SHAHAL'),
-      TextCellValue('WRITING ARB'),
+      TextCellValue('SB7882'),
+      TextCellValue('JIYAN'),
+      TextCellValue('QIRATH'),
       TextCellValue('SUB JUNOR'),
     ]);
 
     sheet.appendRow([
-      TextCellValue('SB6774'),
-      TextCellValue('RAZEEL THANGAL'),
-      TextCellValue('WRITING ARB'),
+      TextCellValue('SB7165'),
+      TextCellValue('SAEED ALI'),
+      TextCellValue('QIRATH'),
       TextCellValue('SUB JUNOR'),
     ]);
 

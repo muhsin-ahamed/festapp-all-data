@@ -37,6 +37,8 @@ router.delete('/programs/:id', Controller.deleteProgram);
 router.get('/registrations', Controller.getRegistrations);
 router.post('/registrations', validateRequest({ body: createRegistrationSchema }), Controller.addRegistration);
 router.delete('/registrations/:id', Controller.deleteRegistration);
+router.post('/registrations/import', Controller.importRegistrationsExcel);
+router.get('/registrations/template', Controller.downloadRegistrationTemplate);
 
 // Results Workflow
 router.get('/results', Controller.getResults);
