@@ -78,9 +78,12 @@ class ApiClient {
       if (errStr.contains('Failed to fetch') ||
           errStr.contains('ClientException') ||
           errStr.contains('SocketException')) {
+        final isLocal = baseUrl.contains('localhost') || baseUrl.contains('127.0.0.1');
+        final hint = isLocal
+            ? 'Please verify Node.js server is running locally.'
+            : 'Please verify the backend server URL is reachable and CORS is configured.';
         throw ApiException(
-          message:
-              'Failed to connect to backend at $baseUrl. Please verify Node.js server is running on port 3000.',
+          message: 'Failed to connect to backend at $baseUrl. $hint',
           statusCode: 0,
         );
       }
