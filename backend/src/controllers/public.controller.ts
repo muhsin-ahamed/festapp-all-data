@@ -6,6 +6,7 @@ import { ScheduleService } from '../services/schedule.service';
 import { ResultService } from '../services/result.service';
 import { AnnouncementService } from '../services/announcement.service';
 import { StudentService } from '../services/student.service';
+import { RegistrationService } from '../services/registration.service';
 import { sendSuccess, sendError } from '../utils/apiResponse';
 
 const teamService = new TeamService();
@@ -15,6 +16,7 @@ const scheduleService = new ScheduleService();
 const resultService = new ResultService();
 const announcementService = new AnnouncementService();
 const studentService = new StudentService();
+const registrationService = new RegistrationService();
 
 export async function getPublicTeams(req: Request, res: Response, next: NextFunction) {
   try {
@@ -80,10 +82,32 @@ export async function getPublicAnnouncements(req: Request, res: Response, next: 
   }
 }
 
+export async function getPublicRegistrations(req: Request, res: Response, next: NextFunction) {
+  try {
+    const studentId = req.query.studentId as string;
+    const programId = req.query.programId as string;
+    const teamId = req.query.teamId as string;
+    const registrations = await registrationService.getRegistrations({ studentId, programId, teamId });
+    return sendSuccess(res, registrations, 'Public registrations');
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function getPublicStudentByChase(req: Request, res: Response, next: NextFunction) {
   try {
-    const chaseNumber = req.params.chaseNumber;
-    const student = await studentService.getStudentByChaseNumber(chaseNumber);
+    const chaseNumber = req.params.chaseNumber?.trim();
+    let student = await studentService.getStudentByChaseNumber(chaseNumber);
+    if (!student) {
+      student = await studentService.getStudentById(chaseNumber);
+    }
+    if (!student) {
+      // Try searching by query matching
+      const allMatches = await studentService.getStudents({ query: chaseNumber });
+      student = allMatches.find(
+        (s) => s.chaseNumber.toLowerCase() === chaseNumber.toLowerCase() || s.id.toLowerCase() === chaseNumber.toLowerCase()
+      ) || null;
+    }
     if (!student) return sendError(res, 'Student not found', 404, 'NOT_FOUND');
     return sendSuccess(res, student, 'Student details');
   } catch (error) {

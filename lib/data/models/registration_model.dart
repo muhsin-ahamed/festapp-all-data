@@ -53,10 +53,15 @@ class Registration {
   factory Registration.fromMap(Map<String, dynamic> map) {
     return Registration(
       id: map['id']?.toString() ?? '',
-      studentId: map['studentId']?.toString() ?? '',
-      programId: map['programId']?.toString() ?? '',
-      teamId: map['teamId']?.toString() ?? '',
-      registrationNumber: map['registrationNumber']?.toString() ?? '',
+      studentId: (map['studentId'] ?? map['student_id'])?.toString() ?? '',
+      programId: (map['programId'] ?? map['program_id'])?.toString() ?? '',
+      teamId: (map['teamId'] ?? map['team_id'])?.toString() ?? '',
+      registrationNumber: (map['registrationNumber'] ??
+              map['registration_number'] ??
+              map['regNumber'] ??
+              map['reg_number'])
+          ?.toString() ??
+          '',
       status: RegistrationStatus.fromString(map['status']?.toString() ?? 'approved'),
       createdAt: map['createdAt'] != null
           ? (DateTime.tryParse(map['createdAt'].toString()) ?? DateTime.now())

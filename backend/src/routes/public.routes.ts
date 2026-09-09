@@ -9,6 +9,7 @@ router.get('/programs', PublicController.getPublicPrograms);
 router.get('/schedules', PublicController.getPublicSchedules);
 router.get('/results', PublicController.getPublicResults);
 router.get('/announcements', PublicController.getPublicAnnouncements);
+router.get('/registrations', PublicController.getPublicRegistrations);
 router.get('/student/:chaseNumber', PublicController.getPublicStudentByChase);
 
 export default router;

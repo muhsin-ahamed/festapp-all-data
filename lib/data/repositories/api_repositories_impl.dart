@@ -274,6 +274,17 @@ class ApiRegistrationRepository implements RegistrationRepository {
   @override
   Future<List<Registration>> getRegistrations() async {
     try {
+      final res = await globalApiClient.get('/public/registrations');
+      if (res is List) {
+        final list = res
+            .map((e) => Registration.fromMap(e as Map<String, dynamic>))
+            .toList();
+        if (list.isNotEmpty) {
+          return list;
+        }
+      }
+    } catch (_) {}
+    try {
       final res = await globalApiClient.get('/controller/registrations');
       if (res is List) {
         final list = res
@@ -294,7 +305,11 @@ class ApiRegistrationRepository implements RegistrationRepository {
   @override
   Future<List<Registration>> getByStudent(String studentId) async {
     final regs = await getRegistrations();
-    return regs.where((r) => r.studentId == studentId).toList();
+    final lower = studentId.trim().toLowerCase();
+    return regs.where((r) {
+      return r.studentId.trim().toLowerCase() == lower ||
+          r.registrationNumber.trim().toLowerCase().contains(lower);
+    }).toList();
   }
 
   @override

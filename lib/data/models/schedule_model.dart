@@ -51,13 +51,13 @@ class Schedule {
 
   factory Schedule.fromMap(Map<String, dynamic> map) {
     return Schedule(
-      id: map['id'] ?? '',
-      programId: map['programId'] ?? '',
-      venueId: map['venueId'] ?? '',
-      date: map['date'] ?? '',
-      startTime: map['startTime'] ?? '',
-      endTime: map['endTime'] ?? '',
-      status: map['status'] ?? 'SCHEDULED',
+      id: map['id']?.toString() ?? '',
+      programId: (map['programId'] ?? map['program_id'])?.toString() ?? '',
+      venueId: (map['venueId'] ?? map['venue_id'])?.toString() ?? '',
+      date: map['date']?.toString() ?? '',
+      startTime: (map['startTime'] ?? map['start_time'])?.toString() ?? '',
+      endTime: (map['endTime'] ?? map['end_time'])?.toString() ?? '',
+      status: map['status']?.toString() ?? 'SCHEDULED',
     );
   }
 }

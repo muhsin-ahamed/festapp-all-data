@@ -196,6 +196,9 @@ class _ControllerPortalScreenState
           studentsAsync,
           programsAsync,
           teamsAsync,
+          schedulesAsync,
+          venuesAsync,
+          resultsAsync,
         ),
         // 5. Schedule & Venue Management
         _buildScheduleAndVenueSection(
@@ -3524,11 +3527,17 @@ class _ControllerPortalScreenState
     AsyncValue<List<Registration>> registrationsAsync,
     AsyncValue<List<Student>> studentsAsync,
     AsyncValue<List<Program>> programsAsync,
-    AsyncValue<List<Team>> teamsAsync,
-  ) {
+    AsyncValue<List<Team>> teamsAsync, [
+    AsyncValue<List<Schedule>>? schedulesAsync,
+    AsyncValue<List<Venue>>? venuesAsync,
+    AsyncValue<List<Result>>? resultsAsync,
+  ]) {
     final students = studentsAsync.value ?? [];
     final programs = programsAsync.value ?? [];
     final teams = teamsAsync.value ?? [];
+    final schedules = schedulesAsync?.value ?? ref.watch(schedulesProvider).value ?? [];
+    final venues = venuesAsync?.value ?? ref.watch(venuesProvider).value ?? [];
+    final results = resultsAsync?.value ?? ref.watch(resultsProvider).value ?? [];
     final studentMap = {for (var s in students) s.id: s};
     final programMap = {for (var p in programs) p.id: p};
     final teamMap = {for (var t in teams) t.id: t};
@@ -4088,6 +4097,114 @@ class _ControllerPortalScreenState
                                           ),
                                         ),
                                       ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    // Schedule Details: Date, Day, Time, Venue
+                                    Builder(
+                                      builder: (ctx) {
+                                        final sched = schedules.where((sc) {
+                                          final scProg = sc.programId.trim().toLowerCase();
+                                          final rProg = r.programId.trim().toLowerCase();
+                                          if (scProg == rProg) return true;
+                                          if (p != null) {
+                                            if (scProg == p.id.trim().toLowerCase()) return true;
+                                            if (scProg == p.programCode.trim().toLowerCase()) return true;
+                                            if (scProg == p.programName.trim().toLowerCase()) return true;
+                                          }
+                                          return false;
+                                        }).firstOrNull;
+
+                                        final ven = sched != null
+                                            ? venues.where((v) =>
+                                                v.id.trim().toLowerCase() == sched.venueId.trim().toLowerCase() ||
+                                                v.name.trim().toLowerCase() == sched.venueId.trim().toLowerCase()).firstOrNull
+                                            : null;
+                                        final venName = ven?.name ?? (sched?.venueId.isNotEmpty == true ? sched!.venueId : 'Venue TBA');
+
+                                        if (sched != null) {
+                                          String dateText = sched.date;
+                                          String dayText = 'Day TBA';
+                                          final parsedDt = DateTime.tryParse(sched.date);
+                                          if (parsedDt != null) {
+                                            const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                                            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                                            dateText = '${parsedDt.day} ${months[parsedDt.month - 1]} ${parsedDt.year}';
+                                            dayText = weekdays[parsedDt.weekday - 1];
+                                          } else if (sched.date.toLowerCase().contains('day')) {
+                                            dayText = sched.date;
+                                          }
+
+                                          return Container(
+                                            margin: const EdgeInsets.only(top: 3, bottom: 3),
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: Colors.grey.shade50,
+                                              borderRadius: BorderRadius.circular(6),
+                                              border: Border.all(color: Colors.grey.shade200),
+                                            ),
+                                            child: Wrap(
+                                              spacing: 10,
+                                              runSpacing: 4,
+                                              crossAxisAlignment: WrapCrossAlignment.center,
+                                              children: [
+                                                Text('📅 Date: $dateText', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.blue.shade900)),
+                                                Text('🗓️ Day: $dayText', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.indigo.shade900)),
+                                                Text('⏰ ${sched.startTime} - ${sched.endTime}', style: TextStyle(fontSize: 11, color: Colors.grey.shade800)),
+                                                Text('📍 $venName', style: TextStyle(fontSize: 11, color: Colors.grey.shade800)),
+                                              ],
+                                            ),
+                                          );
+                                        } else {
+                                          return Padding(
+                                            padding: const EdgeInsets.only(top: 2, bottom: 2),
+                                            child: Text(
+                                              '📅 Schedule: Date, Day, Time & Venue TBA',
+                                              style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Colors.grey.shade600),
+                                            ),
+                                          );
+                                        }
+                                      },
+                                    ),
+                                    // Published Result (if available)
+                                    Builder(
+                                      builder: (ctx) {
+                                        final pubRes = results.where((res) {
+                                          final rStud = res.studentId.trim().toLowerCase();
+                                          final sChase = s?.chaseNumber.trim().toLowerCase() ?? '';
+                                          final sId = s?.id.trim().toLowerCase() ?? '';
+                                          final matchStud = (sChase.isNotEmpty && rStud == sChase) ||
+                                              (sId.isNotEmpty && rStud == sId) ||
+                                              (rStud == r.studentId.trim().toLowerCase());
+                                          final matchProg = res.programId.trim().toLowerCase() == r.programId.trim().toLowerCase() ||
+                                              (p != null && res.programId.trim().toLowerCase() == p.id.trim().toLowerCase());
+                                          final isPub = res.status == ResultStatus.published || res.publishedAt != null;
+                                          return matchStud && matchProg && isPub;
+                                        }).firstOrNull;
+
+                                        if (pubRes != null) {
+                                          return Container(
+                                            margin: const EdgeInsets.only(top: 4, bottom: 2),
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                            decoration: BoxDecoration(
+                                              color: Colors.amber.shade50,
+                                              borderRadius: BorderRadius.circular(6),
+                                              border: Border.all(color: Colors.amber.shade300),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const Icon(Icons.emoji_events, size: 13, color: Colors.amber),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  'Result: Position #${pubRes.position ?? "-"} • Grade ${pubRes.grade} • +${pubRes.points} pts (Published)',
+                                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.amber.shade900),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        }
+                                        return const SizedBox.shrink();
+                                      },
                                     ),
                                     const SizedBox(height: 2),
                                     Text(

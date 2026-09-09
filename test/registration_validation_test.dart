@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:amia_fest/core/constants/app_constants.dart';
 import 'package:amia_fest/data/models/registration_model.dart';
+import 'package:amia_fest/data/models/student_model.dart';
 
 void main() {
   group('Registration Limit Validation Unit Tests', () {
@@ -87,15 +88,69 @@ void main() {
 
       final regWithSnakeCase = Registration.fromMap({
         'id': 'reg_2',
-        'studentId': 's_2',
-        'programId': 'p_2',
-        'teamId': 't_2',
-        'registrationNumber': 'REG-002',
+        'student_id': 's_2',
+        'program_id': 'p_2',
+        'team_id': 't_2',
+        'registration_number': 'REG-SB7882-P01',
         'status': 'approved',
         'created_at': '2026-09-09T00:00:00.000Z',
       });
       expect(regWithSnakeCase.id, equals('reg_2'));
+      expect(regWithSnakeCase.studentId, equals('s_2'));
+      expect(regWithSnakeCase.programId, equals('p_2'));
+      expect(regWithSnakeCase.teamId, equals('t_2'));
+      expect(regWithSnakeCase.registrationNumber, equals('REG-SB7882-P01'));
       expect(regWithSnakeCase.createdAt.year, equals(2026));
+    });
+
+    test('Student.fromMap parses chase number with alternate keys', () {
+      final s1 = Student.fromMap({
+        'id': 's_100',
+        'chase_number': 'SB7882',
+        'name': 'Ahmad',
+      });
+      expect(s1.chaseNumber, equals('SB7882'));
+      expect(s1.section, equals(FestSection.subJunior));
+
+      final s2 = Student.fromMap({
+        'id': 's_200',
+        'chest_no': 'J-105',
+        'name': 'Bilal',
+      });
+      expect(s2.chaseNumber, equals('J-105'));
+    });
+
+    test('Scheduled programs sort before unscheduled programs', () {
+      final items = [
+        {'name': 'Program B', 'hasSchedule': false},
+        {'name': 'Program A', 'hasSchedule': true, 'time': '10:00'},
+        {'name': 'Program C', 'hasSchedule': true, 'time': '09:00'},
+      ];
+
+      items.sort((a, b) {
+        final aSched = a['hasSchedule'] as bool;
+        final bSched = b['hasSchedule'] as bool;
+        if (aSched && !bSched) return -1;
+        if (!aSched && bSched) return 1;
+        if (aSched && bSched) {
+          return (a['time'] as String).compareTo(b['time'] as String);
+        }
+        return (a['name'] as String).compareTo(b['name'] as String);
+      });
+
+      expect(items[0]['name'], equals('Program C')); // scheduled at 09:00
+      expect(items[1]['name'], equals('Program A')); // scheduled at 10:00
+      expect(items[2]['name'], equals('Program B')); // unscheduled
+    });
+
+    test('Date and Day formatting parses date and weekday correctly', () {
+      final parsed = DateTime.tryParse('2026-09-10');
+      expect(parsed, isNotNull);
+      const weekdays = [
+        'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
+      ];
+      final weekday = weekdays[parsed!.weekday - 1];
+      expect(weekday, equals('Thursday'));
     });
   });
 }

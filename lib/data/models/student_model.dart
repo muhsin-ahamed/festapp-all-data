@@ -88,25 +88,40 @@ class Student {
   }
 
   factory Student.fromMap(Map<String, dynamic> map) {
+    final chase = (map['chaseNumber'] ??
+            map['chase_number'] ??
+            map['chestNo'] ??
+            map['chest_no'] ??
+            map['chestNumber'] ??
+            map['chse_no'])
+        ?.toString() ??
+        '';
     return Student(
-      id: map['id'] ?? '',
-      chaseNumber: map['chaseNumber'] ?? '',
-      name: map['name'] ?? '',
-      gender: map['gender'] ?? '',
-      dateOfBirth: map['dateOfBirth'] ?? '',
-      section: FestSection.fromString(map['section'] ?? '', map['chaseNumber']),
-      teamId: map['teamId'] ?? '',
-      phone: map['phone'] ?? '',
-      className: map['className'] ?? '',
-      schoolName: map['schoolName'] ?? '',
-      photo: map['photo'],
-      qrCode: map['qrCode'],
+      id: map['id']?.toString() ?? '',
+      chaseNumber: chase,
+      name: map['name']?.toString() ?? '',
+      gender: map['gender']?.toString() ?? '',
+      dateOfBirth: (map['dateOfBirth'] ?? map['date_of_birth'])?.toString() ?? '',
+      section: FestSection.fromString(
+        (map['section'])?.toString() ?? '',
+        chase,
+      ),
+      teamId: (map['teamId'] ?? map['team_id'])?.toString() ?? '',
+      phone: map['phone']?.toString() ?? '',
+      className: (map['className'] ?? map['class_name'])?.toString() ?? '',
+      schoolName: (map['schoolName'] ?? map['school_name'])?.toString() ?? '',
+      photo: map['photo']?.toString(),
+      qrCode: (map['qrCode'] ?? map['qr_code'])?.toString() ?? chase,
       createdAt: map['createdAt'] != null
-          ? DateTime.parse(map['createdAt'])
-          : DateTime.now(),
+          ? (DateTime.tryParse(map['createdAt'].toString()) ?? DateTime.now())
+          : (map['created_at'] != null
+              ? (DateTime.tryParse(map['created_at'].toString()) ?? DateTime.now())
+              : DateTime.now()),
       updatedAt: map['updatedAt'] != null
-          ? DateTime.parse(map['updatedAt'])
-          : DateTime.now(),
+          ? (DateTime.tryParse(map['updatedAt'].toString()) ?? DateTime.now())
+          : (map['updated_at'] != null
+              ? (DateTime.tryParse(map['updated_at'].toString()) ?? DateTime.now())
+              : DateTime.now()),
     );
   }
 }

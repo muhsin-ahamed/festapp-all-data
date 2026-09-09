@@ -89,26 +89,32 @@ class Result {
 
   factory Result.fromMap(Map<String, dynamic> map) {
     return Result(
-      id: map['id'] ?? '',
-      programId: map['programId'] ?? '',
-      studentId: map['studentId'] ?? '',
-      teamId: map['teamId'] ?? '',
-      juryId: map['juryId'],
+      id: map['id']?.toString() ?? '',
+      programId: (map['programId'] ?? map['program_id'])?.toString() ?? '',
+      studentId: (map['studentId'] ?? map['student_id'])?.toString() ?? '',
+      teamId: (map['teamId'] ?? map['team_id'])?.toString() ?? '',
+      juryId: (map['juryId'] ?? map['jury_id'])?.toString(),
       marks: (map['marks'] as num?)?.toDouble() ?? 0.0,
-      grade: map['grade'] ?? '',
+      grade: map['grade']?.toString() ?? '',
       position: map['position'] as int?,
-      points: map['points'] ?? 0,
-      remarks: map['remarks'],
-      status: ResultStatus.fromString(map['status'] ?? 'draft'),
+      points: (map['points'] as num?)?.toInt() ?? 0,
+      remarks: map['remarks']?.toString(),
+      status: ResultStatus.fromString(map['status']?.toString() ?? 'draft'),
       createdAt: map['createdAt'] != null
-          ? DateTime.parse(map['createdAt'])
-          : DateTime.now(),
+          ? (DateTime.tryParse(map['createdAt'].toString()) ?? DateTime.now())
+          : (map['created_at'] != null
+              ? (DateTime.tryParse(map['created_at'].toString()) ?? DateTime.now())
+              : DateTime.now()),
       updatedAt: map['updatedAt'] != null
-          ? DateTime.parse(map['updatedAt'])
-          : DateTime.now(),
+          ? (DateTime.tryParse(map['updatedAt'].toString()) ?? DateTime.now())
+          : (map['updated_at'] != null
+              ? (DateTime.tryParse(map['updated_at'].toString()) ?? DateTime.now())
+              : DateTime.now()),
       publishedAt: map['publishedAt'] != null
-          ? DateTime.parse(map['publishedAt'])
-          : null,
+          ? DateTime.tryParse(map['publishedAt'].toString())
+          : (map['published_at'] != null
+              ? DateTime.tryParse(map['published_at'].toString())
+              : null),
     );
   }
 }
