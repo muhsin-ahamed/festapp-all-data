@@ -155,15 +155,9 @@ void triggerDataRefresh(WidgetRef ref) {
 final studentsProvider = FutureProvider<List<Student>>((ref) async {
   ref.watch(dataRefreshSignalProvider);
   try {
-    final list = await ref.watch(studentRepositoryProvider).getStudents();
-    if (list.isNotEmpty) return list;
-    return await SupabaseStudentRepository().getStudents();
+    return await ref.watch(studentRepositoryProvider).getStudents();
   } catch (_) {
-    try {
-      return await SupabaseStudentRepository().getStudents();
-    } catch (_) {
-      return [];
-    }
+    return [];
   }
 });
 
@@ -171,20 +165,11 @@ final teamsProvider = FutureProvider<List<Team>>((ref) async {
   ref.watch(dataRefreshSignalProvider);
   try {
     final repo = ref.watch(teamRepositoryProvider);
-    var teams = await repo.getTeams();
-    if (teams.isEmpty) {
-      teams = await SupabaseTeamRepository().getTeams();
-    }
+    final teams = await repo.getTeams();
     teams.sort((a, b) => b.totalPoints.compareTo(a.totalPoints));
     return teams;
   } catch (_) {
-    try {
-      final teams = await SupabaseTeamRepository().getTeams();
-      teams.sort((a, b) => b.totalPoints.compareTo(a.totalPoints));
-      return teams;
-    } catch (_) {
-      return [];
-    }
+    return [];
   }
 });
 
@@ -192,32 +177,18 @@ final programsProvider = FutureProvider<List<Program>>((ref) async {
   ref.watch(dataRefreshSignalProvider);
   try {
     final repo = ref.watch(programRepositoryProvider);
-    final list = await repo.getPrograms();
-    print('[Flutter Provider] programsProvider loaded count: ${list.length}');
-    if (list.isNotEmpty) return list;
-    return await SupabaseProgramRepository().getPrograms();
+    return await repo.getPrograms();
   } catch (_) {
-    try {
-      return await SupabaseProgramRepository().getPrograms();
-    } catch (_) {
-      return [];
-    }
+    return [];
   }
 });
 
 final registrationsProvider = FutureProvider<List<Registration>>((ref) async {
   ref.watch(dataRefreshSignalProvider);
   try {
-    final list =
-        await ref.watch(registrationRepositoryProvider).getRegistrations();
-    if (list.isNotEmpty) return list;
-    return await SupabaseRegistrationRepository().getRegistrations();
+    return await ref.watch(registrationRepositoryProvider).getRegistrations();
   } catch (_) {
-    try {
-      return await SupabaseRegistrationRepository().getRegistrations();
-    } catch (_) {
-      return [];
-    }
+    return [];
   }
 });
 

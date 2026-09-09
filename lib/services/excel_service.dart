@@ -649,9 +649,18 @@ class ExcelService {
       await programRepository.addPrograms(newProgramsToSave);
     }
 
-    // Persist valid registrations
-    for (var reg in validRegistrations) {
-      await registrationRepository.addRegistration(reg);
+    // Persist valid registrations in parallel chunks for maximum import speed
+    const batchSize = 15;
+    for (int b = 0; b < validRegistrations.length; b += batchSize) {
+      final chunk = validRegistrations.sublist(
+        b,
+        (b + batchSize > validRegistrations.length)
+            ? validRegistrations.length
+            : b + batchSize,
+      );
+      await Future.wait(
+        chunk.map((reg) => registrationRepository.addRegistration(reg)),
+      );
     }
 
     return ExcelImportResult<Registration>(
