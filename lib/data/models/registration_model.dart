@@ -47,21 +47,22 @@ class Registration {
       'teamId': teamId,
       'registrationNumber': registrationNumber,
       'status': status.name,
-      'createdAt': createdAt.toIso8601String(),
     };
   }
 
   factory Registration.fromMap(Map<String, dynamic> map) {
     return Registration(
-      id: map['id'] ?? '',
-      studentId: map['studentId'] ?? '',
-      programId: map['programId'] ?? '',
-      teamId: map['teamId'] ?? '',
-      registrationNumber: map['registrationNumber'] ?? '',
-      status: RegistrationStatus.fromString(map['status'] ?? 'approved'),
+      id: map['id']?.toString() ?? '',
+      studentId: map['studentId']?.toString() ?? '',
+      programId: map['programId']?.toString() ?? '',
+      teamId: map['teamId']?.toString() ?? '',
+      registrationNumber: map['registrationNumber']?.toString() ?? '',
+      status: RegistrationStatus.fromString(map['status']?.toString() ?? 'approved'),
       createdAt: map['createdAt'] != null
-          ? DateTime.parse(map['createdAt'])
-          : DateTime.now(),
+          ? (DateTime.tryParse(map['createdAt'].toString()) ?? DateTime.now())
+          : (map['created_at'] != null
+              ? (DateTime.tryParse(map['created_at'].toString()) ?? DateTime.now())
+              : DateTime.now()),
     );
   }
 }

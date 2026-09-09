@@ -715,32 +715,10 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
     final Map<String, Venue> venMap = {for (var v in venues) v.id: v};
 
     // Filter schedules
-    final q = _publicScheduleSearch.trim().toLowerCase();
     final filteredSchedules =
         schedules.where((s) {
-          final prog = progMap[s.programId];
-          final venue = venMap[s.venueId];
-          if (q.isNotEmpty) {
-            final matchesProg =
-                prog?.programName.toLowerCase().contains(q) == true ||
-                prog?.programCode.toLowerCase().contains(q) == true;
-            final matchesVenue =
-                venue?.name.toLowerCase().contains(q) == true ||
-                s.venueId.toLowerCase().contains(q);
-            final matchesDate = s.date.toLowerCase().contains(q);
-            final matchesTime =
-                s.startTime.toLowerCase().contains(q) ||
-                s.endTime.toLowerCase().contains(q);
-            if (!matchesProg && !matchesVenue && !matchesDate && !matchesTime) {
-              return false;
-            }
-          }
           if (_publicScheduleDate != 'ALL' &&
               s.date.trim() != _publicScheduleDate) {
-            return false;
-          }
-          if (_publicScheduleVenue != 'ALL' &&
-              s.venueId != _publicScheduleVenue) {
             return false;
           }
           return true;
@@ -812,142 +790,59 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
           ),
           const SizedBox(height: 16),
 
-          // Search and Filters
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppTheme.line),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+          // Date Filter
+          if (uniqueDates.isNotEmpty) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppTheme.line),
+              ),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
                   children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _publicScheduleController,
-                        decoration: InputDecoration(
-                          hintText: 'Search by program name, code, or stage...',
-                          prefixIcon: const Icon(
-                            Icons.search,
-                            size: 20,
-                            color: AppTheme.red,
-                          ),
-                          suffixIcon:
-                              _publicScheduleSearch.isNotEmpty
-                                  ? IconButton(
-                                    icon: const Icon(Icons.clear, size: 18),
-                                    onPressed: () {
-                                      setState(() {
-                                        _publicScheduleController.clear();
-                                        _publicScheduleSearch = '';
-                                      });
-                                    },
-                                  )
-                                  : null,
-                          isDense: true,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 10,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(color: AppTheme.line),
-                          ),
-                        ),
-                        onChanged: (val) {
-                          setState(() {
-                            _publicScheduleSearch = val;
-                          });
-                        },
+                    Text(
+                      'Date:',
+                      style: GoogleFonts.workSans(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: AppTheme.inkSoft,
                       ),
                     ),
-                    if (venues.isNotEmpty) ...[
-                      const SizedBox(width: 10),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: AppTheme.line),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: _publicScheduleVenue,
-                            isDense: true,
-                            items: [
-                              const DropdownMenuItem(
-                                value: 'ALL',
-                                child: Text('All Venues / Stages'),
-                              ),
-                              ...venues.map(
-                                (v) => DropdownMenuItem(
-                                  value: v.id,
-                                  child: Text(v.name),
-                                ),
-                              ),
-                            ],
-                            onChanged: (val) {
-                              if (val != null) {
-                                setState(() {
-                                  _publicScheduleVenue = val;
-                                });
-                              }
-                            },
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                if (uniqueDates.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        Text(
-                          'Date:',
-                          style: GoogleFonts.workSans(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                            color: AppTheme.inkSoft,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        ChoiceChip(
-                          label: const Text('All Dates'),
-                          selected: _publicScheduleDate == 'ALL',
+                    const SizedBox(width: 8),
+                    ChoiceChip(
+                      label: const Text('All Dates'),
+                      selected: _publicScheduleDate == 'ALL',
+                      visualDensity: VisualDensity.compact,
+                      onSelected: (_) {
+                        setState(() {
+                          _publicScheduleDate = 'ALL';
+                        });
+                      },
+                    ),
+                    ...uniqueDates.map(
+                      (d) => Padding(
+                        padding: const EdgeInsets.only(left: 6),
+                        child: ChoiceChip(
+                          label: Text(d),
+                          selected: _publicScheduleDate == d,
                           visualDensity: VisualDensity.compact,
                           onSelected: (_) {
                             setState(() {
-                              _publicScheduleDate = 'ALL';
+                              _publicScheduleDate = d;
                             });
                           },
                         ),
-                        ...uniqueDates.map(
-                          (d) => Padding(
-                            padding: const EdgeInsets.only(left: 6),
-                            child: ChoiceChip(
-                              label: Text(d),
-                              selected: _publicScheduleDate == d,
-                              visualDensity: VisualDensity.compact,
-                              onSelected: (_) {
-                                setState(() {
-                                  _publicScheduleDate = d;
-                                });
-                              },
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
-                ],
-              ],
+                  ],
+                ),
+              ),
             ),
-          ),
+          ],
           const SizedBox(height: 18),
 
           // Schedule Cards

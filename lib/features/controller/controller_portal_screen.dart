@@ -6487,31 +6487,9 @@ class _ControllerPortalScreenState
     final Map<String, Venue> venMap = {for (var v in venues) v.id: v};
 
     // Filter schedules
-    final q = _scheduleSearchQuery.trim().toLowerCase();
     final filteredSchedules = schedules.where((s) {
-      final prog = progMap[s.programId];
-      final venue = venMap[s.venueId];
-      if (q.isNotEmpty) {
-        final matchesProg =
-            prog?.programName.toLowerCase().contains(q) == true ||
-            prog?.programCode.toLowerCase().contains(q) == true;
-        final matchesVenue =
-            venue?.name.toLowerCase().contains(q) == true ||
-            s.venueId.toLowerCase().contains(q);
-        final matchesDate = s.date.toLowerCase().contains(q);
-        final matchesTime =
-            s.startTime.toLowerCase().contains(q) ||
-            s.endTime.toLowerCase().contains(q);
-        if (!matchesProg && !matchesVenue && !matchesDate && !matchesTime) {
-          return false;
-        }
-      }
       if (_selectedScheduleDateFilter != 'ALL' &&
           s.date.trim() != _selectedScheduleDateFilter) {
-        return false;
-      }
-      if (_selectedScheduleVenueFilter != 'ALL' &&
-          s.venueId != _selectedScheduleVenueFilter) {
         return false;
       }
       if (_selectedScheduleStatusFilter != 'ALL' &&
@@ -6709,95 +6687,6 @@ class _ControllerPortalScreenState
           ),
           const SizedBox(height: 24),
 
-          // Venues Overview Strip
-          if (venues.isNotEmpty) ...[
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppTheme.line),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.place, size: 20, color: AppTheme.red),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Venues (${venues.length}):',
-                    style: GoogleFonts.workSans(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                      color: AppTheme.ink,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children:
-                            venues.map((v) {
-                              final count =
-                                  schedules
-                                      .where((s) => s.venueId == v.id)
-                                      .length;
-                              return Container(
-                                margin: const EdgeInsets.only(right: 8),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 5,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.cream2,
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: AppTheme.line),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      v.name,
-                                      style: GoogleFonts.workSans(
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 6,
-                                        vertical: 1,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: AppTheme.ink.withValues(
-                                          alpha: 0.08,
-                                        ),
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: Text(
-                                        '$count prog',
-                                        style: const TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold,
-                                          color: AppTheme.inkSoft,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }).toList(),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-          ],
 
           // Search and Filters Card
           Container(
@@ -6812,73 +6701,15 @@ class _ControllerPortalScreenState
               children: [
                 Row(
                   children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _scheduleSearchController,
-                        decoration: InputDecoration(
-                          hintText:
-                              'Search schedule by program name, code, venue, date...',
-                          prefixIcon: const Icon(Icons.search, size: 20),
-                          suffixIcon:
-                              _scheduleSearchQuery.isNotEmpty
-                                  ? IconButton(
-                                    icon: const Icon(Icons.clear, size: 18),
-                                    onPressed: () {
-                                      setState(() {
-                                        _scheduleSearchController.clear();
-                                        _scheduleSearchQuery = '';
-                                      });
-                                    },
-                                  )
-                                  : null,
-                          isDense: true,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(color: AppTheme.line),
-                          ),
-                        ),
-                        onChanged: (val) {
-                          setState(() {
-                            _scheduleSearchQuery = val;
-                          });
-                        },
+                    Text(
+                      'Status:',
+                      style: GoogleFonts.workSans(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: AppTheme.inkSoft,
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    // Venue Filter Dropdown
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppTheme.line),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: _selectedScheduleVenueFilter,
-                          isDense: true,
-                          items: [
-                            const DropdownMenuItem(
-                              value: 'ALL',
-                              child: Text('All Venues'),
-                            ),
-                            ...venues.map(
-                              (v) => DropdownMenuItem(
-                                value: v.id,
-                                child: Text(v.name),
-                              ),
-                            ),
-                          ],
-                          onChanged: (val) {
-                            if (val != null) {
-                              setState(() {
-                                _selectedScheduleVenueFilter = val;
-                              });
-                            }
-                          },
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 8),
                     // Status Filter Dropdown
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
