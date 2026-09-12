@@ -7,7 +7,10 @@ import '../data/models/program_model.dart';
 import '../data/models/venue_model.dart';
 import '../data/models/schedule_model.dart';
 import '../data/models/registration_model.dart';
+import '../data/models/jury_model.dart';
+import '../data/models/user_model.dart';
 import '../data/repositories/app_repositories.dart';
+import 'qr_service.dart';
 import 'package:uuid/uuid.dart';
 
 class ExcelImportResult<T> {
@@ -37,6 +40,8 @@ class ExcelService {
   final VenueRepository venueRepository;
   final ScheduleRepository scheduleRepository;
   final RegistrationRepository registrationRepository;
+  final JuryRepository? juryRepository;
+  final UserRepository? userRepository;
 
   ExcelService({
     required this.studentRepository,
@@ -45,6 +50,8 @@ class ExcelService {
     required this.venueRepository,
     required this.scheduleRepository,
     required this.registrationRepository,
+    this.juryRepository,
+    this.userRepository,
   });
 
   Future<ExcelImportResult<Student>> importStudents(Uint8List bytes) async {
@@ -1263,6 +1270,211 @@ class ExcelService {
       TextCellValue('S3'),
       TextCellValue('GENERAL'),
     ]);
+
+    return Uint8List.fromList(excel.save() ?? []);
+  }
+
+  Future<ExcelImportResult<Jury>> importJuriesFromExcel(Uint8List bytes) async {
+    final excel = Excel.decodeBytes(bytes);
+    final sheet = excel.tables.values.first;
+
+    int total = 0;
+    int valid = 0;
+    int invalid = 0;
+    int duplicate = 0;
+    List<String> errors = [];
+    List<Jury> validJuries = [];
+    List<User> validUsers = [];
+
+    final existingJuries = juryRepository != null
+        ? await juryRepository!.getJuries()
+        : <Jury>[];
+    final existingUsers = userRepository != null
+        ? await userRepository!.getUsers()
+        : <User>[];
+
+    final existingUsernames = existingUsers
+        .map((u) => u.username.trim().toLowerCase())
+        .toSet();
+    for (var j in existingJuries) {
+      existingUsernames.add(j.username.trim().toLowerCase());
+    }
+
+    final programs = await programRepository.getPrograms();
+
+    for (int i = 1; i < sheet.maxRows; i++) {
+      final row = sheet.row(i);
+      if (row.isEmpty || row.every((cell) => cell?.value == null)) continue;
+      total++;
+
+      try {
+        final juryName = row.isNotEmpty ? (row[0]?.value?.toString().trim() ?? '') : '';
+        final juryCode = row.length > 1 ? (row[1]?.value?.toString().trim() ?? '') : '';
+        final username = row.length > 2 ? (row[2]?.value?.toString().trim() ?? '') : '';
+        final password = row.length > 3 ? (row[3]?.value?.toString().trim() ?? '') : '';
+        final progStr  = row.length > 4 ? (row[4]?.value?.toString().trim() ?? '') : '';
+
+        if (username.isEmpty || password.isEmpty) {
+          invalid++;
+          errors.add('Row ${i + 1}: Missing Username or Password.');
+          continue;
+        }
+
+        if (existingUsernames.contains(username.toLowerCase())) {
+          duplicate++;
+          errors.add('Row ${i + 1}: Duplicate Login ID "$username".');
+          continue;
+        }
+
+        final finalJuryName = juryName.isNotEmpty ? juryName : 'Jury Judge $i';
+        final finalJuryCode = juryCode.isNotEmpty
+            ? juryCode.toUpperCase()
+            : 'JURY-${100 + i}';
+
+        // Match assigned programs by name or code
+        final List<String> assignedProgIds = [];
+        if (progStr.isNotEmpty) {
+          final progParts = progStr.split(RegExp(r'[,|;]'));
+          for (var pPart in progParts) {
+            final cleanP = pPart.trim().toLowerCase();
+            if (cleanP.isEmpty) continue;
+            for (final p in programs) {
+              if (p.programName.toLowerCase() == cleanP ||
+                  p.programCode.toLowerCase() == cleanP ||
+                  p.id.toLowerCase() == cleanP) {
+                if (!assignedProgIds.contains(p.id)) {
+                  assignedProgIds.add(p.id);
+                }
+              }
+            }
+          }
+        }
+
+        final juryId = 'jury_${const Uuid().v4()}';
+        final userId = 'usr_$juryId';
+
+        final jury = Jury(
+          id: juryId,
+          name: finalJuryName,
+          username: username,
+          password: password,
+          juryCode: finalJuryCode,
+          assignedPrograms: assignedProgIds,
+        );
+
+        final user = User(
+          id: userId,
+          username: username,
+          password: password,
+          name: finalJuryName,
+          role: UserRole.jury,
+          juryId: juryId,
+        );
+
+        validJuries.add(jury);
+        validUsers.add(user);
+        existingUsernames.add(username.toLowerCase());
+        valid++;
+      } catch (e) {
+        invalid++;
+        errors.add('Row ${i + 1}: Error parsing row ($e).');
+      }
+    }
+
+    if (validJuries.isNotEmpty && juryRepository != null) {
+      await juryRepository!.addJuries(validJuries);
+    }
+    if (validUsers.isNotEmpty && userRepository != null) {
+      for (final u in validUsers) {
+        await userRepository!.saveUser(u);
+      }
+    }
+
+    return ExcelImportResult<Jury>(
+      totalRows: total,
+      validRows: valid,
+      invalidRows: invalid,
+      duplicateRows: duplicate,
+      importedRows: validJuries.length,
+      errors: errors,
+      validItems: validJuries,
+    );
+  }
+
+  Uint8List generateJuryTemplate() {
+    final excel = Excel.createExcel();
+    final sheet = excel['Jury_Logins_Template'];
+
+    sheet.appendRow([
+      TextCellValue('Jury Name'),
+      TextCellValue('Jury Code'),
+      TextCellValue('Username'),
+      TextCellValue('Password'),
+      TextCellValue('Assigned Program Name or Code'),
+    ]);
+
+    sheet.appendRow([
+      TextCellValue('Prof. Sarah Jenkins'),
+      TextCellValue('JURY-101'),
+      TextCellValue('jury_singing'),
+      TextCellValue('pass1234'),
+      TextCellValue('Group Song, Elocution English'),
+    ]);
+
+    sheet.appendRow([
+      TextCellValue('Dr. Michael Scott'),
+      TextCellValue('JURY-102'),
+      TextCellValue('jury_drawing'),
+      TextCellValue('pass5678'),
+      TextCellValue('Pencil Drawing'),
+    ]);
+
+    sheet.appendRow([
+      TextCellValue('Judge Robert Vance'),
+      TextCellValue('JURY-103'),
+      TextCellValue('jury_arabic'),
+      TextCellValue('pass9999'),
+      TextCellValue('ARABIC SONG'),
+    ]);
+
+    return Uint8List.fromList(excel.save() ?? []);
+  }
+
+  Uint8List exportJuriesToExcel(List<Jury> juries, List<Program> programs) {
+    final excel = Excel.createExcel();
+    final sheet = excel['Jury_Credentials_QR'];
+    final progMap = {for (var p in programs) p.id: p};
+
+    sheet.appendRow([
+      TextCellValue('Jury Name'),
+      TextCellValue('Jury Code'),
+      TextCellValue('Username (Login ID)'),
+      TextCellValue('Password'),
+      TextCellValue('Assigned Programs'),
+      TextCellValue('Login QR Code Payload'),
+    ]);
+
+    for (final j in juries) {
+      final progNames = j.assignedPrograms
+          .map((id) => progMap[id] != null ? '${progMap[id]!.programName} (${progMap[id]!.programCode})' : id)
+          .join(', ');
+
+      final firstProgId = j.assignedPrograms.isNotEmpty ? j.assignedPrograms.first : '';
+      final qrPayload = QrService.generateJuryLoginProgramQrPayload(
+        j.username,
+        j.password,
+        firstProgId,
+      );
+
+      sheet.appendRow([
+        TextCellValue(j.name),
+        TextCellValue(j.juryCode),
+        TextCellValue(j.username),
+        TextCellValue(j.password),
+        TextCellValue(progNames.isNotEmpty ? progNames : 'None'),
+        TextCellValue(qrPayload),
+      ]);
+    }
 
     return Uint8List.fromList(excel.save() ?? []);
   }

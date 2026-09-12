@@ -108,6 +108,7 @@ abstract class JuryRepository {
   Future<Jury?> getById(String id);
   Future<Jury?> getByUsername(String username);
   Future<void> addJury(Jury jury);
+  Future<void> addJuries(List<Jury> juries);
   Future<void> updateJury(Jury jury);
   Future<void> deleteJury(String id);
 }

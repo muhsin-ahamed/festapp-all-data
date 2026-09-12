@@ -34,6 +34,14 @@ class QrService {
           password: parts[2],
           programId: parts[3],
         );
+      } else if (parts.length == 3) {
+        return QrScanResult(
+          type: QrScanType.juryLoginProgram,
+          value: clean,
+          username: parts[1],
+          password: parts[2],
+          programId: null,
+        );
       }
       return QrScanResult(type: QrScanType.juryLoginProgram, value: clean);
     } else if (clean.startsWith('fest_jury:')) {

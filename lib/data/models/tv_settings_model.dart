@@ -1,6 +1,6 @@
 class TvSettings {
   final String id;
-  final String screenMode; // AUTO, SCOREBOARD, RESULTS, ANNOUNCEMENT, CUSTOM
+  final String screenMode; // POSTER, AUTO, SCOREBOARD, RESULTS, ANNOUNCEMENT, CUSTOM
   final int slideDuration; // in seconds, default 15
   final int currentSlide;
   final bool autoRotate;
@@ -11,7 +11,7 @@ class TvSettings {
 
   TvSettings({
     this.id = 'default_tv_settings',
-    this.screenMode = 'AUTO',
+    this.screenMode = 'POSTER',
     this.slideDuration = 15,
     this.currentSlide = 0,
     this.autoRotate = true,
@@ -62,7 +62,7 @@ class TvSettings {
   factory TvSettings.fromMap(Map<String, dynamic> map) {
     return TvSettings(
       id: map['id'] ?? 'default_tv_settings',
-      screenMode: map['screenMode'] ?? 'AUTO',
+      screenMode: map['screenMode'] ?? 'POSTER',
       slideDuration: map['slideDuration'] ?? 15,
       currentSlide: map['currentSlide'] ?? 0,
       autoRotate: map['autoRotate'] ?? true,

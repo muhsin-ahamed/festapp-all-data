@@ -314,7 +314,7 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
                           builder: (context, constraints) {
                             final isCompact = constraints.maxWidth < 480;
                             final marksField = AppTextField(
-                              label: 'Marks',
+                              label: 'Marks / Points',
                               controller: _marksControllers[stud.id]!,
                               keyboardType: TextInputType.number,
                             );
@@ -323,7 +323,7 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
                               controller: _gradeControllers[stud.id]!,
                             );
                             final posDropdown = AppDropdown<int>(
-                              label: 'Position',
+                              label: 'Position (1 per Student)',
                               value: _positions[stud.id],
                               items: const [
                                 DropdownMenuItem(
@@ -387,6 +387,27 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
                 label: 'Submit Final Results to Controller',
                 width: double.infinity,
                 onPressed: () async {
+                  // Validate position uniqueness: no two students should have the same non-zero position
+                  final usedPositions = <int, String>{};
+                  for (final stud in participants) {
+                    final pos = _positions[stud.id];
+                    if (pos != null && pos > 0) {
+                      if (usedPositions.containsKey(pos)) {
+                        final existingName = usedPositions[pos]!;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Duplicate position! Both $existingName and ${stud.name} are assigned position $pos. In the same program, each position can only be assigned once.',
+                            ),
+                            backgroundColor: Colors.redAccent,
+                          ),
+                        );
+                        return;
+                      }
+                      usedPositions[pos] = stud.name;
+                    }
+                  }
+
                   final scoring = ref.read(scoringServiceProvider);
                   for (final stud in participants) {
                     final pos = _positions[stud.id];

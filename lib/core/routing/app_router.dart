@@ -10,13 +10,18 @@ import '../../features/controller/controller_portal_screen.dart';
 import '../../features/leader/leader_portal_screen.dart';
 import '../../features/jury/jury_portal_screen.dart';
 import '../../features/tv/tv_portal_screen.dart';
+import '../../screens/splash_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final authService = ref.watch(authServiceProvider);
 
   return GoRouter(
-    initialLocation: '/public',
+    initialLocation: '/splash',
     routes: [
+      GoRoute(
+        path: '/splash',
+        builder: (context, state) => const SplashScreen(),
+      ),
       GoRoute(
         path: '/public',
         builder: (context, state) => const PublicPortalScreen(),
@@ -49,8 +54,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     redirect: (BuildContext context, GoRouterState state) {
       final loc = state.matchedLocation;
 
-      // Public, Scan, and Login do not require login
-      if (loc == '/public' || loc == '/scan' || loc == '/login') {
+      // Splash, Public, Scan, and Login do not require login
+      if (loc == '/splash' || loc == '/public' || loc == '/scan' || loc == '/login') {
         return null;
       }
 

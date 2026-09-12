@@ -1342,3 +1342,123 @@ class StudentQrDisplayDialog extends StatelessWidget {
     );
   }
 }
+
+/// Helper to format raw dates (e.g. '2026-09-10T00:00:00.000Z', '2026-09-10', '2026-09-05')
+/// into "Date Month Year" format, e.g. "10 September 2026" or "10 Sep 2026".
+String formatAppDate(
+  String rawDate, {
+  bool fullMonth = false,
+  bool includeWeekday = false,
+}) {
+  if (rawDate.trim().isEmpty) {
+    return 'Date TBA';
+  }
+  final clean = rawDate.trim();
+  DateTime? parsed = DateTime.tryParse(clean);
+
+  // Fallback regex parsing if DateTime.tryParse fails
+  if (parsed == null) {
+    // Try YYYY-MM-DD or YYYY/MM/DD
+    final ymdRegex = RegExp(r'^(\d{4})[/-](\d{1,2})[/-](\d{1,2})');
+    var match = ymdRegex.firstMatch(clean);
+    if (match != null) {
+      final year = int.parse(match.group(1)!);
+      final month = int.parse(match.group(2)!);
+      final day = int.parse(match.group(3)!);
+      parsed = DateTime(year, month, day);
+    } else {
+      // Try DD/MM/YYYY or DD-MM-YYYY
+      final dmyRegex = RegExp(r'^(\d{1,2})[/-](\d{1,2})[/-](\d{4})');
+      match = dmyRegex.firstMatch(clean);
+      if (match != null) {
+        final day = int.parse(match.group(1)!);
+        final month = int.parse(match.group(2)!);
+        final year = int.parse(match.group(3)!);
+        parsed = DateTime(year, month, day);
+      }
+    }
+  }
+
+  if (parsed != null) {
+    const weekdays = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ];
+    const monthsShort = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    const monthsFull = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+
+    final dayStr = parsed.day.toString().padLeft(2, '0');
+    final monthStr =
+        fullMonth
+            ? monthsFull[parsed.month - 1]
+            : monthsShort[parsed.month - 1];
+    final yearStr = parsed.year.toString();
+
+    String result = '$dayStr $monthStr $yearStr';
+    if (includeWeekday) {
+      final weekdayStr = weekdays[parsed.weekday - 1];
+      result = '$weekdayStr, $result';
+    }
+    return result;
+  }
+
+  return clean;
+}
+
+/// Helper to format raw time strings (e.g. '09:00', '14:30', '09:00:00') into 12-hour AM/PM format (e.g. '09:00 AM', '02:30 PM').
+String formatAppTime(String rawTime) {
+  if (rawTime.trim().isEmpty) return '—';
+  final clean = rawTime.trim();
+
+  // If already contains AM or PM, return cleaned
+  if (clean.toUpperCase().contains('AM') ||
+      clean.toUpperCase().contains('PM')) {
+    return clean;
+  }
+
+  final parts = clean.split(':');
+  if (parts.isNotEmpty) {
+    final hour = int.tryParse(parts[0]);
+    final minute = parts.length > 1 ? int.tryParse(parts[1]) : 0;
+    if (hour != null && minute != null) {
+      final period = hour >= 12 ? 'PM' : 'AM';
+      final h12 = hour % 12 == 0 ? 12 : hour % 12;
+      final hStr = h12.toString().padLeft(2, '0');
+      final mStr = minute.toString().padLeft(2, '0');
+      return '$hStr:$mStr $period';
+    }
+  }
+  return clean;
+}
+

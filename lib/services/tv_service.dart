@@ -7,7 +7,7 @@ class TvService extends ChangeNotifier {
   final TvSettingsRepository tvSettingsRepository;
   Timer? _timer;
   TvSettings _settings = TvSettings();
-  int _currentSlideIndex = 0; // 0: Scoreboard, 1: Latest Results
+  int _currentSlideIndex = 0; // 0: Poster, 1: Scoreboard, 2: Latest Results
 
   TvService({required this.tvSettingsRepository}) {
     _loadSettings();
@@ -33,12 +33,12 @@ class TvService extends ChangeNotifier {
   }
 
   void nextSlide() {
-    _currentSlideIndex = (_currentSlideIndex + 1) % 2;
+    _currentSlideIndex = (_currentSlideIndex + 1) % 3;
     notifyListeners();
   }
 
   void previousSlide() {
-    _currentSlideIndex = (_currentSlideIndex - 1 + 2) % 2;
+    _currentSlideIndex = (_currentSlideIndex - 1 + 3) % 3;
     notifyListeners();
   }
 

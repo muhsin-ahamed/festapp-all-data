@@ -106,6 +106,8 @@ final excelServiceProvider = Provider<ExcelService>((ref) {
     venueRepository: ref.watch(venueRepositoryProvider),
     scheduleRepository: ref.watch(scheduleRepositoryProvider),
     registrationRepository: ref.watch(registrationRepositoryProvider),
+    juryRepository: ref.watch(juryRepositoryProvider),
+    userRepository: ref.watch(userRepositoryProvider),
   );
 });
 

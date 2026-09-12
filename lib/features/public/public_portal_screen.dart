@@ -747,6 +747,7 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
           ..sort();
 
     return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -811,6 +812,7 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
               ),
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
                 child: Row(
                   children: [
                     Text(
@@ -836,7 +838,7 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
                       (d) => Padding(
                         padding: const EdgeInsets.only(left: 6),
                         child: ChoiceChip(
-                          label: Text(d),
+                          label: Text(formatAppDate(d)),
                           selected: _publicScheduleDate == d,
                           visualDensity: VisualDensity.compact,
                           onSelected: (_) {
@@ -975,17 +977,17 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  sch.startTime,
+                                  formatAppTime(sch.startTime),
                                   style: GoogleFonts.workSans(
                                     fontWeight: FontWeight.bold,
-                                    fontSize: 13,
+                                    fontSize: 12,
                                     color: AppTheme.ink,
                                   ),
                                 ),
                                 Text(
-                                  sch.endTime,
+                                  formatAppTime(sch.endTime),
                                   style: GoogleFonts.workSans(
-                                    fontSize: 11,
+                                    fontSize: 10.5,
                                     color: AppTheme.inkSoft,
                                   ),
                                 ),
@@ -1117,11 +1119,14 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
                                         ),
                                         const SizedBox(width: 4),
                                         Text(
-                                          sch.date.isNotEmpty
-                                              ? sch.date
-                                              : 'Date TBA',
+                                          formatAppDate(
+                                            sch.date,
+                                            fullMonth: true,
+                                            includeWeekday: true,
+                                          ),
                                           style: GoogleFonts.workSans(
                                             fontSize: 12,
+                                            fontWeight: FontWeight.w500,
                                             color: AppTheme.inkSoft,
                                           ),
                                         ),

@@ -53,6 +53,20 @@ export class ResultService {
       throw { statusCode: 404, message: 'Student not found', code: 'STUDENT_NOT_FOUND' };
     }
 
+    if (position && position > 0) {
+      const allProgResults = await this.resultRepo.findAll({ programId });
+      const duplicatePos = allProgResults.find(
+        (r) => r.position === position && r.studentId !== studentId
+      );
+      if (duplicatePos) {
+        throw {
+          statusCode: 400,
+          message: `Position ${position} is already assigned to another student in this program`,
+          code: 'DUPLICATE_POSITION',
+        };
+      }
+    }
+
     const calculatedPoints = this.scoringService.calculateResultPoints(position, grade);
     const existing = await this.resultRepo.findByProgramAndStudent(programId, studentId);
 

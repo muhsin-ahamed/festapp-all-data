@@ -635,6 +635,13 @@ class SupabaseJuryRepository implements JuryRepository {
   }
 
   @override
+  Future<void> addJuries(List<Jury> juries) async {
+    for (final j in juries) {
+      await _safeInsert(_table, j.toMap());
+    }
+  }
+
+  @override
   Future<void> updateJury(Jury jury) async {
     await _safeUpdate(_table, jury.toMap(), jury.id);
   }

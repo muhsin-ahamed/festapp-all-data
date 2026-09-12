@@ -31,117 +31,151 @@ class TvPortalScreen extends ConsumerWidget {
     final screenWidth = MediaQuery.of(context).size.width;
     final isCompact = screenWidth < 700;
 
+    final mode = tvService.settings.screenMode;
+    Widget currentWidget;
+    bool isPosterShowing = false;
+
+    if (mode == 'POSTER') {
+      currentWidget = _buildTvPosterScreen(context);
+      isPosterShowing = true;
+    } else if (mode == 'SCOREBOARD') {
+      currentWidget = _buildTvScoreboardScreen(context, teamsAsync, isCompact);
+    } else if (mode == 'RESULTS') {
+      currentWidget = _buildTvResultsScreen(
+        context,
+        publishedResultsAsync,
+        programsAsync,
+        teamsAsync,
+        studentsAsync,
+        isCompact,
+      );
+    } else {
+      // AUTO mode
+      switch (tvService.currentSlideIndex % 3) {
+        case 0:
+          currentWidget = _buildTvPosterScreen(context);
+          isPosterShowing = true;
+          break;
+        case 1:
+          currentWidget = _buildTvScoreboardScreen(context, teamsAsync, isCompact);
+          break;
+        case 2:
+        default:
+          currentWidget = _buildTvResultsScreen(
+            context,
+            publishedResultsAsync,
+            programsAsync,
+            teamsAsync,
+            studentsAsync,
+            isCompact,
+          );
+          break;
+      }
+    }
+
     return Scaffold(
-      backgroundColor: AppTheme.wood,
+      backgroundColor: isPosterShowing ? Colors.white : AppTheme.wood,
       body: Stack(
         children: [
           // Background content switcher
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 800),
-            child: tvService.currentSlideIndex == 0
-                ? _buildTvScoreboardScreen(context, teamsAsync, isCompact)
-                : _buildTvResultsScreen(
-                    context,
-                    publishedResultsAsync,
-                    programsAsync,
-                    teamsAsync,
-                    studentsAsync,
-                    isCompact,
-                  ),
+            child: currentWidget,
           ),
 
-          // Top Pattern Strip & Header Bar
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: Column(
-              children: [
-                const PatternStrip(height: 10),
-                Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isCompact ? 20 : 40,
-                    vertical: isCompact ? 14 : 22,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Row(
-                          children: [
-                            const BrandMark(size: 40),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    'Askesis Art Fest \'26',
-                                    style: GoogleFonts.rye(
-                                      fontSize: isCompact ? 20 : 32,
-                                      color: AppTheme.cream,
-                                      letterSpacing: 1.0,
+          // Top Pattern Strip & Header Bar (Shown only when not in full-screen poster mode)
+          if (!isPosterShowing)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: Column(
+                children: [
+                  const PatternStrip(height: 10),
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isCompact ? 20 : 40,
+                      vertical: isCompact ? 14 : 22,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Row(
+                            children: [
+                              const BrandMark(size: 40),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'Askesis Art Fest \'26',
+                                      style: GoogleFonts.rye(
+                                        fontSize: isCompact ? 20 : 32,
+                                        color: AppTheme.cream,
+                                        letterSpacing: 1.0,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  Text(
-                                    'LIVE DISPLAY PORTAL',
-                                    style: GoogleFonts.workSans(
-                                      fontSize: isCompact ? 11 : 13,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppTheme.mustard,
-                                      letterSpacing: 2.0,
+                                    Text(
+                                      'LIVE DISPLAY PORTAL',
+                                      style: GoogleFonts.workSans(
+                                        fontSize: isCompact ? 11 : 13,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppTheme.mustard,
+                                        letterSpacing: 2.0,
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                      Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: isCompact ? 12 : 20,
-                          vertical: isCompact ? 8 : 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.red,
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppTheme.red.withValues(alpha: 0.4),
-                              blurRadius: 10,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.fiber_manual_record,
-                              color: AppTheme.cream,
-                              size: 14,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'LIVE',
-                              style: GoogleFonts.workSans(
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isCompact ? 12 : 20,
+                            vertical: isCompact ? 8 : 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppTheme.red,
+                            borderRadius: BorderRadius.circular(24),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppTheme.red.withValues(alpha: 0.4),
+                                blurRadius: 10,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.fiber_manual_record,
                                 color: AppTheme.cream,
-                                fontWeight: FontWeight.w900,
-                                fontSize: isCompact ? 12 : 14,
-                                letterSpacing: 1.2,
+                                size: 14,
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 8),
+                              Text(
+                                'LIVE',
+                                style: GoogleFonts.workSans(
+                                  color: AppTheme.cream,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: isCompact ? 12 : 14,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
 
           // Animated Overlay Banner for Announcements
           if (activeAnnouncement != null) ...[
@@ -196,6 +230,33 @@ class TvPortalScreen extends ConsumerWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  // --- SCREEN 0: TV FEST POSTER ---
+  Widget _buildTvPosterScreen(BuildContext context) {
+    return Container(
+      key: const ValueKey('tv_poster'),
+      color: Colors.white,
+      width: double.infinity,
+      height: double.infinity,
+      child: Center(
+        child: Image.asset(
+          'assets/images/tv_poster.png',
+          fit: BoxFit.contain,
+          width: double.infinity,
+          height: double.infinity,
+          alignment: Alignment.center,
+          errorBuilder: (context, error, stackTrace) {
+            return const Center(
+              child: Text(
+                'Poster Image Not Found',
+                style: TextStyle(color: Colors.red, fontSize: 20),
+              ),
+            );
+          },
+        ),
       ),
     );
   }

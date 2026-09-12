@@ -829,30 +829,14 @@ class _ScanAndQrScreenState extends ConsumerState<ScanAndQrScreen> {
         'Saturday',
         'Sunday'
       ];
-      const months = [
-        'Jan',
-        'Feb',
-        'Mar',
-        'Apr',
-        'May',
-        'Jun',
-        'Jul',
-        'Aug',
-        'Sep',
-        'Oct',
-        'Nov',
-        'Dec'
-      ];
       final dayName = weekdays[parsed.weekday - 1];
-      final monthName = months[parsed.month - 1];
-      final formattedDate =
-          '${parsed.day.toString().padLeft(2, '0')} $monthName ${parsed.year}';
+      final formattedDate = formatAppDate(clean, fullMonth: true);
       return (formattedDate, dayName);
     }
     if (clean.toLowerCase().contains('day')) {
       return (clean, clean);
     }
-    return (clean, 'Festival Day');
+    return (formatAppDate(clean, fullMonth: true), 'Festival Day');
   }
 
   ScheduleDisplayStatus _getScheduleStatus({
@@ -1513,7 +1497,7 @@ class _ScanAndQrScreenState extends ConsumerState<ScanAndQrScreen> {
                                               ),
                                               TextSpan(
                                                 text:
-                                                    '${schedule.startTime} - ${schedule.endTime}',
+                                                    '${formatAppTime(schedule.startTime)} - ${formatAppTime(schedule.endTime)}',
                                                 style: GoogleFonts.workSans(
                                                   fontWeight: FontWeight.w800,
                                                   color: AppTheme.ink,
@@ -1963,7 +1947,7 @@ class _ScanAndQrScreenState extends ConsumerState<ScanAndQrScreen> {
                           ),
                           const SizedBox(width: 5),
                           Text(
-                            '${progSchedule.startTime} - ${progSchedule.endTime}',
+                            '${formatAppTime(progSchedule.startTime)} - ${formatAppTime(progSchedule.endTime)}',
                             style: GoogleFonts.workSans(
                               fontWeight: FontWeight.bold,
                               fontSize: 12,
