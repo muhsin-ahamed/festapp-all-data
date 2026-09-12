@@ -2,6 +2,8 @@ import { TeamRepository } from '../repositories/team.repository';
 import { AuditService } from './audit.service';
 import { TeamEntity } from '../types';
 
+import { supabase } from '../config/supabase';
+
 export class TeamService {
   private teamRepo = new TeamRepository();
   private auditService = new AuditService();
@@ -66,6 +68,19 @@ export class TeamService {
     if (!existing) {
       throw { statusCode: 404, message: 'Team not found', code: 'TEAM_NOT_FOUND' };
     }
+
+    try {
+      await supabase.from('registrations').delete().or(`teamId.eq.${id},team_id.eq.${id}`);
+    } catch (_) {}
+    try {
+      await supabase.from('results').delete().or(`teamId.eq.${id},team_id.eq.${id}`);
+    } catch (_) {}
+    try {
+      await supabase.from('students').delete().or(`teamId.eq.${id},team_id.eq.${id}`);
+    } catch (_) {}
+    try {
+      await supabase.from('team_leaders').delete().or(`teamId.eq.${id},team_id.eq.${id}`);
+    } catch (_) {}
 
     await this.teamRepo.delete(id);
     await this.auditService.logAction('DELETE_TEAM', performedBy, `Team ${existing.teamName} deleted`);

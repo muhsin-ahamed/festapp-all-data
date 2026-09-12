@@ -44,6 +44,7 @@ router.get('/registrations/template', Controller.downloadRegistrationTemplate);
 router.get('/results', Controller.getResults);
 router.post('/results/verify/:id', Controller.verifyResult);
 router.post('/results/publish/:id', Controller.publishResult);
+router.delete('/results/:id', Controller.deleteResult);
 
 // Jury Management
 router.get('/juries', Controller.getJuries);

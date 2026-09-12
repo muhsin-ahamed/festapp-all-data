@@ -108,12 +108,16 @@ class ApiStudentRepository implements StudentRepository {
 
   @override
   Future<void> deleteStudent(String id) async {
+    bool apiSuccess = false;
     try {
       await _api.deleteStudent(id);
+      apiSuccess = true;
     } catch (_) {}
     try {
       await _supabase.deleteStudent(id);
-    } catch (_) {}
+    } catch (e) {
+      if (!apiSuccess) rethrow;
+    }
   }
 }
 
@@ -173,7 +177,17 @@ class ApiTeamRepository implements TeamRepository {
 
   @override
   Future<void> deleteTeam(String id) async {
-    await globalApiClient.delete('/controller/teams/$id');
+    bool apiSuccess = false;
+    try {
+      await globalApiClient.delete('/controller/teams/$id');
+      apiSuccess = true;
+    } catch (_) {}
+    try {
+      final supabaseRepo = SupabaseTeamRepository();
+      await supabaseRepo.deleteTeam(id);
+    } catch (e) {
+      if (!apiSuccess) rethrow;
+    }
   }
 }
 
@@ -258,12 +272,16 @@ class ApiProgramRepository implements ProgramRepository {
 
   @override
   Future<void> deleteProgram(String id) async {
+    bool apiSuccess = false;
     try {
       await _api.deleteProgram(id);
+      apiSuccess = true;
     } catch (_) {}
     try {
       await _supabase.deleteProgram(id);
-    } catch (_) {}
+    } catch (e) {
+      if (!apiSuccess) rethrow;
+    }
   }
 }
 
@@ -447,5 +465,17 @@ class ApiResultRepository implements ResultRepository {
   }
 
   @override
-  Future<void> deleteResult(String id) async {}
+  Future<void> deleteResult(String id) async {
+    bool apiSuccess = false;
+    try {
+      await globalApiClient.delete('/controller/results/$id');
+      apiSuccess = true;
+    } catch (_) {}
+    try {
+      final supabaseRepo = SupabaseResultRepository();
+      await supabaseRepo.deleteResult(id);
+    } catch (e) {
+      if (!apiSuccess) rethrow;
+    }
+  }
 }

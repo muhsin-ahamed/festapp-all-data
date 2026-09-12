@@ -1,6 +1,7 @@
 import { ProgramRepository } from '../repositories/program.repository';
 import { AuditService } from './audit.service';
 import { ProgramEntity } from '../types';
+import { supabase } from '../config/supabase';
 
 export class ProgramService {
   private programRepo = new ProgramRepository();
@@ -139,6 +140,16 @@ export class ProgramService {
     if (!existing) {
       throw { statusCode: 404, message: 'Program not found', code: 'PROGRAM_NOT_FOUND' };
     }
+
+    try {
+      await supabase.from('registrations').delete().or(`programId.eq.${id},program_id.eq.${id}`);
+    } catch (_) {}
+    try {
+      await supabase.from('results').delete().or(`programId.eq.${id},program_id.eq.${id}`);
+    } catch (_) {}
+    try {
+      await supabase.from('schedules').delete().or(`programId.eq.${id},program_id.eq.${id}`);
+    } catch (_) {}
 
     await this.programRepo.delete(id);
     await this.auditService.logAction('DELETE_PROGRAM', performedBy, `Program ${existing.programName} deleted`);

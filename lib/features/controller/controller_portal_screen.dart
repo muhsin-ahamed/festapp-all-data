@@ -4958,45 +4958,85 @@ class _ControllerPortalScreenState
   }
 
   void _confirmDeleteAllRegistrations(List<Registration> registrations) {
+    bool isDeleting = false;
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete All Registrations'),
-        content: Text(
-          'Are you sure you want to delete all ${registrations.length} registrations? This action cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () async {
-              Navigator.pop(ctx);
-              for (final r in registrations) {
-                await ref
-                    .read(registrationRepositoryProvider)
-                    .deleteRegistration(r.id);
-              }
-              triggerDataRefresh(ref);
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Deleted ${registrations.length} registrations.',
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return AlertDialog(
+              title: const Text('Delete All Registrations'),
+              content: isDeleting
+                  ? const Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text('Deleting registrations... Please wait.'),
+                      ],
+                    )
+                  : Text(
+                      'Are you sure you want to delete all ${registrations.length} registrations? This action cannot be undone.',
                     ),
+              actions: [
+                if (!isDeleting)
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancel'),
                   ),
-                );
-              }
-            },
-            child: const Text('Delete All'),
-          ),
-        ],
-      ),
+                if (!isDeleting)
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: () async {
+                      setModalState(() => isDeleting = true);
+                      int successCount = 0;
+                      int failCount = 0;
+                      try {
+                        final repo = ref.read(registrationRepositoryProvider);
+                        final uniqueRegs = {
+                          for (var r in registrations) r.id: r,
+                        }.values.toList();
+                        for (final r in uniqueRegs) {
+                          try {
+                            await repo.deleteRegistration(r.id);
+                            successCount++;
+                          } catch (_) {
+                            failCount++;
+                          }
+                        }
+                      } finally {
+                        triggerDataRefresh(ref);
+                        if (context.mounted) {
+                          Navigator.pop(context);
+                          if (failCount == 0) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('All registrations deleted successfully.'),
+                              ),
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Deleted $successCount registrations. $failCount failed.',
+                                ),
+                              ),
+                            );
+                          }
+                        }
+                      }
+                    },
+                    child: const Text('Delete All'),
+                  ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 

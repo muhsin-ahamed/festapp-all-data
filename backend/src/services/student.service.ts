@@ -3,6 +3,8 @@ import { TeamRepository } from '../repositories/team.repository';
 import { AuditService } from './audit.service';
 import { StudentEntity } from '../types';
 
+import { supabase } from '../config/supabase';
+
 export class StudentService {
   private studentRepo = new StudentRepository();
   private teamRepo = new TeamRepository();
@@ -76,6 +78,13 @@ export class StudentService {
     if (!existing) {
       throw { statusCode: 404, message: 'Student not found', code: 'STUDENT_NOT_FOUND' };
     }
+
+    try {
+      await supabase.from('registrations').delete().or(`studentId.eq.${id},student_id.eq.${id}`);
+    } catch (_) {}
+    try {
+      await supabase.from('results').delete().or(`studentId.eq.${id},student_id.eq.${id}`);
+    } catch (_) {}
 
     await this.studentRepo.delete(id);
     await this.auditService.logAction('DELETE_STUDENT', performedBy, `Student ${existing.name} (${id}) deleted`);

@@ -254,6 +254,15 @@ export async function publishResult(req: Request, res: Response, next: NextFunct
   }
 }
 
+export async function deleteResult(req: Request, res: Response, next: NextFunction) {
+  try {
+    await resultService.deleteResult(req.params.id, req.user?.username);
+    return sendSuccess(res, {}, 'Result deleted successfully');
+  } catch (error) {
+    next(error);
+  }
+}
+
 // Jury Management
 export async function getJuries(req: Request, res: Response, next: NextFunction) {
   try {

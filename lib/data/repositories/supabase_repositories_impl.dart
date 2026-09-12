@@ -110,6 +110,12 @@ class SupabaseStudentRepository implements StudentRepository {
 
   @override
   Future<void> deleteStudent(String id) async {
+    try {
+      await _client.from('registrations').delete().or('studentId.eq.$id,student_id.eq.$id');
+    } catch (_) {}
+    try {
+      await _client.from('results').delete().or('studentId.eq.$id,student_id.eq.$id');
+    } catch (_) {}
     await _client.from(_table).delete().eq('id', id);
   }
 }
@@ -160,6 +166,18 @@ class SupabaseTeamRepository implements TeamRepository {
 
   @override
   Future<void> deleteTeam(String id) async {
+    try {
+      await _client.from('registrations').delete().or('teamId.eq.$id,team_id.eq.$id');
+    } catch (_) {}
+    try {
+      await _client.from('results').delete().or('teamId.eq.$id,team_id.eq.$id');
+    } catch (_) {}
+    try {
+      await _client.from('students').delete().or('teamId.eq.$id,team_id.eq.$id');
+    } catch (_) {}
+    try {
+      await _client.from('team_leaders').delete().or('teamId.eq.$id,team_id.eq.$id');
+    } catch (_) {}
     await _client.from(_table).delete().eq('id', id);
   }
 }
@@ -271,6 +289,15 @@ class SupabaseProgramRepository implements ProgramRepository {
 
   @override
   Future<void> deleteProgram(String id) async {
+    try {
+      await _client.from('registrations').delete().or('programId.eq.$id,program_id.eq.$id');
+    } catch (_) {}
+    try {
+      await _client.from('results').delete().or('programId.eq.$id,program_id.eq.$id');
+    } catch (_) {}
+    try {
+      await _client.from('schedules').delete().or('programId.eq.$id,program_id.eq.$id');
+    } catch (_) {}
     await _client.from(_table).delete().eq('id', id);
   }
 }
