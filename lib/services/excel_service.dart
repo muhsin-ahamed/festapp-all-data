@@ -1117,7 +1117,7 @@ class ExcelService {
         }
 
         // 2. Resolve or auto-create Venue
-        String venueId = 'ven_main';
+        String venueId = 'ven_s1';
         if (venueStr.isNotEmpty) {
           Venue? matchedVenue = venueMap[venueStr.toLowerCase()];
           if (matchedVenue == null) {

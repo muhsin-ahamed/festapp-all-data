@@ -53,13 +53,26 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
     redirect: (BuildContext context, GoRouterState state) {
       final loc = state.matchedLocation;
+      final user = authService.currentUser;
+
+      if (loc == '/login' && user != null) {
+        switch (user.role) {
+          case UserRole.festController:
+            return '/controller';
+          case UserRole.teamLeader:
+            return '/leader';
+          case UserRole.jury:
+            return '/jury';
+          case UserRole.tvOperator:
+            return '/tv';
+        }
+      }
 
       // Splash, Public, Scan, and Login do not require login
       if (loc == '/splash' || loc == '/public' || loc == '/scan' || loc == '/login') {
         return null;
       }
 
-      final user = authService.currentUser;
       if (user == null) {
         return '/login';
       }

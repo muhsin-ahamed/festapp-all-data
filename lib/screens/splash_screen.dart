@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/providers/app_providers.dart';
+import '../core/constants/app_constants.dart';
 
 /// Splash screen for ASKESIS — Art Fest '26
 /// Drop this file into lib/screens/splash_screen.dart
 /// and set it as the `home:` of your MaterialApp (or push it first,
 /// then navigate to your real home screen after init is done).
-class SplashScreen extends StatefulWidget {
+class SplashScreen extends ConsumerStatefulWidget {
   final Widget? nextScreen;
   final Duration minDisplayDuration;
 
@@ -17,10 +20,10 @@ class SplashScreen extends StatefulWidget {
   });
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen>
+class _SplashScreenState extends ConsumerState<SplashScreen>
     with TickerProviderStateMixin {
   // ---- Brand palette (pulled from the Askesis logo/theme) ----
   static const Color bgCream = Color(0xFFF3EBDD);
@@ -58,8 +61,10 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _navigateNext() async {
-    await Future.delayed(widget.minDisplayDuration);
+    // Wait briefly so the UI renders at least once
+    await Future.delayed(const Duration(milliseconds: 50));
     if (!mounted) return;
+    
     if (widget.nextScreen != null) {
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
@@ -70,7 +75,23 @@ class _SplashScreenState extends State<SplashScreen>
         ),
       );
     } else {
-      context.go('/public');
+      final auth = ref.read(authServiceProvider);
+      if (auth.isAuthenticated) {
+        final role = auth.currentUser?.role;
+        if (role == UserRole.festController) {
+          context.go('/controller');
+        } else if (role == UserRole.teamLeader) {
+          context.go('/leader');
+        } else if (role == UserRole.jury) {
+          context.go('/jury');
+        } else if (role == UserRole.tvOperator) {
+          context.go('/tv');
+        } else {
+          context.go('/public');
+        }
+      } else {
+        context.go('/public');
+      }
     }
   }
 

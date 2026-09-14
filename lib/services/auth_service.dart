@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../core/constants/app_constants.dart';
 import '../data/models/user_model.dart';
 import '../data/repositories/app_repositories.dart';
@@ -10,8 +12,44 @@ class AuthService {
   final AuditLogRepository auditRepository;
   final AuthApi _authApi = AuthApi(globalApiClient);
   User? _currentUser;
+  
+  static const String _userKey = 'auth_user';
+  static const String _tokenKey = 'auth_token';
 
   AuthService({required this.userRepository, required this.auditRepository});
+
+  Future<void> init() async {
+    await _loadUser();
+  }
+
+  Future<void> _loadUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userJson = prefs.getString(_userKey);
+    final token = prefs.getString(_tokenKey);
+    if (userJson != null) {
+      try {
+        _currentUser = User.fromMap(jsonDecode(userJson));
+        if (token != null) {
+          globalApiClient.setAuthToken(token);
+        }
+      } catch (e) {
+        _currentUser = null;
+      }
+    }
+  }
+
+  Future<void> _saveUser(User? user, [String? token]) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (user != null) {
+      await prefs.setString(_userKey, jsonEncode(user.toMap()));
+      if (token != null) {
+        await prefs.setString(_tokenKey, token);
+      }
+    } else {
+      await prefs.remove(_userKey);
+      await prefs.remove(_tokenKey);
+    }
+  }
 
   User? get currentUser => _currentUser;
   bool get isAuthenticated => _currentUser != null;
@@ -86,6 +124,8 @@ class AuthService {
       if (res.containsKey('user') && res['user'] != null) {
         final user = User.fromMap(res['user'] as Map<String, dynamic>);
         _currentUser = user;
+        final token = res['accessToken'] ?? res['token'];
+        await _saveUser(user, token);
         return user;
       }
     } on ApiException catch (e) {
@@ -105,6 +145,7 @@ class AuthService {
       }
       if (user != null && _verifyPassword(cleanPassword, user)) {
         _currentUser = user;
+        await _saveUser(user);
         return user;
       }
       throw Exception(e.toString().replaceAll('Exception: ', ''));
@@ -157,6 +198,7 @@ class AuthService {
 
   void logout() {
     _currentUser = null;
+    _saveUser(null);
     _authApi.logout();
   }
 

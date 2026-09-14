@@ -19,7 +19,18 @@ void main() async {
     debugPrint('Supabase initialization error: $e');
   }
 
-  runApp(const ProviderScope(child: FestApp()));
+  final container = ProviderContainer();
+  try {
+    final authService = container.read(authServiceProvider);
+    await authService.init();
+  } catch (e) {
+    debugPrint('Auth initialization error: $e');
+  }
+
+  runApp(UncontrolledProviderScope(
+    container: container,
+    child: const FestApp(),
+  ));
 }
 
 class FestApp extends ConsumerStatefulWidget {

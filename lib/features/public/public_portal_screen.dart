@@ -12,6 +12,7 @@ import '../../data/models/program_model.dart';
 import '../../data/models/result_model.dart';
 import '../../data/models/schedule_model.dart';
 import '../../data/models/venue_model.dart';
+import 'package:intl/intl.dart';
 import 'scan_and_qr_screen.dart';
 
 class PublicPortalScreen extends ConsumerStatefulWidget {
@@ -461,11 +462,13 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
                         final sched = sampleScheds[idx];
                         final prog = progMap[sched.programId];
                         final ven = venMap[sched.venueId];
-                        final progTitle = prog?.programName ??
+                        final progTitle =
+                            prog?.programName ??
                             (sched.programId.isNotEmpty
                                 ? sched.programId
                                 : 'Scheduled Program');
-                        final venName = ven?.name ??
+                        final venName =
+                            ven?.name ??
                             (sched.venueId.isNotEmpty
                                 ? sched.venueId
                                 : 'Main Stage');
@@ -502,7 +505,7 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
                                             overflow: TextOverflow.ellipsis,
                                           ),
                                           Text(
-                                            '${sched.date} • ${sched.startTime} • 📍 $venName',
+                                            '${(DateTime.tryParse(sched.date) != null) ? DateFormat('EEEE, d MMMM yyyy').format(DateTime.parse(sched.date)) : sched.date} • ${sched.startTime} • 📍 $venName',
                                             style: GoogleFonts.workSans(
                                               color: AppTheme.inkSoft,
                                               fontSize: 12,
@@ -722,12 +725,19 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
     final Map<String, Venue> venMap = {for (var v in venues) v.id: v};
 
     // Filter schedules
+    final now = DateTime.now();
     final filteredSchedules =
         schedules.where((s) {
           if (_publicScheduleDate != 'ALL' &&
               s.date.trim() != _publicScheduleDate) {
             return false;
           }
+          
+          final status = ScheduleStatusHelper.getStatus(schedule: s, currentTime: now);
+          if (status == ScheduleDisplayStatus.completed) {
+            return false;
+          }
+          
           return true;
         }).toList();
 
