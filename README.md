@@ -2,12 +2,6 @@
 
 A full-stack Arts Fest Management System featuring a Flutter client and a high-performance Node.js / Express REST API backend integrated with Supabase PostgreSQL.
 
-## Backend & API Endpoint
-
-- **Production API Base URL**: `https://festapp-all-data.onrender.com/api`
-- **Swagger Documentation**: `https://festapp-all-data.onrender.com/api/docs`
-- **Live Server**: Hosted on Render (`singapore` region)
-- **Database**: Supabase PostgreSQL
 
 ## Tech Stack
 
