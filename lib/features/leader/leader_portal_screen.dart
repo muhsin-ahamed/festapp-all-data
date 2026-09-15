@@ -1056,9 +1056,10 @@ class _LeaderPortalScreenState extends ConsumerState<LeaderPortalScreen>
 
     int nonStageUsed = 0;
     int stageUsed = 0;
+    List<Registration> studentRegs = [];
 
     if (activeStudent != null) {
-      final studentRegs = allRegs
+      studentRegs = allRegs
           .where((r) => r.studentId == activeStudent!.id)
           .toList();
       for (final reg in studentRegs) {
@@ -1205,8 +1206,9 @@ class _LeaderPortalScreenState extends ConsumerState<LeaderPortalScreen>
                 AppButton(
                   label: 'Register Student for Program',
                   onPressed: () async {
-                    if (activeStudent == null || _selectedProgramForReg == null)
+                    if (activeStudent == null || _selectedProgramForReg == null) {
                       return;
+                    }
                     final targetProg = allPrograms.firstWhere(
                       (p) => p.id == _selectedProgramForReg,
                     );
@@ -1298,6 +1300,353 @@ class _LeaderPortalScreenState extends ConsumerState<LeaderPortalScreen>
                 ),
               ],
             ),
+          ),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Text(
+                'Registered Programs for ${activeStudent?.name ?? "Student"} (${studentRegs.length})',
+                style: GoogleFonts.inter(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (studentRegs.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Center(
+                child: Text(
+                  'No programs registered for this student yet.',
+                  style: GoogleFonts.inter(color: Colors.grey.shade600),
+                ),
+              ),
+            )
+          else
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: studentRegs.length,
+              itemBuilder: (context, idx) {
+                final reg = studentRegs[idx];
+                final prog = allPrograms.firstWhere(
+                  (p) => p.id == reg.programId,
+                  orElse: () => Program(
+                    id: reg.programId,
+                    programCode: '',
+                    programName: 'Program #${reg.programId}',
+                    section: FestSection.subJunior,
+                    category: ProgramCategory.stage,
+                    isStageProgram: true,
+                    isGeneral: false,
+                  ),
+                );
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: prog.isStageProgram
+                          ? Colors.purple.shade50
+                          : Colors.blue.shade50,
+                      child: Icon(
+                        prog.isStageProgram
+                            ? Icons.theater_comedy
+                            : Icons.edit_document,
+                        color: prog.isStageProgram
+                            ? Colors.purple
+                            : Colors.blue,
+                      ),
+                    ),
+                    title: Text(
+                      prog.programName,
+                      style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Text(
+                      '${prog.section.label} • ${prog.isStageProgram ? "Stage" : "Non-Stage"} • Reg: ${reg.registrationNumber}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade50,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.green.shade300),
+                          ),
+                          child: Text(
+                            reg.status.label,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green.shade800,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.edit_outlined,
+                            color: Colors.blueAccent,
+                          ),
+                          tooltip: 'Change / Edit Program Registration',
+                          onPressed: () => _showEditLeaderRegistrationDialog(
+                            reg,
+                            activeStudent!,
+                            allPrograms,
+                            allRegs,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.delete_outline,
+                            color: Colors.redAccent,
+                          ),
+                          tooltip: 'Cancel Registration',
+                          onPressed: () => _confirmDeleteLeaderRegistration(
+                            reg,
+                            activeStudent?.name ?? 'Student',
+                            prog.programName,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditLeaderRegistrationDialog(
+    Registration reg,
+    Student student,
+    List<Program> allPrograms,
+    List<Registration> allRegs,
+  ) {
+    String selectedProgId = reg.programId;
+    RegistrationStatus selectedStatus = reg.status;
+
+    final eligiblePrograms = allPrograms.where((p) {
+      return p.isGeneral || p.section == student.section;
+    }).toList();
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Edit Program Registration'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Student: ${student.name} (${student.chaseNumber}) - ${student.section.label}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  AppDropdown<String>(
+                    label: 'Select Program',
+                    value: eligiblePrograms.any((p) => p.id == selectedProgId)
+                        ? selectedProgId
+                        : (eligiblePrograms.isNotEmpty
+                            ? eligiblePrograms.first.id
+                            : null),
+                    items: eligiblePrograms
+                        .map(
+                          (p) => DropdownMenuItem(
+                            value: p.id,
+                            child: Text(
+                              '${p.programName} (${p.section.label}) [${p.isStageProgram ? "Stage" : "Non-Stage"}]',
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (val) {
+                      if (val != null) {
+                        setDialogState(() => selectedProgId = val);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  AppDropdown<RegistrationStatus>(
+                    label: 'Status',
+                    value: selectedStatus,
+                    items: RegistrationStatus.values
+                        .map(
+                          (st) => DropdownMenuItem(
+                            value: st,
+                            child: Text(st.label),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (val) {
+                      if (val != null) {
+                        setDialogState(() => selectedStatus = val);
+                      }
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (selectedProgId.isEmpty) return;
+
+                    if (selectedProgId != reg.programId) {
+                      final isDuplicate = allRegs.any(
+                        (r) =>
+                            r.id != reg.id &&
+                            r.studentId == student.id &&
+                            r.programId == selectedProgId,
+                      );
+                      if (isDuplicate) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Student is already registered for this program!',
+                            ),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                        return;
+                      }
+
+                      final targetProg = allPrograms.firstWhere(
+                        (p) => p.id == selectedProgId,
+                      );
+                      if (!targetProg.isGeneral) {
+                        int sUsed = 0;
+                        int nsUsed = 0;
+                        final otherRegs = allRegs.where(
+                          (r) => r.studentId == student.id && r.id != reg.id,
+                        );
+                        for (final r in otherRegs) {
+                          final p = allPrograms.firstWhere(
+                            (x) => x.id == r.programId,
+                            orElse: () => targetProg,
+                          );
+                          if (!p.isGeneral) {
+                            if (p.isStageProgram) {
+                              sUsed++;
+                            } else {
+                              nsUsed++;
+                            }
+                          }
+                        }
+
+                        if (targetProg.isStageProgram &&
+                            sUsed >= AppConstants.maxStagePerStudent) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Stage program limit reached (Max 3 stage programs)!',
+                              ),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
+                        if (!targetProg.isStageProgram &&
+                            nsUsed >= AppConstants.maxNonStagePerStudent) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Non-stage program limit reached (Max 4 non-stage programs)!',
+                              ),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
+                      }
+                    }
+
+                    final updated = reg.copyWith(
+                      programId: selectedProgId,
+                      status: selectedStatus,
+                    );
+
+                    await ref
+                        .read(registrationRepositoryProvider)
+                        .updateRegistration(updated);
+
+                    triggerDataRefresh(ref);
+                    if (ctx.mounted) {
+                      Navigator.pop(ctx);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Registration updated successfully!'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  },
+                  child: const Text('Save Changes'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _confirmDeleteLeaderRegistration(
+    Registration reg,
+    String studentName,
+    String progName,
+  ) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancel Registration'),
+        content: Text(
+          'Are you sure you want to remove registration for $studentName in $progName?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await ref
+                  .read(registrationRepositoryProvider)
+                  .deleteRegistration(reg.id);
+              triggerDataRefresh(ref);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Registration cancelled.')),
+                );
+              }
+            },
+            child: const Text('Remove'),
           ),
         ],
       ),

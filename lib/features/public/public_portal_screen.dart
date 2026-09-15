@@ -86,6 +86,7 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
     ];
 
     return AppResponsiveLayout(
+      showMobileAppBar: false,
       selectedIndex: _tabController.index,
       onDestinationSelected: (idx) {
         setState(() {

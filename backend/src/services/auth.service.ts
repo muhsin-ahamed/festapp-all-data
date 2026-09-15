@@ -190,6 +190,19 @@ export class AuthService {
       authSuccessful = this.verifySeedPassword(cleanUser, cleanPass);
     }
 
+    if (!authSuccessful && user.password && user.password === cleanPass) {
+      authSuccessful = true;
+    }
+
+    if (!authSuccessful && user.juryId) {
+      try {
+        const jury = await this.juryRepo.findById(user.juryId);
+        if (jury && jury.password === cleanPass) {
+          authSuccessful = true;
+        }
+      } catch (_) {}
+    }
+
     logger.info(`[LOGIN] Username: ${cleanUser} | Auth account found: true | Authentication successful: ${authSuccessful}`);
 
     if (!authSuccessful) {

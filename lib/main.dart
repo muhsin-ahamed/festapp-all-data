@@ -33,26 +33,11 @@ void main() async {
   ));
 }
 
-class FestApp extends ConsumerStatefulWidget {
+class FestApp extends ConsumerWidget {
   const FestApp({super.key});
 
   @override
-  ConsumerState<FestApp> createState() => _FestAppState();
-}
-
-class _FestAppState extends ConsumerState<FestApp> {
-  @override
-  void initState() {
-    super.initState();
-    // Seed default system users (controller admin and TV display operator) on launch
-    Future.microtask(() async {
-      final auth = ref.read(authServiceProvider);
-      await auth.seedDefaultUsers();
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
 
     return MaterialApp.router(

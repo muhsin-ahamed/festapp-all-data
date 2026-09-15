@@ -63,8 +63,8 @@ class User {
       password: map['password'] ?? '',
       name: map['name'] ?? '',
       role: UserRole.fromCode(map['role'] ?? '') ?? UserRole.festController,
-      teamId: map['teamId'],
-      juryId: map['juryId'],
+      teamId: map['teamId'] ?? map['team_id'],
+      juryId: map['juryId'] ?? map['jury_id'],
       createdAt: map['createdAt'] != null
           ? DateTime.parse(map['createdAt'])
           : DateTime.now(),

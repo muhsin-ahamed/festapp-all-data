@@ -61,10 +61,43 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 
   Future<void> _navigateNext() async {
-    // Wait briefly so the UI renders at least once
-    await Future.delayed(const Duration(milliseconds: 50));
+    final startTime = DateTime.now();
+    final auth = ref.read(authServiceProvider);
+
+    // Use splash screen for loading and background initialization
+    try {
+      await Future.wait([
+        // 1. Ensure system default users are seeded and ready
+        auth.seedDefaultUsers().catchError((e) {
+          debugPrint('Error seeding default users in splash: $e');
+        }),
+        // 2. Pre-fetch primary fest data so public screens open instantly
+        Future(() async {
+          try {
+            await Future.wait([
+              ref.read(teamsProvider.future),
+              ref.read(programsProvider.future),
+              ref.read(publishedResultsProvider.future),
+              ref.read(schedulesProvider.future),
+            ]).timeout(const Duration(milliseconds: 2500));
+          } catch (e) {
+            debugPrint('Data warm-up in splash non-blocking: $e');
+          }
+        }),
+      ]);
+    } catch (e) {
+      debugPrint('Initialization error during splash loading: $e');
+    }
+
+    // Ensure splash is visible for at least minDisplayDuration for smooth animation
+    final elapsed = DateTime.now().difference(startTime);
+    final remaining = widget.minDisplayDuration - elapsed;
+    if (remaining > Duration.zero) {
+      await Future.delayed(remaining);
+    }
+
     if (!mounted) return;
-    
+
     if (widget.nextScreen != null) {
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
@@ -75,7 +108,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         ),
       );
     } else {
-      final auth = ref.read(authServiceProvider);
       if (auth.isAuthenticated) {
         final role = auth.currentUser?.role;
         if (role == UserRole.festController) {

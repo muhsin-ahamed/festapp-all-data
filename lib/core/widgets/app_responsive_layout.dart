@@ -16,6 +16,7 @@ class AppResponsiveLayout extends StatelessWidget {
   final double breakpoint;
   final Widget? brandHeader;
   final Widget Function(bool isCollapsed)? sidebarSearchWidgetBuilder;
+  final bool? showMobileAppBar;
 
   const AppResponsiveLayout({
     super.key,
@@ -31,6 +32,7 @@ class AppResponsiveLayout extends StatelessWidget {
     this.breakpoint = 768,
     this.brandHeader,
     this.sidebarSearchWidgetBuilder,
+    this.showMobileAppBar,
   });
 
   @override
@@ -38,39 +40,50 @@ class AppResponsiveLayout extends StatelessWidget {
     final screenWidth = MediaQuery.of(context).size.width;
     final isMobile = screenWidth < breakpoint;
     final headerWidget = brandHeader;
+    final effectiveShowMobileAppBar =
+        showMobileAppBar ?? (brandHeader == null);
 
     if (isMobile) {
       return Scaffold(
         backgroundColor: AppTheme.cream,
-        appBar: AppBar(
-          title: Row(
+        appBar: effectiveShowMobileAppBar
+            ? AppBar(
+                title: Row(
+                  children: [
+                    if (items.isNotEmpty && selectedIndex < items.length) ...[
+                      Icon(
+                        items[selectedIndex].icon,
+                        size: 22,
+                        color: headerColor ?? AppTheme.red,
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    Expanded(
+                      child: Text(
+                        items.isNotEmpty && selectedIndex < items.length
+                            ? items[selectedIndex].label
+                            : headerTitle,
+                        style: GoogleFonts.rye(
+                          fontSize: 16,
+                          color: AppTheme.ink,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                actions: appBarActions,
+              )
+            : null,
+        body: SafeArea(
+          top: !effectiveShowMobileAppBar,
+          bottom: false,
+          child: Column(
             children: [
-              if (items.isNotEmpty && selectedIndex < items.length) ...[
-                Icon(
-                  items[selectedIndex].icon,
-                  size: 22,
-                  color: headerColor ?? AppTheme.red,
-                ),
-                const SizedBox(width: 8),
-              ],
-              Expanded(
-                child: Text(
-                  items.isNotEmpty && selectedIndex < items.length
-                      ? items[selectedIndex].label
-                      : headerTitle,
-                  style: GoogleFonts.rye(fontSize: 16, color: AppTheme.ink),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
+              if (headerWidget != null) headerWidget,
+              Expanded(child: body),
             ],
           ),
-          actions: appBarActions,
-        ),
-        body: Column(
-          children: [
-            if (headerWidget != null) headerWidget,
-            Expanded(child: body),
-          ],
         ),
         bottomNavigationBar: AppBottomNavBar(
           selectedIndex: selectedIndex,

@@ -632,6 +632,12 @@ class SupabaseScheduleRepository implements ScheduleRepository {
 class SupabaseJuryRepository implements JuryRepository {
   final String _table = 'juries';
 
+  Map<String, dynamic> _cleanMap(Jury jury) {
+    final map = jury.toMap();
+    map.remove('status');
+    return map;
+  }
+
   @override
   Future<List<Jury>> getJuries() async {
     final res = await _client.from(_table).select();
@@ -658,19 +664,19 @@ class SupabaseJuryRepository implements JuryRepository {
 
   @override
   Future<void> addJury(Jury jury) async {
-    await _safeInsert(_table, jury.toMap());
+    await _safeUpsert(_table, _cleanMap(jury));
   }
 
   @override
   Future<void> addJuries(List<Jury> juries) async {
     for (final j in juries) {
-      await _safeInsert(_table, j.toMap());
+      await _safeUpsert(_table, _cleanMap(j));
     }
   }
 
   @override
   Future<void> updateJury(Jury jury) async {
-    await _safeUpdate(_table, jury.toMap(), jury.id);
+    await _safeUpdate(_table, _cleanMap(jury), jury.id);
   }
 
   @override

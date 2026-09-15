@@ -3572,11 +3572,17 @@ class _ControllerPortalScreenState
       FestSection.superSenior,
       FestSection.general,
     ];
+    final codeController = TextEditingController(text: program.programCode);
     final nameController = TextEditingController(text: program.programName);
+    final durationController = TextEditingController(text: program.duration);
+    final maxParticipantsController =
+        TextEditingController(text: program.maxParticipants.toString());
+
     FestSection section = availableSections.contains(program.section)
         ? program.section
         : FestSection.subJunior;
     String progType = program.isStageProgram ? 'STAGE' : 'NON_STAGE';
+    String progStatus = program.status.isNotEmpty ? program.status : 'UPCOMING';
 
     showDialog(
       context: context,
@@ -3586,50 +3592,125 @@ class _ControllerPortalScreenState
             return AlertDialog(
               title: Text('Edit Program: ${program.programName}'),
               content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    AppTextField(
-                      label: 'Program Name',
-                      controller: nameController,
-                      hint: 'e.g. Solo Violin',
-                    ),
-                    const SizedBox(height: 10),
-                    AppDropdown<FestSection>(
-                      label: 'Section',
-                      value: section,
-                      items: availableSections
-                          .map(
-                            (s) => DropdownMenuItem(
-                              value: s,
-                              child: Text(s.label),
+                child: SizedBox(
+                  width: 480,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: AppTextField(
+                              label: 'Program Code',
+                              controller: codeController,
+                              hint: 'e.g. P101',
                             ),
-                          )
-                          .toList(),
-                      onChanged: (val) {
-                        if (val != null) setDialogState(() => section = val);
-                      },
-                    ),
-                    const SizedBox(height: 10),
-                    AppDropdown<String>(
-                      label: 'Program Type',
-                      value: progType,
-                      items: const [
-                        DropdownMenuItem(value: 'STAGE', child: Text('Stage')),
-                        DropdownMenuItem(
-                          value: 'NON_STAGE',
-                          child: Text('Non-Stage'),
-                        ),
-                      ],
-                      onChanged: (val) {
-                        if (val != null) {
-                          setDialogState(() {
-                            progType = val;
-                          });
-                        }
-                      },
-                    ),
-                  ],
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            flex: 3,
+                            child: AppDropdown<String>(
+                              label: 'Status',
+                              value: ['UPCOMING', 'IN_PROGRESS', 'COMPLETED']
+                                      .contains(progStatus)
+                                  ? progStatus
+                                  : 'UPCOMING',
+                              items: const [
+                                DropdownMenuItem(
+                                  value: 'UPCOMING',
+                                  child: Text('Upcoming'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'IN_PROGRESS',
+                                  child: Text('In Progress'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'COMPLETED',
+                                  child: Text('Completed'),
+                                ),
+                              ],
+                              onChanged: (val) {
+                                if (val != null) {
+                                  setDialogState(() => progStatus = val);
+                                }
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      AppTextField(
+                        label: 'Program Name *',
+                        controller: nameController,
+                        hint: 'e.g. Solo Violin',
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: AppDropdown<FestSection>(
+                              label: 'Section',
+                              value: section,
+                              items: availableSections
+                                  .map(
+                                    (s) => DropdownMenuItem(
+                                      value: s,
+                                      child: Text(s.label),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: (val) {
+                                if (val != null) setDialogState(() => section = val);
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: AppDropdown<String>(
+                              label: 'Program Type',
+                              value: progType,
+                              items: const [
+                                DropdownMenuItem(value: 'STAGE', child: Text('Stage')),
+                                DropdownMenuItem(
+                                  value: 'NON_STAGE',
+                                  child: Text('Non-Stage'),
+                                ),
+                              ],
+                              onChanged: (val) {
+                                if (val != null) {
+                                  setDialogState(() {
+                                    progType = val;
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: AppTextField(
+                              label: 'Duration',
+                              controller: durationController,
+                              hint: 'e.g. 15 mins',
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: AppTextField(
+                              label: 'Max Candidates / Team',
+                              controller: maxParticipantsController,
+                              hint: 'e.g. 1 (Single) or 5 (Group)',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
               actions: [
@@ -3640,13 +3721,16 @@ class _ControllerPortalScreenState
                 ElevatedButton(
                   onPressed: () async {
                     final name = nameController.text.trim();
+                    final code = codeController.text.trim();
+                    final duration = durationController.text.trim();
+                    final maxPart = int.tryParse(maxParticipantsController.text.trim()) ?? 1;
                     final isStage = progType == 'STAGE';
                     final isGeneral = section == FestSection.general;
                     final category = isGeneral
                         ? ProgramCategory.general
                         : (isStage
-                              ? ProgramCategory.stage
-                              : ProgramCategory.nonStage);
+                            ? ProgramCategory.stage
+                            : ProgramCategory.nonStage);
 
                     if (name.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -3659,11 +3743,15 @@ class _ControllerPortalScreenState
                     }
 
                     final updated = program.copyWith(
+                      programCode: code.isNotEmpty ? code : program.programCode,
                       programName: name,
                       section: section,
                       category: category,
                       isStageProgram: isStage,
                       isGeneral: isGeneral,
+                      duration: duration.isNotEmpty ? duration : program.duration,
+                      maxParticipants: maxPart,
+                      status: progStatus,
                     );
 
                     try {
@@ -4305,6 +4393,12 @@ class _ControllerPortalScreenState
                       return Card(
                         margin: const EdgeInsets.only(bottom: 8),
                         child: ListTile(
+                          onTap: () => _showEditRegistrationDialog(
+                            r,
+                            students,
+                            programs,
+                            teams,
+                          ),
                           leading: Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 10,
@@ -4523,17 +4617,35 @@ class _ControllerPortalScreenState
                               ),
                             ],
                           ),
-                          trailing: IconButton(
-                            icon: const Icon(
-                              Icons.delete_outline,
-                              color: Colors.red,
-                            ),
-                            tooltip: 'Delete Registration',
-                            onPressed: () => _confirmDeleteRegistration(
-                              r,
-                              studentName,
-                              progName,
-                            ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.edit_outlined,
+                                  color: Colors.blueAccent,
+                                ),
+                                tooltip: 'Edit Registration Details',
+                                onPressed: () => _showEditRegistrationDialog(
+                                  r,
+                                  students,
+                                  programs,
+                                  teams,
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  color: Colors.red,
+                                ),
+                                tooltip: 'Delete Registration',
+                                onPressed: () => _confirmDeleteRegistration(
+                                  r,
+                                  studentName,
+                                  progName,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       );
@@ -4907,6 +5019,522 @@ class _ControllerPortalScreenState
                           ),
                         )
                       : const Text('Register Program'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showEditRegistrationDialog(
+    Registration reg,
+    List<Student> students,
+    List<Program> programs,
+    List<Team> teams,
+  ) {
+    final studentMap = {for (var s in students) s.id: s};
+    final programMap = {for (var p in programs) p.id: p};
+
+    Student? currentStudent = studentMap[reg.studentId] ??
+        students.where((s) =>
+            s.id.toLowerCase() == reg.studentId.toLowerCase() ||
+            s.chaseNumber.trim().toLowerCase() == reg.studentId.trim().toLowerCase()).firstOrNull;
+
+    Program? currentProg = programMap[reg.programId] ??
+        programs.where((p) =>
+            p.id.toLowerCase() == reg.programId.toLowerCase() ||
+            p.programCode.trim().toLowerCase() == reg.programId.trim().toLowerCase() ||
+            p.programName.trim().toLowerCase() == reg.programId.trim().toLowerCase()).firstOrNull;
+
+    String initialChase = currentStudent?.chaseNumber ?? '';
+    String initialProgName = currentProg?.programName ?? '';
+    if (initialChase.isEmpty && reg.registrationNumber.startsWith('REG-')) {
+      final parts = reg.registrationNumber.split('-');
+      if (parts.length >= 2) initialChase = parts[1];
+      if (parts.length >= 3 && initialProgName.isEmpty) {
+        initialProgName = parts.sublist(2).join('-');
+      }
+    }
+
+    final chaseController = TextEditingController(text: initialChase);
+    final studentNameController = TextEditingController(text: currentStudent?.name ?? '');
+    final programNameController = TextEditingController(text: initialProgName);
+    final regNumController = TextEditingController(text: reg.registrationNumber);
+
+    FestSection selectedSection = currentProg?.section ??
+        currentStudent?.section ??
+        FestSection.subJunior;
+
+    String selectedTeamId = reg.teamId.isNotEmpty
+        ? reg.teamId
+        : (currentStudent?.teamId ?? (teams.isNotEmpty ? teams.first.id : ''));
+
+    RegistrationStatus selectedStatus = reg.status;
+
+    final availableSections = FestSection.values.toList();
+    bool isSubmitting = false;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Row(
+                children: const [
+                  Icon(Icons.edit_note_rounded, color: AppTheme.red),
+                  SizedBox(width: 8),
+                  Text('Edit Program Registration Details'),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: SizedBox(
+                  width: 520,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.blue.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.info_outline, size: 18, color: Colors.blue.shade800),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Reg #: ${reg.registrationNumber.isNotEmpty ? reg.registrationNumber : reg.id}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.blue.shade900,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      const Text(
+                        'Student Details',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.ink,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Chest No input with auto-matching existing student & quick picker
+                      Row(
+                        children: [
+                          Expanded(
+                            child: AppTextField(
+                              label: 'Chest No (chse no) *',
+                              controller: chaseController,
+                              hint: 'e.g. SB7882',
+                              onChanged: (val) {
+                                final clean = val.trim().toLowerCase();
+                                final matched = students
+                                    .where((s) =>
+                                        s.chaseNumber.trim().toLowerCase() == clean)
+                                    .firstOrNull;
+                                if (matched != null) {
+                                  setDialogState(() {
+                                    studentNameController.text = matched.name;
+                                    selectedSection = matched.section;
+                                    if (matched.teamId.isNotEmpty) {
+                                      selectedTeamId = matched.teamId;
+                                    }
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                          if (students.isNotEmpty) ...[
+                            const SizedBox(width: 6),
+                            PopupMenuButton<Student>(
+                              icon: const Icon(
+                                Icons.person_search_rounded,
+                                color: AppTheme.primaryColor,
+                              ),
+                              tooltip: 'Pick existing student',
+                              onSelected: (s) {
+                                setDialogState(() {
+                                  chaseController.text = s.chaseNumber;
+                                  studentNameController.text = s.name;
+                                  selectedSection = s.section;
+                                  if (s.teamId.isNotEmpty) {
+                                    selectedTeamId = s.teamId;
+                                  }
+                                });
+                              },
+                              itemBuilder: (ctx) {
+                                return students.take(50).map((s) {
+                                  return PopupMenuItem<Student>(
+                                    value: s,
+                                    child: Text(
+                                      '${s.chaseNumber} - ${s.name} (${s.section.label})',
+                                      style: const TextStyle(fontSize: 13),
+                                    ),
+                                  );
+                                }).toList();
+                              },
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+
+                      // Student Name
+                      AppTextField(
+                        label: 'Student Name (name) *',
+                        controller: studentNameController,
+                        hint: 'e.g. JIYAN',
+                      ),
+                      const SizedBox(height: 10),
+
+                      // Team Selection
+                      if (teams.isNotEmpty)
+                        AppDropdown<String>(
+                          label: 'Team',
+                          value: teams.any((t) => t.id == selectedTeamId)
+                              ? selectedTeamId
+                              : teams.first.id,
+                          items: teams
+                              .map(
+                                (t) => DropdownMenuItem(
+                                  value: t.id,
+                                  child: Text('${t.teamName} (${t.teamCode})'),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (val) {
+                            if (val != null) {
+                              setDialogState(() => selectedTeamId = val);
+                            }
+                          },
+                        ),
+                      const SizedBox(height: 16),
+
+                      const Text(
+                        'Program Details',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.ink,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Program Name with Quick Selection
+                      Row(
+                        children: [
+                          Expanded(
+                            child: AppTextField(
+                              label: 'Program Name (program) *',
+                              controller: programNameController,
+                              hint: 'e.g. QIRATH',
+                            ),
+                          ),
+                          if (programs.isNotEmpty) ...[
+                            const SizedBox(width: 6),
+                            PopupMenuButton<Program>(
+                              icon: const Icon(
+                                Icons.arrow_drop_down_circle_outlined,
+                                color: AppTheme.red,
+                              ),
+                              tooltip: 'Pick existing program',
+                              onSelected: (p) {
+                                setDialogState(() {
+                                  programNameController.text = p.programName;
+                                  selectedSection = p.section;
+                                });
+                              },
+                              itemBuilder: (ctx) {
+                                return programs.map((p) {
+                                  return PopupMenuItem<Program>(
+                                    value: p,
+                                    child: Text(
+                                      '${p.programName} (${p.section.label})',
+                                      style: const TextStyle(fontSize: 13),
+                                    ),
+                                  );
+                                }).toList();
+                              },
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+
+                      // Section Dropdown
+                      AppDropdown<FestSection>(
+                        label: 'Section (setion)',
+                        value: selectedSection,
+                        items: availableSections
+                            .map(
+                              (s) => DropdownMenuItem(
+                                value: s,
+                                child: Text(s.label),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (val) {
+                          if (val != null) {
+                            setDialogState(() => selectedSection = val);
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 16),
+
+                      const Text(
+                        'Registration Status & Code',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.ink,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Status Dropdown
+                      AppDropdown<RegistrationStatus>(
+                        label: 'Registration Status',
+                        value: selectedStatus,
+                        items: RegistrationStatus.values
+                            .map(
+                              (st) => DropdownMenuItem(
+                                value: st,
+                                child: Text(st.label),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (val) {
+                          if (val != null) {
+                            setDialogState(() => selectedStatus = val);
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 10),
+
+                      // Registration Number
+                      AppTextField(
+                        label: 'Registration Number',
+                        controller: regNumController,
+                        hint: 'e.g. REG-1001-P01',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryColor,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          final chase = chaseController.text.trim();
+                          final sName = studentNameController.text.trim();
+                          final pName = programNameController.text.trim();
+                          final regNum = regNumController.text.trim();
+                          final section = selectedSection;
+                          final teamId = selectedTeamId.isNotEmpty
+                              ? selectedTeamId
+                              : (teams.isNotEmpty ? teams.first.id : 'team_01');
+
+                          if (chase.isEmpty || pName.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Chest number and program name are required.'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                            return;
+                          }
+
+                          setDialogState(() => isSubmitting = true);
+
+                          try {
+                            // 1. Find or create/update student
+                            var student = students
+                                .where((s) =>
+                                    s.chaseNumber.trim().toLowerCase() ==
+                                    chase.toLowerCase())
+                                .firstOrNull;
+
+                            if (student == null) {
+                              final newStudent = Student(
+                                id: 'std_${const Uuid().v4()}',
+                                chaseNumber: chase,
+                                name: sName.isNotEmpty ? sName : 'Student $chase',
+                                gender: 'Male',
+                                dateOfBirth: '2010-01-01',
+                                section: section,
+                                teamId: teamId,
+                                phone: '',
+                                className: '',
+                                schoolName: '',
+                                qrCode: chase,
+                              );
+                              await ref
+                                  .read(studentRepositoryProvider)
+                                  .addStudent(newStudent);
+                              final fetched = await ref
+                                  .read(studentRepositoryProvider)
+                                  .getByChaseNumber(chase);
+                              student = fetched ?? newStudent;
+                            } else {
+                              bool needsUpdate = false;
+                              var updatedStudent = student;
+                              if (sName.isNotEmpty && student.name != sName) {
+                                updatedStudent = updatedStudent.copyWith(name: sName);
+                                needsUpdate = true;
+                              }
+                              if (teamId.isNotEmpty && student.teamId != teamId) {
+                                updatedStudent = updatedStudent.copyWith(teamId: teamId);
+                                needsUpdate = true;
+                              }
+                              if (needsUpdate) {
+                                await ref
+                                    .read(studentRepositoryProvider)
+                                    .updateStudent(updatedStudent);
+                                student = updatedStudent;
+                              }
+                            }
+
+                            // 2. Find or create program
+                            var program = programs
+                                .where((p) =>
+                                    p.programName.trim().toLowerCase() ==
+                                        pName.toLowerCase() &&
+                                    p.section == section)
+                                .firstOrNull ??
+                                programs
+                                    .where((p) =>
+                                        p.programName.trim().toLowerCase() ==
+                                        pName.toLowerCase())
+                                    .firstOrNull;
+
+                            if (program == null) {
+                              final progIndex = programs.length + 1;
+                              final codePart = pName
+                                  .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')
+                                  .toUpperCase();
+                              final shortCode = codePart.length >= 4
+                                  ? codePart.substring(0, 4)
+                                  : codePart.padRight(4, 'X');
+                              final progCode = 'P$shortCode-$progIndex';
+                              final newProg = Program(
+                                id: 'prog_${const Uuid().v4()}',
+                                programCode: progCode,
+                                programName: pName,
+                                section: section,
+                                category: ProgramCategory.stage,
+                                isStageProgram: true,
+                                isGeneral: false,
+                                maxParticipants: 1,
+                                duration: '10 min',
+                                status: 'UPCOMING',
+                              );
+                              await ref
+                                  .read(programRepositoryProvider)
+                                  .addProgram(newProg);
+                              final fetchedProg = await ref
+                                  .read(programRepositoryProvider)
+                                  .getByCode(progCode);
+                              program = fetchedProg ?? newProg;
+                            }
+
+                            // 3. Check duplicate registration if student or program changed
+                            if (student.id != reg.studentId || program.id != reg.programId) {
+                              final existingReg = await ref
+                                  .read(registrationRepositoryProvider)
+                                  .getByStudentAndProgram(student.id, program.id);
+                              if (existingReg != null && existingReg.id != reg.id) {
+                                setDialogState(() => isSubmitting = false);
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Registration already exists for $chase in ${program.programName}.',
+                                      ),
+                                      backgroundColor: Colors.orange,
+                                    ),
+                                  );
+                                }
+                                return;
+                              }
+                            }
+
+                            // 4. Update registration
+                            final finalRegNum = regNum.isNotEmpty
+                                ? regNum
+                                : (reg.registrationNumber.isNotEmpty
+                                    ? reg.registrationNumber
+                                    : 'REG-${student.chaseNumber}-${program.programCode}');
+
+                            final updatedReg = reg.copyWith(
+                              studentId: student.id,
+                              programId: program.id,
+                              teamId: teamId,
+                              registrationNumber: finalRegNum,
+                              status: selectedStatus,
+                            );
+
+                            await ref
+                                .read(registrationRepositoryProvider)
+                                .updateRegistration(updatedReg);
+
+                            triggerDataRefresh(ref);
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Updated registration for $chase (${student.name}) - ${program.programName}!',
+                                  ),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                            }
+                          } catch (err) {
+                            setDialogState(() => isSubmitting = false);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Failed to update registration: $err'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Save Changes'),
                 ),
               ],
             );
@@ -6369,6 +6997,21 @@ class _ControllerPortalScreenState
     List<Program> programs,
   ) {
     final juryMap = {for (var j in juries) j.id: j};
+    final allJuryUsers = List<User>.from(juryUsers);
+    for (final j in juries) {
+      if (!allJuryUsers.any((u) => u.juryId == j.id || u.username.toLowerCase() == j.username.toLowerCase())) {
+        allJuryUsers.add(
+          User(
+            id: 'usr_${j.id}',
+            username: j.username,
+            password: j.password,
+            name: j.name,
+            role: UserRole.jury,
+            juryId: j.id,
+          ),
+        );
+      }
+    }
 
     return Column(
       children: [
@@ -6455,7 +7098,7 @@ class _ControllerPortalScreenState
         ),
 
         Expanded(
-          child: (juryUsers.isEmpty && juries.isEmpty)
+          child: allJuryUsers.isEmpty
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -6477,9 +7120,9 @@ class _ControllerPortalScreenState
                   ),
                 )
               : ListView.builder(
-                  itemCount: juryUsers.length,
+                  itemCount: allJuryUsers.length,
                   itemBuilder: (context, index) {
-                    final u = juryUsers[index];
+                    final u = allJuryUsers[index];
                     final juryProfile = u.juryId != null
                         ? juryMap[u.juryId]
                         : juries.firstWhere(
@@ -6727,6 +7370,7 @@ class _ControllerPortalScreenState
     showDialog(
       context: context,
       builder: (dialogContext) {
+        bool isSaving = false;
         return StatefulBuilder(
           builder: (dialogContext, setDialogState) {
             return AlertDialog(
@@ -6737,16 +7381,11 @@ class _ControllerPortalScreenState
               ),
               content: SingleChildScrollView(
                 child: SizedBox(
-                  width: 480,
+                  width: 500,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      AppTextField(
-                        label: 'Leader Full Name',
-                        controller: _userLoginNameController,
-                        hint: 'e.g. John Doe',
-                      ),
-                      const SizedBox(height: 12),
                       AppDropdown<String>(
                         label: 'Select Team',
                         value: _selectedLeaderTeamId,
@@ -6754,12 +7393,22 @@ class _ControllerPortalScreenState
                             .map(
                               (t) => DropdownMenuItem(
                                 value: t.id,
-                                child: Text(t.teamName),
+                                child: Text('${t.teamName} (${t.teamCode})'),
                               ),
                             )
                             .toList(),
-                        onChanged: (val) =>
-                            setDialogState(() => _selectedLeaderTeamId = val),
+                        onChanged: (val) {
+                          if (isSaving) return;
+                          setDialogState(() {
+                            _selectedLeaderTeamId = val;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      AppTextField(
+                        label: 'Leader Name',
+                        controller: _userLoginNameController,
+                        hint: 'e.g. John Doe',
                       ),
                       const SizedBox(height: 12),
                       AppTextField(
@@ -6795,92 +7444,128 @@ class _ControllerPortalScreenState
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(dialogContext),
+                  onPressed: isSaving
+                      ? null
+                      : () => Navigator.pop(dialogContext),
                   child: const Text('Cancel'),
                 ),
                 ElevatedButton(
-                  onPressed: () async {
-                    final name = _userLoginNameController.text.trim();
-                    final username = _userUsernameController.text.trim();
-                    final password = _userPasswordController.text.trim();
-                    final phone = _userPhoneController.text.trim();
-                    final email = _userEmailController.text.trim();
-                    final teamId = _selectedLeaderTeamId ?? '';
+                  onPressed: isSaving
+                      ? null
+                      : () async {
+                          final name = _userLoginNameController.text.trim();
+                          final username = _userUsernameController.text.trim();
+                          final password = _userPasswordController.text.trim();
+                          final phone = _userPhoneController.text.trim();
+                          final email = _userEmailController.text.trim();
+                          final teamId = _selectedLeaderTeamId ?? '';
 
-                    if (name.isEmpty ||
-                        username.isEmpty ||
-                        password.isEmpty ||
-                        teamId.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Leader Name, Team, Login ID, and Password are required!',
+                          if (name.isEmpty ||
+                              username.isEmpty ||
+                              password.isEmpty ||
+                              teamId.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Leader Name, Team, Login ID, and Password are required!',
+                                ),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                            return;
+                          }
+
+                          setDialogState(() => isSaving = true);
+
+                          try {
+                            if (!isEditing || existingUser.username != username) {
+                              final userRepo =
+                                  ref.read(userRepositoryProvider);
+                              final existing =
+                                  await userRepo.getByUsername(username);
+                              if (existing != null) {
+                                setDialogState(() => isSaving = false);
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Login ID "$username" is already taken. Please use a unique Login ID.',
+                                      ),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                                return;
+                              }
+                            }
+
+                            final leaderId = existingLeader?.id.isNotEmpty == true
+                                ? existingLeader!.id
+                                : 'leader_${const Uuid().v4()}';
+                            final userId = existingUser?.id.isNotEmpty == true
+                                ? existingUser!.id
+                                : 'usr_$leaderId';
+
+                            final leader = TeamLeader(
+                              id: leaderId,
+                              name: name,
+                              phone: phone,
+                              email: email,
+                              username: username,
+                              password: password,
+                              teamId: teamId,
+                            );
+                            await ref.read(leaderRepositoryProvider).addLeader(leader);
+
+                            final user = User(
+                              id: userId,
+                              username: username,
+                              password: password,
+                              name: name,
+                              role: UserRole.teamLeader,
+                              teamId: teamId,
+                            );
+                            await ref.read(userRepositoryProvider).saveUser(user);
+
+                            triggerDataRefresh(ref);
+                            if (dialogContext.mounted) {
+                              Navigator.pop(dialogContext);
+                            }
+
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Team Leader login credentials saved for "$name"! Login ID: $username',
+                                  ),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            setDialogState(() => isSaving = false);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Failed to save Team Leader Account: ${e.toString().replaceAll("Exception: ", "")}',
+                                  ),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                  child: isSaving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
                           ),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                      return;
-                    }
-
-                    if (!isEditing || existingUser.username != username) {
-                      final userRepo = ref.read(userRepositoryProvider);
-                      final existing = await userRepo.getByUsername(username);
-                      if (existing != null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Login ID "$username" is already taken. Please use a unique Login ID.',
-                            ),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                        return;
-                      }
-                    }
-
-                    final leaderId = existingLeader?.id.isNotEmpty == true
-                        ? existingLeader!.id
-                        : 'leader_${const Uuid().v4()}';
-                    final userId = existingUser?.id.isNotEmpty == true
-                        ? existingUser!.id
-                        : 'usr_$leaderId';
-
-                    final leader = TeamLeader(
-                      id: leaderId,
-                      name: name,
-                      phone: phone,
-                      email: email,
-                      username: username,
-                      password: password,
-                      teamId: teamId,
-                    );
-                    await ref.read(leaderRepositoryProvider).addLeader(leader);
-
-                    final user = User(
-                      id: userId,
-                      username: username,
-                      password: password,
-                      name: name,
-                      role: UserRole.teamLeader,
-                      teamId: teamId,
-                    );
-                    await ref.read(userRepositoryProvider).saveUser(user);
-
-                    triggerDataRefresh(ref);
-                    if (mounted) Navigator.pop(dialogContext);
-
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Team Leader login credentials saved for "$name"! Login ID: $username',
-                          ),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    }
-                  },
-                  child: Text(isEditing ? 'Save Changes' : 'Create Account'),
+                        )
+                      : Text(isEditing ? 'Save Changes' : 'Create Account'),
                 ),
               ],
             );
@@ -6910,6 +7595,7 @@ class _ControllerPortalScreenState
     showDialog(
       context: context,
       builder: (dialogContext) {
+        bool isSaving = false;
         return StatefulBuilder(
           builder: (dialogContext, setDialogState) {
             return AlertDialog(
@@ -6983,15 +7669,17 @@ class _ControllerPortalScreenState
                                 '${p.section.label} • ${p.isStageProgram ? "Stage" : "Non-Stage"}',
                               ),
                               value: isChecked,
-                              onChanged: (val) {
-                                setDialogState(() {
-                                  if (val == true) {
-                                    _selectedJuryProgramIds.add(p.id);
-                                  } else {
-                                    _selectedJuryProgramIds.remove(p.id);
-                                  }
-                                });
-                              },
+                              onChanged: isSaving
+                                  ? null
+                                  : (val) {
+                                      setDialogState(() {
+                                        if (val == true) {
+                                          _selectedJuryProgramIds.add(p.id);
+                                        } else {
+                                          _selectedJuryProgramIds.remove(p.id);
+                                        }
+                                      });
+                                    },
                             );
                           },
                         ),
@@ -7002,96 +7690,132 @@ class _ControllerPortalScreenState
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(dialogContext),
+                  onPressed: isSaving
+                      ? null
+                      : () => Navigator.pop(dialogContext),
                   child: const Text('Cancel'),
                 ),
                 ElevatedButton(
-                  onPressed: () async {
-                    final name = _userLoginNameController.text.trim();
-                    final juryCode = _userJuryCodeController.text
-                        .trim()
-                        .toUpperCase();
-                    final username = _userUsernameController.text.trim();
-                    final password = _userPasswordController.text.trim();
+                  onPressed: isSaving
+                      ? null
+                      : () async {
+                          final name = _userLoginNameController.text.trim();
+                          final juryCode = _userJuryCodeController.text
+                              .trim()
+                              .toUpperCase();
+                          final username = _userUsernameController.text.trim();
+                          final password = _userPasswordController.text.trim();
 
-                    if (name.isEmpty ||
-                        juryCode.isEmpty ||
-                        username.isEmpty ||
-                        password.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Jury Name, Jury Code, Login ID, and Password are required!',
+                          if (name.isEmpty ||
+                              juryCode.isEmpty ||
+                              username.isEmpty ||
+                              password.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Jury Name, Jury Code, Login ID, and Password are required!',
+                                ),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                            return;
+                          }
+
+                          setDialogState(() => isSaving = true);
+
+                          try {
+                            if (!isEditing || existingUser.username != username) {
+                              final userRepo =
+                                  ref.read(userRepositoryProvider);
+                              final existing =
+                                  await userRepo.getByUsername(username);
+                              if (existing != null) {
+                                setDialogState(() => isSaving = false);
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Login ID "$username" is already taken. Please use a unique Login ID.',
+                                      ),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                                return;
+                              }
+                            }
+
+                            final juryId = existingJury?.id.isNotEmpty == true
+                                ? existingJury!.id
+                                : 'jury_${const Uuid().v4()}';
+                            final userId = existingUser?.id.isNotEmpty == true
+                                ? existingUser!.id
+                                : 'usr_$juryId';
+
+                            final jury = Jury(
+                              id: juryId,
+                              name: name,
+                              username: username,
+                              password: password,
+                              juryCode: juryCode,
+                              assignedPrograms: List<String>.from(
+                                _selectedJuryProgramIds,
+                              ),
+                            );
+                            await ref.read(juryRepositoryProvider).addJury(jury);
+
+                            final user = User(
+                              id: userId,
+                              username: username,
+                              password: password,
+                              name: name,
+                              role: UserRole.jury,
+                              juryId: juryId,
+                            );
+                            await ref.read(userRepositoryProvider).saveUser(user);
+
+                            triggerDataRefresh(ref);
+                            if (dialogContext.mounted) {
+                              Navigator.pop(dialogContext);
+                            }
+
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Jury credentials saved for "$name" ($juryCode)! Login ID: $username',
+                                  ),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                              _showJuryQRDialog(context, jury, programs);
+                            }
+                          } catch (e) {
+                            setDialogState(() => isSaving = false);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Failed to save Jury Account: ${e.toString().replaceAll("Exception: ", "")}',
+                                  ),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                  child: isSaving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
                           ),
-                          backgroundColor: Colors.red,
+                        )
+                      : Text(
+                          isEditing ? 'Save Changes' : 'Create Jury Account',
                         ),
-                      );
-                      return;
-                    }
-
-                    if (!isEditing || existingUser.username != username) {
-                      final userRepo = ref.read(userRepositoryProvider);
-                      final existing = await userRepo.getByUsername(username);
-                      if (existing != null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Login ID "$username" is already taken. Please use a unique Login ID.',
-                            ),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                        return;
-                      }
-                    }
-
-                    final juryId = existingJury?.id.isNotEmpty == true
-                        ? existingJury!.id
-                        : 'jury_${const Uuid().v4()}';
-                    final userId = existingUser?.id.isNotEmpty == true
-                        ? existingUser!.id
-                        : 'usr_$juryId';
-
-                    final jury = Jury(
-                      id: juryId,
-                      name: name,
-                      username: username,
-                      password: password,
-                      juryCode: juryCode,
-                      assignedPrograms: List<String>.from(
-                        _selectedJuryProgramIds,
-                      ),
-                    );
-                    await ref.read(juryRepositoryProvider).addJury(jury);
-
-                    final user = User(
-                      id: userId,
-                      username: username,
-                      password: password,
-                      name: name,
-                      role: UserRole.jury,
-                      juryId: juryId,
-                    );
-                    await ref.read(userRepositoryProvider).saveUser(user);
-
-                    triggerDataRefresh(ref);
-                    if (mounted) Navigator.pop(dialogContext);
-
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Jury credentials saved for "$name" ($juryCode)! Login ID: $username',
-                          ),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                      _showJuryQRDialog(context, jury, programs);
-                    }
-                  },
-                  child: Text(
-                    isEditing ? 'Save Changes' : 'Create Jury Account',
-                  ),
                 ),
               ],
             );
@@ -7747,632 +8471,620 @@ class _ControllerPortalScreenState
             .toList()
           ..sort();
 
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header Bar
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 16,
-            runSpacing: 16,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Schedule & Venue Management',
-                    style: GoogleFonts.rye(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.ink,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Manage festival dates, stages, venues, and program schedules.',
-                    style: GoogleFonts.workSans(
-                      color: AppTheme.inkSoft,
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
-              ),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.add_rounded, size: 18),
-                    label: const Text('+ Add Schedule'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.red,
-                      foregroundColor: AppTheme.cream,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
-                      ),
-                    ),
-                    onPressed: () {
-                      _showAddEditScheduleDialog(
-                        context,
-                        programs: programs,
-                        venues: venues,
-                        schedules: schedules,
-                      );
-                    },
-                  ),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.add_location_alt_rounded, size: 18),
-                    label: const Text('+ Add Venue'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.teal,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
-                      ),
-                    ),
-                    onPressed: () => _showAddVenueDialog(context),
-                  ),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.upload_file_rounded, size: 18),
-                    label: const Text('Import PDF / Excel'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.indigo,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
-                      ),
-                    ),
-                    onPressed: _showScheduleExcelFormatDialog,
-                  ),
-                  OutlinedButton.icon(
-                    icon: const Icon(Icons.file_download_outlined, size: 18),
-                    label: const Text('Export Excel'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
-                      ),
-                      side: const BorderSide(color: AppTheme.line),
-                    ),
-                    onPressed:
-                        () => _exportSchedulesToExcel(
-                          schedules,
-                          progMap,
-                          venMap,
-                        ),
-                  ),
-                  OutlinedButton.icon(
-                    icon: const Icon(
-                      Icons.delete_sweep_rounded,
-                      size: 18,
-                      color: AppTheme.red,
-                    ),
-                    label: const Text(
-                      'Clear Schedules',
-                      style: TextStyle(color: AppTheme.red),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
-                      ),
-                      side: const BorderSide(color: AppTheme.red),
-                    ),
-                    onPressed: _confirmClearSchedules,
-                  ),
-                  OutlinedButton.icon(
-                    icon: const Icon(
-                      Icons.cleaning_services_rounded,
-                      size: 18,
-                      color: Colors.teal,
-                    ),
-                    label: const Text(
-                      'Clean & Reset Venues',
-                      style: TextStyle(color: Colors.teal),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
-                      ),
-                      side: const BorderSide(color: Colors.teal),
-                    ),
-                    onPressed: () => _confirmResetOfficialVenues(venues, schedules),
-                  ),
-                ],
-              ),
-            ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 768;
+        final paddingH = isMobile ? 14.0 : 24.0;
+        final paddingV = isMobile ? 16.0 : 24.0;
+
+        return CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
           ),
-          const SizedBox(height: 20),
-
-          // Stat Cards
-          Row(
-            children: [
-              Expanded(
-                child: StatCard(
-                  title: 'Total Scheduled',
-                  value: '${schedules.length}',
-                  icon: Icons.calendar_today_rounded,
-                  color: Colors.blue,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: StatCard(
-                  title: 'Total Venues',
-                  value: '${venues.length}',
-                  icon: Icons.place_rounded,
-                  color: AppTheme.mustard,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: StatCard(
-                  title: 'In Progress / Live',
-                  value:
-                      '${schedules.where((s) => s.status == 'IN_PROGRESS').length}',
-                  icon: Icons.play_circle_outline_rounded,
-                  color: Colors.orange,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: StatCard(
-                  title: 'Completed',
-                  value:
-                      '${schedules.where((s) => s.status == 'COMPLETED').length}',
-                  icon: Icons.check_circle_outline_rounded,
-                  color: Colors.green,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-
-
-          // Search and Filters Card
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppTheme.line),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+          slivers: [
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(paddingH, paddingV, paddingH, 16),
+              sliver: SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Status:',
-                      style: GoogleFonts.workSans(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                        color: AppTheme.inkSoft,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    // Status Filter Dropdown
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppTheme.line),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: _selectedScheduleStatusFilter,
-                          isDense: true,
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'ALL',
-                              child: Text('All Status'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'SCHEDULED',
-                              child: Text('SCHEDULED'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'IN_PROGRESS',
-                              child: Text('IN_PROGRESS'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'COMPLETED',
-                              child: Text('COMPLETED'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'CANCELLED',
-                              child: Text('CANCELLED'),
-                            ),
-                          ],
-                          onChanged: (val) {
-                            if (val != null) {
-                              setState(() {
-                                _selectedScheduleStatusFilter = val;
-                              });
-                            }
-                          },
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                if (uniqueDates.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
-                    child: Row(
+                    // Header Bar
+                    Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 16,
+                      runSpacing: 16,
                       children: [
-                        Text(
-                          'Dates:',
-                          style: GoogleFonts.workSans(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                            color: AppTheme.inkSoft,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        ChoiceChip(
-                          label: const Text('All Dates'),
-                          selected: _selectedScheduleDateFilter == 'ALL',
-                          visualDensity: VisualDensity.compact,
-                          onSelected: (_) {
-                            setState(() {
-                              _selectedScheduleDateFilter = 'ALL';
-                            });
-                          },
-                        ),
-                        ...uniqueDates.map(
-                          (d) => Padding(
-                            padding: const EdgeInsets.only(left: 6),
-                            child: ChoiceChip(
-                              label: Text(formatAppDate(d)),
-                              selected: _selectedScheduleDateFilter == d,
-                              visualDensity: VisualDensity.compact,
-                              onSelected: (_) {
-                                setState(() {
-                                  _selectedScheduleDateFilter = d;
-                                });
-                              },
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 12),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
-                  child: Row(
-                    children: [
-                      Text(
-                        'Venues:',
-                        style: GoogleFonts.workSans(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                          color: AppTheme.inkSoft,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      ChoiceChip(
-                        label: Text('All Venues (${schedules.length})'),
-                        selected: _selectedScheduleVenueFilter == 'ALL',
-                        visualDensity: VisualDensity.compact,
-                        onSelected: (_) {
-                          setState(() {
-                            _selectedScheduleVenueFilter = 'ALL';
-                          });
-                        },
-                      ),
-                      ...displayVenues.map((vName) {
-                        final count =
-                            venueScheduleCount[vName.toUpperCase()] ??
-                            venueScheduleCount[vName] ??
-                            0;
-                        final isSelected =
-                            _selectedScheduleVenueFilter.toLowerCase() ==
-                            vName.toLowerCase();
-                        return Padding(
-                          padding: const EdgeInsets.only(left: 6),
-                          child: ChoiceChip(
-                            label: Text('$vName ($count)'),
-                            selected: isSelected,
-                            visualDensity: VisualDensity.compact,
-                            onSelected: (_) {
-                              setState(() {
-                                _selectedScheduleVenueFilter =
-                                    isSelected ? 'ALL' : vName;
-                              });
-                            },
-                          ),
-                        );
-                      }),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Schedule List / Table
-          Expanded(
-            child: filteredSchedules.isEmpty
-                ? Center(
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(40),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppTheme.line),
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.calendar_today_outlined,
-                            size: 48,
-                            color: AppTheme.inkSoft,
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            schedules.isEmpty
-                                ? 'No Schedules Uploaded Yet'
-                                : 'No schedules matching your filter',
-                            style: GoogleFonts.workSans(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.ink,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            schedules.isEmpty
-                                ? 'Click "+ Add Schedule" or "Import PDF / Excel" above to add schedules.'
-                                : 'Try clearing your search query or changing the date/venue filters.',
-                            style: GoogleFonts.workSans(
-                              fontSize: 13,
-                              color: AppTheme.inkSoft,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'SCHEDULED PROGRAMS (${filteredSchedules.length})',
-                            style: GoogleFonts.workSans(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 1.2,
-                              color: AppTheme.inkSoft,
-                            ),
-                          ),
-                          Text(
-                            'Showing ${filteredSchedules.length} of ${schedules.length} total',
-                            style: GoogleFonts.workSans(
-                              fontSize: 12,
-                              color: AppTheme.inkSoft,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Expanded(
-                        child: ListView.separated(
-                          physics: const BouncingScrollPhysics(),
-                          itemCount: filteredSchedules.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 10),
-                          itemBuilder: (ctx, idx) {
-                final sch = filteredSchedules[idx];
-                final prog = progMap[sch.programId];
-                final ven = venMap[sch.venueId];
-                final venName =
-                    ven?.name ??
-                    (sch.venueId.isNotEmpty ? sch.venueId : 'TBA');
-                final progName =
-                    prog?.programName ?? 'Program #${sch.programId}';
-                final progCode = prog?.programCode ?? '';
-                final section = prog?.section.label ?? 'General';
-
-                Color statusColor = Colors.blue;
-                if (sch.status == 'IN_PROGRESS') statusColor = Colors.orange;
-                if (sch.status == 'COMPLETED') statusColor = Colors.green;
-                if (sch.status == 'CANCELLED') statusColor = Colors.red;
-
-                return Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppTheme.line),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.02),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      // Order Number
-                      Container(
-                        width: 32,
-                        height: 32,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: AppTheme.cream2,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: AppTheme.line),
-                        ),
-                        child: Text(
-                          '${idx + 1}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      // Program Details
-                      Expanded(
-                        flex: 3,
-                        child: Column(
+                        Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              progName,
-                              style: GoogleFonts.workSans(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 14,
+                              'Schedule & Venue Management',
+                              style: GoogleFonts.rye(
+                                fontSize: isMobile ? 20 : 24,
+                                fontWeight: FontWeight.bold,
                                 color: AppTheme.ink,
                               ),
                             ),
                             const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                if (progCode.isNotEmpty) ...[
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.cream,
-                                      borderRadius: BorderRadius.circular(4),
-                                      border: Border.all(color: AppTheme.line),
-                                    ),
-                                    child: Text(
-                                      progCode,
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                ],
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.blue.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    section,
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.blue.shade800,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      // Date & Time
-                      Expanded(
-                        flex: 2,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.calendar_month,
-                                  size: 14,
-                                  color: AppTheme.red,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  formatAppDate(
-                                    sch.date,
-                                    fullMonth: true,
-                                    includeWeekday: true,
-                                  ),
-                                  style: GoogleFonts.workSans(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 12.5,
-                                    color: AppTheme.ink,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.access_time,
-                                  size: 14,
-                                  color: Colors.blueGrey,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  '${formatAppTime(sch.startTime)} - ${formatAppTime(sch.endTime)}',
-                                  style: GoogleFonts.workSans(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppTheme.inkSoft,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      // Venue
-                      Expanded(
-                        flex: 2,
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.place,
-                              size: 16,
-                              color: AppTheme.red,
-                            ),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                venName,
-                                style: GoogleFonts.workSans(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
-                                  color: AppTheme.ink,
-                                ),
-                                overflow: TextOverflow.ellipsis,
+                            Text(
+                              'Manage festival dates, stages, venues, and program schedules.',
+                              style: GoogleFonts.workSans(
+                                color: AppTheme.inkSoft,
+                                fontSize: 13,
                               ),
                             ),
                           ],
                         ),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            ElevatedButton.icon(
+                              icon: const Icon(Icons.add_rounded, size: 18),
+                              label: const Text('+ Add Schedule'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.red,
+                                foregroundColor: AppTheme.cream,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 12,
+                                ),
+                              ),
+                              onPressed: () {
+                                _showAddEditScheduleDialog(
+                                  context,
+                                  programs: programs,
+                                  venues: venues,
+                                  schedules: schedules,
+                                );
+                              },
+                            ),
+                            ElevatedButton.icon(
+                              icon: const Icon(Icons.add_location_alt_rounded, size: 18),
+                              label: const Text('+ Add Venue'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.teal,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 12,
+                                ),
+                              ),
+                              onPressed: () => _showAddVenueDialog(context),
+                            ),
+                            ElevatedButton.icon(
+                              icon: const Icon(Icons.upload_file_rounded, size: 18),
+                              label: const Text('Upload Schedule'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.indigo,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 12,
+                                ),
+                              ),
+                              onPressed: _importSchedulesFromExcel,
+                            ),
+                            OutlinedButton.icon(
+                              icon: const Icon(Icons.help_outline_rounded, size: 18),
+                              label: const Text('Format / Template'),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 12,
+                                ),
+                                side: const BorderSide(color: AppTheme.line),
+                              ),
+                              onPressed: _showScheduleExcelFormatDialog,
+                            ),
+                            OutlinedButton.icon(
+                              icon: const Icon(Icons.file_download_outlined, size: 18),
+                              label: const Text('Export Excel'),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 12,
+                                ),
+                                side: const BorderSide(color: AppTheme.line),
+                              ),
+                              onPressed:
+                                  () => _exportSchedulesToExcel(
+                                    schedules,
+                                    progMap,
+                                    venMap,
+                                  ),
+                            ),
+                            OutlinedButton.icon(
+                              icon: const Icon(
+                                Icons.delete_sweep_rounded,
+                                size: 18,
+                                color: AppTheme.red,
+                              ),
+                              label: const Text(
+                                'Clear Schedules',
+                                style: TextStyle(color: AppTheme.red),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 12,
+                                ),
+                                side: const BorderSide(color: AppTheme.red),
+                              ),
+                              onPressed: _confirmClearSchedules,
+                            ),
+                            OutlinedButton.icon(
+                              icon: const Icon(
+                                Icons.cleaning_services_rounded,
+                                size: 18,
+                                color: Colors.teal,
+                              ),
+                              label: const Text(
+                                'Clean & Reset Venues',
+                                style: TextStyle(color: Colors.teal),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 12,
+                                ),
+                                side: const BorderSide(color: Colors.teal),
+                              ),
+                              onPressed: () => _confirmResetOfficialVenues(venues, schedules),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Responsive Stat Cards
+                    if (!isMobile)
+                      Row(
+                        children: [
+                          Expanded(
+                            child: StatCard(
+                              title: 'Total Scheduled',
+                              value: '${schedules.length}',
+                              icon: Icons.calendar_today_rounded,
+                              color: Colors.blue,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: StatCard(
+                              title: 'Total Venues',
+                              value: '${venues.length}',
+                              icon: Icons.place_rounded,
+                              color: AppTheme.mustard,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: StatCard(
+                              title: 'In Progress / Live',
+                              value:
+                                  '${schedules.where((s) => s.status == 'IN_PROGRESS').length}',
+                              icon: Icons.play_circle_outline_rounded,
+                              color: Colors.orange,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: StatCard(
+                              title: 'Completed',
+                              value:
+                                  '${schedules.where((s) => s.status == 'COMPLETED').length}',
+                              icon: Icons.check_circle_outline_rounded,
+                              color: Colors.green,
+                            ),
+                          ),
+                        ],
+                      )
+                    else
+                      Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: StatCard(
+                                  title: 'Total Scheduled',
+                                  value: '${schedules.length}',
+                                  icon: Icons.calendar_today_rounded,
+                                  color: Colors.blue,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: StatCard(
+                                  title: 'Total Venues',
+                                  value: '${venues.length}',
+                                  icon: Icons.place_rounded,
+                                  color: AppTheme.mustard,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: StatCard(
+                                  title: 'In Progress / Live',
+                                  value:
+                                      '${schedules.where((s) => s.status == 'IN_PROGRESS').length}',
+                                  icon: Icons.play_circle_outline_rounded,
+                                  color: Colors.orange,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: StatCard(
+                                  title: 'Completed',
+                                  value:
+                                      '${schedules.where((s) => s.status == 'COMPLETED').length}',
+                                  icon: Icons.check_circle_outline_rounded,
+                                  color: Colors.green,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                      // Status Dropdown / Badge
-                      PopupMenuButton<String>(
+                    const SizedBox(height: 20),
+
+                    // Search and Filters Card
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: AppTheme.line),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                'Status:',
+                                style: GoogleFonts.workSans(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                  color: AppTheme.inkSoft,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              // Status Filter Dropdown
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: AppTheme.line),
+                                ),
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<String>(
+                                    value: _selectedScheduleStatusFilter,
+                                    isDense: true,
+                                    items: const [
+                                      DropdownMenuItem(
+                                        value: 'ALL',
+                                        child: Text('All Status'),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'SCHEDULED',
+                                        child: Text('SCHEDULED'),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'IN_PROGRESS',
+                                        child: Text('IN_PROGRESS'),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'COMPLETED',
+                                        child: Text('COMPLETED'),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'CANCELLED',
+                                        child: Text('CANCELLED'),
+                                      ),
+                                    ],
+                                    onChanged: (val) {
+                                      if (val != null) {
+                                        setState(() {
+                                          _selectedScheduleStatusFilter = val;
+                                        });
+                                      }
+                                    },
+                                  ),
+                                ),
+                              ),
+                              const Spacer(),
+                              if (_selectedScheduleStatusFilter != 'ALL' ||
+                                  _selectedScheduleDateFilter != 'ALL' ||
+                                  _selectedScheduleVenueFilter != 'ALL')
+                                TextButton.icon(
+                                  icon: const Icon(Icons.clear_all, size: 16),
+                                  label: const Text('Clear Filters', style: TextStyle(fontSize: 12)),
+                                  onPressed: () {
+                                    setState(() {
+                                      _selectedScheduleStatusFilter = 'ALL';
+                                      _selectedScheduleDateFilter = 'ALL';
+                                      _selectedScheduleVenueFilter = 'ALL';
+                                    });
+                                  },
+                                ),
+                            ],
+                          ),
+                          if (uniqueDates.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              physics: const BouncingScrollPhysics(),
+                              child: Row(
+                                children: [
+                                  Text(
+                                    'Dates:',
+                                    style: GoogleFonts.workSans(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                      color: AppTheme.inkSoft,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  ChoiceChip(
+                                    label: const Text('All Dates'),
+                                    selected: _selectedScheduleDateFilter == 'ALL',
+                                    visualDensity: VisualDensity.compact,
+                                    onSelected: (_) {
+                                      setState(() {
+                                        _selectedScheduleDateFilter = 'ALL';
+                                      });
+                                    },
+                                  ),
+                                  ...uniqueDates.map(
+                                    (d) => Padding(
+                                      padding: const EdgeInsets.only(left: 6),
+                                      child: ChoiceChip(
+                                        label: Text(formatAppDate(d)),
+                                        selected: _selectedScheduleDateFilter == d,
+                                        visualDensity: VisualDensity.compact,
+                                        onSelected: (_) {
+                                          setState(() {
+                                            _selectedScheduleDateFilter = d;
+                                          });
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 12),
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            physics: const BouncingScrollPhysics(),
+                            child: Row(
+                              children: [
+                                Text(
+                                  'Venues:',
+                                  style: GoogleFonts.workSans(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                    color: AppTheme.inkSoft,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                ChoiceChip(
+                                  label: Text('All Venues (${schedules.length})'),
+                                  selected: _selectedScheduleVenueFilter == 'ALL',
+                                  visualDensity: VisualDensity.compact,
+                                  onSelected: (_) {
+                                    setState(() {
+                                      _selectedScheduleVenueFilter = 'ALL';
+                                    });
+                                  },
+                                ),
+                                ...displayVenues.map((vName) {
+                                  final count =
+                                      venueScheduleCount[vName.toUpperCase()] ??
+                                      venueScheduleCount[vName] ??
+                                      0;
+                                  final isSelected =
+                                      _selectedScheduleVenueFilter.toLowerCase() ==
+                                      vName.toLowerCase();
+                                  return Padding(
+                                    padding: const EdgeInsets.only(left: 6),
+                                    child: ChoiceChip(
+                                      label: Text('$vName ($count)'),
+                                      selected: isSelected,
+                                      visualDensity: VisualDensity.compact,
+                                      onSelected: (_) {
+                                        setState(() {
+                                          _selectedScheduleVenueFilter =
+                                              isSelected ? 'ALL' : vName;
+                                        });
+                                      },
+                                    ),
+                                  );
+                                }),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+
+                    // Scheduled Programs Header
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'SCHEDULED PROGRAMS (${filteredSchedules.length})',
+                          style: GoogleFonts.workSans(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.2,
+                            color: AppTheme.inkSoft,
+                          ),
+                        ),
+                        Text(
+                          'Showing ${filteredSchedules.length} of ${schedules.length} total',
+                          style: GoogleFonts.workSans(
+                            fontSize: 12,
+                            color: AppTheme.inkSoft,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (filteredSchedules.isEmpty)
+              SliverPadding(
+                padding: EdgeInsets.fromLTRB(paddingH, 8, paddingH, 40),
+                sliver: SliverToBoxAdapter(
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(40),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppTheme.line),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.calendar_today_outlined,
+                          size: 48,
+                          color: AppTheme.inkSoft,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          schedules.isEmpty
+                              ? 'No Schedules Uploaded Yet'
+                              : 'No schedules matching your filter',
+                          style: GoogleFonts.workSans(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.ink,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          schedules.isEmpty
+                              ? 'Click "Upload Schedule" to import an Excel or PDF schedule file, or add schedules manually.'
+                              : 'Try clearing your filters or search options to see all schedules.',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.workSans(
+                            fontSize: 13,
+                            color: AppTheme.inkSoft,
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        if (schedules.isEmpty)
+                          Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
+                            alignment: WrapAlignment.center,
+                            children: [
+                              ElevatedButton.icon(
+                                icon: const Icon(Icons.upload_file_rounded, size: 18),
+                                label: const Text('Upload Schedule (Excel / PDF)'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.indigo,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 12,
+                                  ),
+                                ),
+                                onPressed: _importSchedulesFromExcel,
+                              ),
+                              OutlinedButton.icon(
+                                icon: const Icon(Icons.help_outline_rounded, size: 18),
+                                label: const Text('Format & Instructions'),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 12,
+                                  ),
+                                ),
+                                onPressed: _showScheduleExcelFormatDialog,
+                              ),
+                              ElevatedButton.icon(
+                                icon: const Icon(Icons.add_rounded, size: 18),
+                                label: const Text('+ Add Manually'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.red,
+                                  foregroundColor: AppTheme.cream,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 12,
+                                  ),
+                                ),
+                                onPressed: () {
+                                  _showAddEditScheduleDialog(
+                                    context,
+                                    programs: programs,
+                                    venues: venues,
+                                    schedules: schedules,
+                                  );
+                                },
+                              ),
+                            ],
+                          )
+                        else
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.clear_all, size: 18),
+                            label: const Text('Clear All Filters'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.red,
+                              foregroundColor: Colors.white,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _selectedScheduleStatusFilter = 'ALL';
+                                _selectedScheduleDateFilter = 'ALL';
+                                _selectedScheduleVenueFilter = 'ALL';
+                              });
+                            },
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              )
+            else
+              SliverPadding(
+                padding: EdgeInsets.fromLTRB(paddingH, 8, paddingH, 60),
+                sliver: SliverList.separated(
+                  itemCount: filteredSchedules.length,
+                  separatorBuilder: (context, index) => const SizedBox(height: 10),
+                  itemBuilder: (ctx, idx) {
+                    final sch = filteredSchedules[idx];
+                    final prog = progMap[sch.programId];
+                    final ven = venMap[sch.venueId];
+                    final venName =
+                        ven?.name ??
+                        (sch.venueId.isNotEmpty ? sch.venueId : 'TBA');
+                    final progName =
+                        prog?.programName ?? 'Program #${sch.programId}';
+                    final progCode = prog?.programCode ?? '';
+                    final section = prog?.section.label ?? 'General';
+
+                    Color statusColor = Colors.blue;
+                    if (sch.status == 'IN_PROGRESS') statusColor = Colors.orange;
+                    if (sch.status == 'COMPLETED') statusColor = Colors.green;
+                    if (sch.status == 'CANCELLED') statusColor = Colors.red;
+
+                    Widget buildStatusBadge() {
+                      return PopupMenuButton<String>(
                         tooltip: 'Change Status',
                         initialValue: sch.status,
                         onSelected: (newStatus) async {
@@ -8433,46 +9145,445 @@ class _ControllerPortalScreenState
                             ],
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      // Actions
-                      IconButton(
-                        icon: const Icon(
-                          Icons.edit_outlined,
-                          size: 18,
-                          color: Colors.blueGrey,
+                      );
+                    }
+
+                    if (isMobile) {
+                      // Responsive mobile card layout
+                      return Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppTheme.line),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.02),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
-                        tooltip: 'Edit Schedule',
-                        onPressed: () {
-                          _showAddEditScheduleDialog(
-                            context,
-                            scheduleToEdit: sch,
-                            programs: programs,
-                            venues: venues,
-                            schedules: schedules,
-                          );
-                        },
-                      ),
-                      IconButton(
-                        icon: const Icon(
-                          Icons.delete_outline,
-                          size: 18,
-                          color: AppTheme.red,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  width: 28,
+                                  height: 28,
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.cream2,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: AppTheme.line),
+                                  ),
+                                  child: Text(
+                                    '${idx + 1}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        progName,
+                                        style: GoogleFonts.workSans(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 14,
+                                          color: AppTheme.ink,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Wrap(
+                                        spacing: 6,
+                                        runSpacing: 4,
+                                        children: [
+                                          if (progCode.isNotEmpty)
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 6,
+                                                vertical: 2,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: AppTheme.cream,
+                                                borderRadius: BorderRadius.circular(4),
+                                                border: Border.all(color: AppTheme.line),
+                                              ),
+                                              child: Text(
+                                                progCode,
+                                                style: const TextStyle(
+                                                  fontSize: 10.5,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 6,
+                                              vertical: 2,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.blue.withValues(alpha: 0.1),
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              section,
+                                              style: TextStyle(
+                                                fontSize: 10.5,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.blue.shade800,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.edit_outlined,
+                                        size: 18,
+                                        color: Colors.blueGrey,
+                                      ),
+                                      tooltip: 'Edit Schedule',
+                                      visualDensity: VisualDensity.compact,
+                                      onPressed: () {
+                                        _showAddEditScheduleDialog(
+                                          context,
+                                          scheduleToEdit: sch,
+                                          programs: programs,
+                                          venues: venues,
+                                          schedules: schedules,
+                                        );
+                                      },
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.delete_outline,
+                                        size: 18,
+                                        color: AppTheme.red,
+                                      ),
+                                      tooltip: 'Delete Schedule',
+                                      visualDensity: VisualDensity.compact,
+                                      onPressed: () => _confirmDeleteSchedule(sch, prog),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            const Divider(height: 18, color: AppTheme.line),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.calendar_month,
+                                            size: 13,
+                                            color: AppTheme.red,
+                                          ),
+                                          const SizedBox(width: 5),
+                                          Flexible(
+                                            child: Text(
+                                              formatAppDate(
+                                                sch.date,
+                                                fullMonth: true,
+                                                includeWeekday: true,
+                                              ),
+                                              style: GoogleFonts.workSans(
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 12,
+                                                color: AppTheme.ink,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 3),
+                                      Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.access_time,
+                                            size: 13,
+                                            color: Colors.blueGrey,
+                                          ),
+                                          const SizedBox(width: 5),
+                                          Text(
+                                            '${formatAppTime(sch.startTime)} - ${formatAppTime(sch.endTime)}',
+                                            style: GoogleFonts.workSans(
+                                              fontSize: 11.5,
+                                              fontWeight: FontWeight.w500,
+                                              color: AppTheme.inkSoft,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 3),
+                                      Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.place,
+                                            size: 14,
+                                            color: AppTheme.red,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Flexible(
+                                            child: Text(
+                                              venName,
+                                              style: GoogleFonts.workSans(
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 12,
+                                                color: AppTheme.ink,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                buildStatusBadge(),
+                              ],
+                            ),
+                          ],
                         ),
-                        tooltip: 'Delete Schedule',
-                        onPressed: () => _confirmDeleteSchedule(sch, prog),
+                      );
+                    }
+
+                    // Desktop / Tablet row layout
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
                       ),
-                    ],
-                  ),
-                );
-              },
-                        ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppTheme.line),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.02),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-          ),
-        ],
-      ),
+                      child: Row(
+                        children: [
+                          // Order Number
+                          Container(
+                            width: 32,
+                            height: 32,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: AppTheme.cream2,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: AppTheme.line),
+                            ),
+                            child: Text(
+                              '${idx + 1}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          // Program Details
+                          Expanded(
+                            flex: 3,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  progName,
+                                  style: GoogleFonts.workSans(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14,
+                                    color: AppTheme.ink,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    if (progCode.isNotEmpty) ...[
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.cream,
+                                          borderRadius: BorderRadius.circular(4),
+                                          border: Border.all(color: AppTheme.line),
+                                        ),
+                                        child: Text(
+                                          progCode,
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                    ],
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.blue.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        section,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.blue.shade800,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Date & Time
+                          Expanded(
+                            flex: 2,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.calendar_month,
+                                      size: 14,
+                                      color: AppTheme.red,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Flexible(
+                                      child: Text(
+                                        formatAppDate(
+                                          sch.date,
+                                          fullMonth: true,
+                                          includeWeekday: true,
+                                        ),
+                                        style: GoogleFonts.workSans(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 12.5,
+                                          color: AppTheme.ink,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.access_time,
+                                      size: 14,
+                                      color: Colors.blueGrey,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      '${formatAppTime(sch.startTime)} - ${formatAppTime(sch.endTime)}',
+                                      style: GoogleFonts.workSans(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                        color: AppTheme.inkSoft,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Venue
+                          Expanded(
+                            flex: 2,
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.place,
+                                  size: 16,
+                                  color: AppTheme.red,
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    venName,
+                                    style: GoogleFonts.workSans(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                      color: AppTheme.ink,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Status Dropdown / Badge
+                          buildStatusBadge(),
+                          const SizedBox(width: 12),
+                          // Actions
+                          IconButton(
+                            icon: const Icon(
+                              Icons.edit_outlined,
+                              size: 18,
+                              color: Colors.blueGrey,
+                            ),
+                            tooltip: 'Edit Schedule',
+                            onPressed: () {
+                              _showAddEditScheduleDialog(
+                                context,
+                                scheduleToEdit: sch,
+                                programs: programs,
+                                venues: venues,
+                                schedules: schedules,
+                              );
+                            },
+                          ),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.delete_outline,
+                              size: 18,
+                              color: AppTheme.red,
+                            ),
+                            tooltip: 'Delete Schedule',
+                            onPressed: () => _confirmDeleteSchedule(sch, prog),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 

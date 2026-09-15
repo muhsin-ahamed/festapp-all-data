@@ -128,25 +128,29 @@ class AuthService {
         await _saveUser(user, token);
         return user;
       }
-    } on ApiException catch (e) {
-      throw Exception(e.message);
     } catch (e) {
-      // Fallback for offline local dev mode if backend server connection is unavailable
-      await seedDefaultUsers();
-      var user = await userRepository.getByUsername(cleanUsername);
-      if (user == null) {
-        try {
+      // Fallback for direct database mode if backend server connection is unavailable or user was created in portal
+      try {
+        var user = await userRepository.getByUsername(cleanUsername);
+        if (user == null) {
           final allUsers = await userRepository.getUsers();
-          user = allUsers.firstWhere(
-            (u) =>
-                u.username.trim().toLowerCase() == cleanUsername.toLowerCase(),
-          );
-        } catch (_) {}
-      }
-      if (user != null && _verifyPassword(cleanPassword, user)) {
-        _currentUser = user;
-        await _saveUser(user);
-        return user;
+          user = allUsers
+              .where(
+                (u) =>
+                    u.username.trim().toLowerCase() ==
+                    cleanUsername.toLowerCase(),
+              )
+              .firstOrNull;
+        }
+        if (user != null && _verifyPassword(cleanPassword, user)) {
+          _currentUser = user;
+          await _saveUser(user);
+          return user;
+        }
+      } catch (_) {}
+
+      if (e is ApiException) {
+        throw Exception(e.message);
       }
       throw Exception(e.toString().replaceAll('Exception: ', ''));
     }

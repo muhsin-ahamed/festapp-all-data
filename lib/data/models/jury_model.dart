@@ -37,16 +37,19 @@ class Jury {
     );
   }
 
-  Map<String, dynamic> toMap() {
-    return {
+  Map<String, dynamic> toMap({bool includeStatus = false}) {
+    final map = <String, dynamic>{
       'id': id,
       'name': name,
       'username': username,
       'password': password,
       'juryCode': juryCode,
       'assignedPrograms': assignedPrograms,
-      'status': status,
     };
+    if (includeStatus) {
+      map['status'] = status;
+    }
+    return map;
   }
 
   factory Jury.fromMap(Map<String, dynamic> map) {
@@ -55,8 +58,10 @@ class Jury {
       name: map['name'] ?? '',
       username: map['username'] ?? '',
       password: map['password'] ?? '',
-      juryCode: map['juryCode'] ?? '',
-      assignedPrograms: List<String>.from(map['assignedPrograms'] ?? []),
+      juryCode: map['juryCode'] ?? map['jury_code'] ?? '',
+      assignedPrograms: List<String>.from(
+        map['assignedPrograms'] ?? map['assigned_programs'] ?? [],
+      ),
       status: map['status'] ?? 'ACTIVE',
     );
   }
