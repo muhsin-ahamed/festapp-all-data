@@ -46,7 +46,8 @@ export class ResultService {
     remarks?: string,
     juryId?: string,
     performedBy?: string,
-    isDraft: boolean = false
+    isDraft: boolean = false,
+    desiredStatus?: ResultStatus
   ): Promise<ResultEntity> {
     const student = await this.studentRepo.findById(studentId);
     if (!student) {
@@ -55,13 +56,13 @@ export class ResultService {
 
     if (position && position > 0) {
       const allProgResults = await this.resultRepo.findAll({ programId });
-      const duplicatePos = allProgResults.find(
+      const duplicatePos = allProgResults.filter(
         (r) => r.position === position && r.studentId !== studentId
       );
-      if (duplicatePos) {
+      if (duplicatePos.length >= 2) {
         throw {
           statusCode: 400,
-          message: `Position ${position} is already assigned to another student in this program`,
+          message: `Position ${position} can have at most 2 recipients (including ties)`,
           code: 'DUPLICATE_POSITION',
         };
       }
@@ -70,7 +71,8 @@ export class ResultService {
     const calculatedPoints = this.scoringService.calculateResultPoints(position, grade);
     const existing = await this.resultRepo.findByProgramAndStudent(programId, studentId);
 
-    const status: ResultStatus = isDraft ? 'DRAFT' : 'SUBMITTED';
+    const status: ResultStatus = desiredStatus || (isDraft ? 'DRAFT' : 'SUBMITTED');
+    const publishedAt = status === 'PUBLISHED' ? new Date().toISOString() : undefined;
 
     if (existing) {
       const updated = await this.resultRepo.update(existing.id, {
@@ -81,8 +83,12 @@ export class ResultService {
         remarks,
         juryId: juryId || existing.juryId,
         status,
+        publishedAt: status === 'PUBLISHED' ? (existing.publishedAt || publishedAt) : (status === 'DRAFT' ? undefined : existing.publishedAt),
         updatedAt: new Date().toISOString(),
       });
+      if (status === 'PUBLISHED') {
+        await this.scoringService.recalculateTeamScoresAndRanks();
+      }
       await this.auditService.logAction('SUBMIT_RESULT', performedBy, `Updated result ${updated.id} to status ${status}`);
       return updated;
     } else {
@@ -99,13 +105,43 @@ export class ResultService {
         points: calculatedPoints,
         remarks,
         status,
+        publishedAt,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
       const created = await this.resultRepo.create(newResult);
+      if (status === 'PUBLISHED') {
+        await this.scoringService.recalculateTeamScoresAndRanks();
+      }
       await this.auditService.logAction('SUBMIT_RESULT', performedBy, `Created result ${created.id} with status ${status}`);
       return created;
     }
+  }
+
+  async saveControllerResult(data: {
+    id?: string;
+    programId: string;
+    studentId: string;
+    marks: number;
+    grade?: string;
+    position?: number;
+    remarks?: string;
+    status?: ResultStatus;
+    isDraft?: boolean;
+  }, performedBy?: string): Promise<ResultEntity> {
+    const desiredStatus = data.status || (data.isDraft ? 'DRAFT' : 'PUBLISHED');
+    return await this.submitJuryResult(
+      data.programId,
+      data.studentId,
+      data.marks,
+      data.grade,
+      data.position,
+      data.remarks,
+      undefined,
+      performedBy,
+      data.isDraft ?? (desiredStatus === 'DRAFT'),
+      desiredStatus
+    );
   }
 
   async verifyResult(id: string, performedBy?: string): Promise<ResultEntity> {
@@ -138,6 +174,25 @@ export class ResultService {
     // Re-calculate team points automatically
     await this.scoringService.recalculateTeamScoresAndRanks();
     await this.auditService.logAction('PUBLISH_RESULT', performedBy, `Result ${id} PUBLISHED`);
+
+    return updated;
+  }
+
+  async unpublishOrDraftResult(id: string, performedBy?: string): Promise<ResultEntity> {
+    const existing = await this.resultRepo.findById(id);
+    if (!existing) {
+      throw { statusCode: 404, message: 'Result not found', code: 'RESULT_NOT_FOUND' };
+    }
+
+    const updated = await this.resultRepo.update(id, {
+      status: 'DRAFT',
+      publishedAt: undefined,
+      updatedAt: new Date().toISOString(),
+    });
+
+    // Re-calculate team points automatically
+    await this.scoringService.recalculateTeamScoresAndRanks();
+    await this.auditService.logAction('DRAFT_RESULT', performedBy, `Result ${id} reverted to DRAFT`);
 
     return updated;
   }

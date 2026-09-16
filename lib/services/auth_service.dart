@@ -200,9 +200,9 @@ class AuthService {
     return false;
   }
 
-  void logout() {
+  Future<void> logout() async {
     _currentUser = null;
-    _saveUser(null);
+    await _saveUser(null);
     _authApi.logout();
   }
 

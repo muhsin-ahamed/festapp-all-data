@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/providers/app_providers.dart';
@@ -9,15 +11,56 @@ import '../../data/models/team_model.dart';
 import '../../data/models/result_model.dart';
 import '../../data/models/program_model.dart';
 import '../../data/models/student_model.dart';
+import '../../services/tv_service.dart';
 
-class TvPortalScreen extends ConsumerWidget {
+class TvPortalScreen extends ConsumerStatefulWidget {
   const TvPortalScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TvPortalScreen> createState() => _TvPortalScreenState();
+}
+
+class _TvPortalScreenState extends ConsumerState<TvPortalScreen> {
+  bool _showExitOverlay = false;
+  final FocusNode _focusNode = FocusNode();
+  DateTime? _lastEscTime;
+
+  @override
+  void initState() {
+    super.initState();
+    HardwareKeyboard.instance.addHandler(_handleKeyEvent);
+  }
+
+  @override
+  void dispose() {
+    HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  bool _handleKeyEvent(KeyEvent event) {
+    if (event is KeyDownEvent &&
+        event.logicalKey == LogicalKeyboardKey.escape) {
+      final now = DateTime.now();
+      if (_lastEscTime != null &&
+          now.difference(_lastEscTime!).inMilliseconds < 150) {
+        return true;
+      }
+      _lastEscTime = now;
+      setState(() {
+        _showExitOverlay = !_showExitOverlay;
+      });
+      return true;
+    }
+    return false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final tvService = ref.watch(tvServiceProvider);
     final teamsAsync = ref.watch(teamsProvider);
     final publishedResultsAsync = ref.watch(publishedResultsProvider);
+    final resultsAsync = ref.watch(resultsProvider);
     final announcementsAsync = ref.watch(announcementsProvider);
 
     final programsAsync = ref.watch(programsProvider);
@@ -35,8 +78,18 @@ class TvPortalScreen extends ConsumerWidget {
     Widget currentWidget;
     bool isPosterShowing = false;
 
-    if (mode == 'POSTER') {
+    if (mode == 'ONLY_MAIN' || mode == 'POSTER') {
       currentWidget = _buildTvPosterScreen(context);
+      isPosterShowing = true;
+    } else if (mode == 'ANNOUNCE_RESULT') {
+      currentWidget = _buildTvAnnouncementPosterScreen(
+        context,
+        tvService,
+        programsAsync,
+        resultsAsync,
+        studentsAsync,
+        teamsAsync,
+      );
       isPosterShowing = true;
     } else if (mode == 'SCOREBOARD') {
       currentWidget = _buildTvScoreboardScreen(context, teamsAsync, isCompact);
@@ -49,8 +102,23 @@ class TvPortalScreen extends ConsumerWidget {
         studentsAsync,
         isCompact,
       );
+    } else if (mode == 'AUTO_WITHOUT_SCOREBOARD') {
+      // 2 slides: 0 -> Main Poster, 1 -> Results
+      if (tvService.currentSlideIndex % 2 == 0) {
+        currentWidget = _buildTvPosterScreen(context);
+        isPosterShowing = true;
+      } else {
+        currentWidget = _buildTvResultsScreen(
+          context,
+          publishedResultsAsync,
+          programsAsync,
+          teamsAsync,
+          studentsAsync,
+          isCompact,
+        );
+      }
     } else {
-      // AUTO mode
+      // AUTO_WITH_SCOREBOARD or default AUTO (3 slides: 0: Main, 1: Scoreboard, 2: Results)
       switch (tvService.currentSlideIndex % 3) {
         case 0:
           currentWidget = _buildTvPosterScreen(context);
@@ -73,8 +141,12 @@ class TvPortalScreen extends ConsumerWidget {
       }
     }
 
-    return Scaffold(
-      backgroundColor: isPosterShowing ? Colors.white : AppTheme.wood,
+    return KeyboardListener(
+      focusNode: _focusNode,
+      autofocus: true,
+      onKeyEvent: _handleKeyEvent,
+      child: Scaffold(
+        backgroundColor: isPosterShowing ? Colors.white : AppTheme.wood,
       body: Stack(
         children: [
           // Background content switcher
@@ -229,10 +301,170 @@ class TvPortalScreen extends ConsumerWidget {
               ),
             ),
           ],
+
+          // Subtle ESC Hint at bottom right
+          Positioned(
+            bottom: 12,
+            right: 16,
+            child: IgnorePointer(
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 300),
+                opacity: _showExitOverlay ? 0.0 : 0.45,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.35),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      width: 0.5,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.keyboard_outlined,
+                        size: 14,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        'Press ESC to exit',
+                        style: GoogleFonts.workSans(
+                          fontSize: 10.5,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // Exit / Logout Overlay banner triggered by ESC key
+          if (_showExitOverlay)
+            Positioned(
+              top: 24,
+              left: 16,
+              right: 16,
+              child: Center(
+                child: Material(
+                  elevation: 16,
+                  borderRadius: BorderRadius.circular(16),
+                  color: AppTheme.cream,
+                  shadowColor: Colors.black.withValues(alpha: 0.6),
+                  child: Container(
+                    constraints: const BoxConstraints(maxWidth: 580),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isCompact ? 14 : 20,
+                      vertical: isCompact ? 12 : 14,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppTheme.red, width: 2),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppTheme.red.withValues(alpha: 0.12),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.tv_off_rounded,
+                            color: AppTheme.red,
+                            size: 22,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'TV Display Controls',
+                                style: GoogleFonts.rye(
+                                  fontSize: isCompact ? 14 : 16,
+                                  color: AppTheme.ink,
+                                ),
+                              ),
+                              Text(
+                                'Press ESC to dismiss',
+                                style: GoogleFonts.workSans(
+                                  fontSize: isCompact ? 10 : 11.5,
+                                  color: AppTheme.inkSoft,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.red,
+                            foregroundColor: AppTheme.cream,
+                            elevation: 4,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: isCompact ? 12 : 18,
+                              vertical: isCompact ? 10 : 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          icon: const Icon(Icons.logout_rounded, size: 18),
+                          label: Text(
+                            'Logout to Public Screen',
+                            style: GoogleFonts.workSans(
+                              fontWeight: FontWeight.w800,
+                              fontSize: isCompact ? 12 : 13,
+                            ),
+                          ),
+                          onPressed: () async {
+                            final auth = ref.read(authServiceProvider);
+                            await auth.logout();
+                            ref.read(currentUserProvider.notifier).state = null;
+                            if (context.mounted) {
+                              context.go('/public');
+                            }
+                          },
+                        ),
+                        const SizedBox(width: 6),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.close,
+                            color: AppTheme.inkSoft,
+                            size: 20,
+                          ),
+                          tooltip: 'Dismiss (Esc)',
+                          onPressed: () {
+                            setState(() {
+                              _showExitOverlay = false;
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   // --- SCREEN 0: TV FEST POSTER ---
   Widget _buildTvPosterScreen(BuildContext context) {
@@ -261,7 +493,274 @@ class TvPortalScreen extends ConsumerWidget {
     );
   }
 
-  // --- SCREEN 1: TV SCOREBOARD ---
+  // --- SCREEN: ANNOUNCE RESULT POSTER ---
+  Widget _buildTvAnnouncementPosterScreen(
+    BuildContext context,
+    TvService tvService,
+    AsyncValue<List<Program>> programsAsync,
+    AsyncValue<List<Result>> resultsAsync,
+    AsyncValue<List<Student>> studentsAsync,
+    AsyncValue<List<Team>> teamsAsync,
+  ) {
+    final progId = tvService.settings.announcedProgramId;
+    final progs = programsAsync.value ?? [];
+    final results = resultsAsync.value ?? [];
+    final students = studentsAsync.value ?? [];
+    final teams = teamsAsync.value ?? [];
+
+    final prog = progs.where((p) => p.id == progId).firstOrNull;
+    final progName = prog?.programName ?? 'CHAMPIONSHIP RESULT';
+    final sectionLabel = prog?.section.label ?? 'GENERAL';
+
+    final progResults = results.where((r) => r.programId == progId).toList();
+    final res1 = progResults.where((r) => r.position == 1).firstOrNull;
+    final res2 = progResults.where((r) => r.position == 2).firstOrNull;
+    final res3 = progResults.where((r) => r.position == 3).firstOrNull;
+
+    final studMap = {for (var s in students) s.id: s};
+    final teamMap = {for (var t in teams) t.id: t};
+
+    final s1 = res1 != null ? studMap[res1.studentId] : null;
+    final t1 = res1 != null ? teamMap[res1.teamId] : null;
+    final s2 = res2 != null ? studMap[res2.studentId] : null;
+    final t2 = res2 != null ? teamMap[res2.teamId] : null;
+    final s3 = res3 != null ? studMap[res3.studentId] : null;
+    final t3 = res3 != null ? teamMap[res3.teamId] : null;
+
+    final revealed = tvService.settings.revealedPositions;
+    final isPos1Revealed = revealed.contains(1);
+    final isPos2Revealed = revealed.contains(2);
+    final isPos3Revealed = revealed.contains(3);
+
+    final resNum = tvService.settings.announcedResultNumber ?? 1;
+    final resNumStr = resNum < 10 ? '0$resNum' : '$resNum';
+
+    return Container(
+      key: const ValueKey('tv_announcement_poster'),
+      color: const Color(0xFFF8F6E7),
+      width: double.infinity,
+      height: double.infinity,
+      child: Center(
+        child: AspectRatio(
+          aspectRatio: 16 / 9,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final w = constraints.maxWidth;
+              final scale = w / 1024.0;
+
+              return Stack(
+                children: [
+                  // Base template image
+                  Positioned.fill(
+                    child: Image.asset(
+                      'assets/images/announce_result_template.jpg',
+                      fit: BoxFit.fill,
+                      errorBuilder: (context, error, stackTrace) => const Center(
+                        child: Text(
+                          'Announcement Template Missing',
+                          style: TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // 1. Result Number patch & text (covers '00')
+                  Positioned(
+                    left: 174 * scale,
+                    top: 159 * scale,
+                    width: 125 * scale,
+                    height: 76 * scale,
+                    child: Container(
+                      color: const Color(0xFFF8F6E7),
+                      alignment: Alignment.center,
+                      child: Text(
+                        resNumStr,
+                        style: TextStyle(
+                          fontSize: 62 * scale,
+                          fontWeight: FontWeight.w900,
+                          color: const Color(0xFF141414),
+                          height: 1.0,
+                          letterSpacing: -1.0,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // 2. Program Name patch & text (covers 'PROGRAMME')
+                  Positioned(
+                    left: 145 * scale,
+                    top: 263 * scale,
+                    width: 535 * scale,
+                    height: 32 * scale,
+                    child: Container(
+                      color: const Color(0xFFF8F6E7),
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        progName.toUpperCase(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.rye(
+                          fontSize: 21 * scale,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF1B1B1B),
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // 3. Section patch & pill (covers 'SECTION')
+                  Positioned(
+                    left: 145 * scale,
+                    top: 298 * scale,
+                    height: 22 * scale,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 14 * scale,
+                        vertical: 2 * scale,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF748427),
+                        borderRadius: BorderRadius.circular(12 * scale),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        sectionLabel.toUpperCase(),
+                        style: GoogleFonts.workSans(
+                          fontSize: 11 * scale,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // 4. Winner 1 (across badge 1)
+                  Positioned(
+                    left: 184 * scale,
+                    top: 340 * scale,
+                    width: 505 * scale,
+                    height: 38 * scale,
+                    child: _buildWinnerRow(
+                      scale: scale,
+                      isRevealed: isPos1Revealed,
+                      studentName: s1?.name ?? (res1 != null ? 'Winner' : ''),
+                      chaseNo: s1?.chaseNumber ?? '',
+                      teamName: t1?.teamName ?? '',
+                      accentColor: const Color(0xFF5A8E33),
+                    ),
+                  ),
+
+                  // 5. Winner 2 (across badge 2)
+                  Positioned(
+                    left: 184 * scale,
+                    top: 384 * scale,
+                    width: 505 * scale,
+                    height: 38 * scale,
+                    child: _buildWinnerRow(
+                      scale: scale,
+                      isRevealed: isPos2Revealed,
+                      studentName: s2?.name ?? (res2 != null ? 'Winner' : ''),
+                      chaseNo: s2?.chaseNumber ?? '',
+                      teamName: t2?.teamName ?? '',
+                      accentColor: const Color(0xFF8B2B38),
+                    ),
+                  ),
+
+                  // 6. Winner 3 (across badge 3)
+                  Positioned(
+                    left: 184 * scale,
+                    top: 430 * scale,
+                    width: 505 * scale,
+                    height: 38 * scale,
+                    child: _buildWinnerRow(
+                      scale: scale,
+                      isRevealed: isPos3Revealed,
+                      studentName: s3?.name ?? (res3 != null ? 'Winner' : ''),
+                      chaseNo: s3?.chaseNumber ?? '',
+                      teamName: t3?.teamName ?? '',
+                      accentColor: const Color(0xFFDE1F33),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWinnerRow({
+    required double scale,
+    required bool isRevealed,
+    required String studentName,
+    required String chaseNo,
+    required String teamName,
+    required Color accentColor,
+  }) {
+    if (!isRevealed || studentName.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return AnimatedOpacity(
+      opacity: isRevealed ? 1.0 : 0.0,
+      duration: const Duration(milliseconds: 500),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Flexible(
+            child: Text(
+              studentName,
+              style: GoogleFonts.workSans(
+                fontSize: 17 * scale,
+                fontWeight: FontWeight.w900,
+                color: const Color(0xFF1A1A1A),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (chaseNo.isNotEmpty) ...[
+            SizedBox(width: 8 * scale),
+            Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: 6 * scale,
+                vertical: 2 * scale,
+              ),
+              decoration: BoxDecoration(
+                color: accentColor.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(4 * scale),
+                border: Border.all(color: accentColor, width: 1.0),
+              ),
+              child: Text(
+                '#$chaseNo',
+                style: GoogleFonts.workSans(
+                  fontSize: 11 * scale,
+                  fontWeight: FontWeight.w900,
+                  color: accentColor,
+                ),
+              ),
+            ),
+          ],
+          if (teamName.isNotEmpty) ...[
+            SizedBox(width: 8 * scale),
+            Text(
+              '• $teamName',
+              style: GoogleFonts.workSans(
+                fontSize: 13 * scale,
+                fontWeight: FontWeight.w800,
+                color: accentColor,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
   Widget _buildTvScoreboardScreen(
     BuildContext context,
     AsyncValue<List<Team>> teamsAsync,

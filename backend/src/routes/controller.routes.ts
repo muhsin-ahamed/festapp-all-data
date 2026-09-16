@@ -42,8 +42,10 @@ router.get('/registrations/template', Controller.downloadRegistrationTemplate);
 
 // Results Workflow
 router.get('/results', Controller.getResults);
+router.post('/results', Controller.saveResult);
 router.post('/results/verify/:id', Controller.verifyResult);
 router.post('/results/publish/:id', Controller.publishResult);
+router.post('/results/draft/:id', Controller.draftResult);
 router.delete('/results/:id', Controller.deleteResult);
 
 // Jury Management

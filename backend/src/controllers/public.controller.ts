@@ -96,17 +96,23 @@ export async function getPublicRegistrations(req: Request, res: Response, next: 
 
 export async function getPublicStudentByChase(req: Request, res: Response, next: NextFunction) {
   try {
-    const chaseNumber = req.params.chaseNumber?.trim();
-    let student = await studentService.getStudentByChaseNumber(chaseNumber);
+    const rawChase = req.params.chaseNumber?.trim() || '';
+    if (!rawChase) return sendError(res, 'Chase number is required', 400, 'BAD_REQUEST');
+
+    let student = await studentService.getStudentByChaseNumber(rawChase);
     if (!student) {
-      student = await studentService.getStudentById(chaseNumber);
+      student = await studentService.getStudentById(rawChase);
     }
     if (!student) {
-      // Try searching by query matching
-      const allMatches = await studentService.getStudents({ query: chaseNumber });
-      student = allMatches.find(
-        (s) => s.chaseNumber.toLowerCase() === chaseNumber.toLowerCase() || s.id.toLowerCase() === chaseNumber.toLowerCase()
-      ) || null;
+      // Try searching across all students with query matching
+      const allMatches = await studentService.getStudents({ query: rawChase });
+      const qClean = rawChase.toLowerCase().replace(/[^a-z0-9]/g, '');
+      student = allMatches.find((s) => {
+        const sChase = (s.chaseNumber || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const sId = (s.id || '').toLowerCase();
+        const sName = (s.name || '').toLowerCase();
+        return sChase === qClean || sChase.endsWith(qClean) || sChase.includes(qClean) || sId === rawChase.toLowerCase() || sName.includes(rawChase.toLowerCase());
+      }) || (allMatches.length > 0 ? allMatches[0] : null);
     }
     if (!student) return sendError(res, 'Student not found', 404, 'NOT_FOUND');
     return sendSuccess(res, student, 'Student details');

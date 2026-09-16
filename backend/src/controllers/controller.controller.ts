@@ -245,10 +245,28 @@ export async function verifyResult(req: Request, res: Response, next: NextFuncti
   }
 }
 
+export async function saveResult(req: Request, res: Response, next: NextFunction) {
+  try {
+    const saved = await resultService.saveControllerResult(req.body, req.user?.username);
+    return sendSuccess(res, saved, 'Result saved successfully');
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function publishResult(req: Request, res: Response, next: NextFunction) {
   try {
     const published = await resultService.publishResult(req.params.id, req.user?.username);
     return sendSuccess(res, published, 'Result published and team scores updated');
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function draftResult(req: Request, res: Response, next: NextFunction) {
+  try {
+    const drafted = await resultService.unpublishOrDraftResult(req.params.id, req.user?.username);
+    return sendSuccess(res, drafted, 'Result moved to draft and team scores updated');
   } catch (error) {
     next(error);
   }

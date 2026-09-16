@@ -103,4 +103,22 @@ class ResultApi {
       return null;
     }
   }
+
+  Future<Result?> draftResult(String resultId) async {
+    try {
+      final res = await client.post('/controller/results/draft/$resultId');
+      return res != null ? Result.fromMap(res as Map<String, dynamic>) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<bool> deleteResult(String resultId) async {
+    try {
+      await client.delete('/controller/results/$resultId');
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
 }

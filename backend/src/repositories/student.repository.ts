@@ -30,9 +30,37 @@ export class StudentRepository {
   }
 
   async findByChaseNumber(chaseNumber: string): Promise<StudentEntity | null> {
-    const { data, error } = await supabase.from(this.table).select('*').eq('chaseNumber', chaseNumber).maybeSingle();
+    const clean = chaseNumber.trim();
+    if (!clean) return null;
+
+    // 1. Direct case-insensitive match on chaseNumber or id
+    const { data, error } = await supabase
+      .from(this.table)
+      .select('*')
+      .or(`chaseNumber.ilike.${clean},id.ilike.${clean}`)
+      .limit(1)
+      .maybeSingle();
     if (error) throw error;
-    return data;
+    if (data) return data;
+
+    // 2. Normalized match (strip hyphens, spaces)
+    const cleanAlpha = clean.replace(/[^a-zA-Z0-9]/g, '');
+    if (cleanAlpha.length >= 2) {
+      const { data: list } = await supabase
+        .from(this.table)
+        .select('*')
+        .or(`chaseNumber.ilike.%${cleanAlpha}%,name.ilike.%${clean}%`)
+        .limit(10);
+      if (list && list.length > 0) {
+        const qClean = cleanAlpha.toLowerCase();
+        const match = list.find((s: StudentEntity) => {
+          const sClean = (s.chaseNumber || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+          return sClean === qClean || sClean.endsWith(qClean) || sClean.includes(qClean);
+        });
+        if (match) return match;
+      }
+    }
+    return null;
   }
 
   async findByTeam(teamId: string): Promise<StudentEntity[]> {

@@ -64,12 +64,44 @@ class SupabaseStudentRepository implements StudentRepository {
 
   @override
   Future<Student?> getByChaseNumber(String chaseNumber) async {
-    final res = await _client
-        .from(_table)
-        .select()
-        .or('chaseNumber.eq.$chaseNumber,chase_number.eq.$chaseNumber')
-        .maybeSingle();
-    return res != null ? Student.fromMap(res) : null;
+    final clean = chaseNumber.trim();
+    if (clean.isEmpty) return null;
+    try {
+      final res = await _client
+          .from(_table)
+          .select()
+          .or('chaseNumber.ilike.$clean,chase_number.ilike.$clean,id.ilike.$clean')
+          .limit(1)
+          .maybeSingle();
+      if (res != null) return Student.fromMap(res);
+    } catch (_) {}
+
+    try {
+      final cleanAlpha = clean.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
+      if (cleanAlpha.isNotEmpty) {
+        final resList = await _client
+            .from(_table)
+            .select()
+            .or('chaseNumber.ilike.%$cleanAlpha%,name.ilike.%$clean%')
+            .limit(10);
+        if (resList is List && resList.isNotEmpty) {
+          final qClean = cleanAlpha.toLowerCase();
+          for (final item in resList) {
+            final s = Student.fromMap(item as Map<String, dynamic>);
+            final sChase = s.chaseNumber
+                .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')
+                .toLowerCase();
+            if (sChase == qClean ||
+                sChase.endsWith(qClean) ||
+                sChase.contains(qClean)) {
+              return s;
+            }
+          }
+          return Student.fromMap(resList.first as Map<String, dynamic>);
+        }
+      }
+    } catch (_) {}
+    return null;
   }
 
   @override
@@ -383,7 +415,7 @@ class SupabaseResultRepository implements ResultRepository {
     final res = await _client
         .from(_table)
         .select()
-        .eq('status', ResultStatus.published.name);
+        .or('status.eq.PUBLISHED,status.eq.published,status.eq.ANNOUNCED,status.eq.announced');
     return (res as List)
         .map((e) => Result.fromMap(e as Map<String, dynamic>))
         .toList();
@@ -709,21 +741,34 @@ class SupabaseAnnouncementRepository implements AnnouncementRepository {
 
 class SupabaseTvSettingsRepository implements TvSettingsRepository {
   final String _table = 'tv_settings';
+  static TvSettings _cachedSettings = TvSettings(screenMode: 'ONLY_MAIN');
 
   @override
   Future<TvSettings> getSettings() async {
-    final res = await _client.from(_table).select().maybeSingle();
-    if (res != null) {
-      return TvSettings.fromMap(res);
-    }
-    final defaultSettings = TvSettings();
-    await updateSettings(defaultSettings);
-    return defaultSettings;
+    try {
+      final res = await _client.from(_table).select().maybeSingle();
+      if (res != null) {
+        _cachedSettings = TvSettings.fromMap(res);
+        return _cachedSettings;
+      }
+    } catch (_) {}
+    return _cachedSettings;
   }
 
   @override
   Future<void> updateSettings(TvSettings settings) async {
-    await _safeUpsert(_table, settings.toMap());
+    _cachedSettings = settings;
+    try {
+      await _safeUpsert(_table, settings.toMap());
+    } catch (_) {
+      try {
+        // Fallback with minimal standard columns if custom columns do not exist
+        await _safeUpsert(_table, {
+          'id': 'default_tv_settings',
+          'activeAnnouncementId': settings.customMessage,
+        });
+      } catch (_) {}
+    }
   }
 }
 

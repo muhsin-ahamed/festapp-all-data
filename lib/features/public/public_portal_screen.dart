@@ -80,7 +80,16 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
       IconButton(
         icon: const Icon(Icons.login, color: AppTheme.red),
         tooltip: 'Portal Login',
-        onPressed: () => context.go('/login'),
+        onPressed: () async {
+          final auth = ref.read(authServiceProvider);
+          if (auth.currentUser != null) {
+            await auth.logout();
+            ref.read(currentUserProvider.notifier).state = null;
+          }
+          if (context.mounted) {
+            context.go('/login?force=true');
+          }
+        },
       ),
       const SizedBox(width: 8),
     ];
@@ -185,6 +194,9 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
               Expanded(
                 child: TextField(
                   controller: _searchController,
+                  onChanged: (val) {
+                    setState(() {});
+                  },
                   decoration: InputDecoration(
                     hintText: 'Enter Chase No (e.g. J-101, S-204)...',
                     hintStyle: GoogleFonts.workSans(
@@ -201,13 +213,32 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
                       borderRadius: BorderRadius.circular(12),
                       borderSide: const BorderSide(color: AppTheme.line),
                     ),
-                    suffixIcon: IconButton(
-                      icon: const Icon(
-                        Icons.qr_code_scanner_rounded,
-                        color: AppTheme.red,
-                      ),
-                      tooltip: 'Scan QR Code',
-                      onPressed: () => _navigateToScanPage(),
+                    suffixIcon: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_searchController.text.isNotEmpty)
+                          IconButton(
+                            icon: const Icon(
+                              Icons.clear,
+                              size: 18,
+                              color: AppTheme.inkSoft,
+                            ),
+                            tooltip: 'Clear search',
+                            onPressed: () {
+                              setState(() {
+                                _searchController.clear();
+                              });
+                            },
+                          ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.qr_code_scanner_rounded,
+                            color: AppTheme.red,
+                          ),
+                          tooltip: 'Scan QR Code',
+                          onPressed: () => _navigateToScanPage(),
+                        ),
+                      ],
                     ),
                   ),
                   onSubmitted: (val) => _navigateToScanPage(val),
@@ -567,8 +598,9 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
     AsyncValue<List<Result>> resultsAsync,
     AsyncValue<List<Program>> programsAsync,
     AsyncValue<List<Team>> teamsAsync,
-    AsyncValue<List<Student>> studentsAsync,
-  ) {
+    AsyncValue<List<Student>> studentsAsync, {
+    String? searchQuery,
+  }) {
     return resultsAsync.when(
       data: (results) {
         final published = results
@@ -585,11 +617,43 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
 
         final Map<String, Program> progMap = {for (var p in progs) p.id: p};
         final Map<String, Team> teamMap = {for (var t in teams) t.id: t};
-        final Map<String, Student> studMap = {for (var s in students) s.id: s};
+        final Map<String, Student> studMap = {
+          for (var s in students) s.id: s,
+          for (var s in students) s.chaseNumber.trim().toLowerCase(): s,
+        };
+
+        // Filter published results by searchQuery if provided
+        final cleanQ = searchQuery?.trim().toLowerCase() ?? '';
+        final cleanQAlpha = cleanQ.replaceAll(RegExp(r'[^a-z0-9]'), '');
+        final filteredPublished = cleanQ.isEmpty
+            ? published
+            : published.where((r) {
+                final stud = studMap[r.studentId] ??
+                    studMap[r.studentId.trim().toLowerCase()];
+                final prog = progMap[r.programId];
+                final tm = teamMap[r.teamId];
+
+                final studName = stud?.name.toLowerCase() ?? '';
+                final chase = stud?.chaseNumber.toLowerCase() ?? '';
+                final chaseAlpha = chase.replaceAll(RegExp(r'[^a-z0-9]'), '');
+                final progName = prog?.programName.toLowerCase() ?? '';
+                final progCode = prog?.programCode.toLowerCase() ?? '';
+                final teamName = tm?.teamName.toLowerCase() ?? '';
+
+                return studName.contains(cleanQ) ||
+                    chase.contains(cleanQ) ||
+                    (cleanQAlpha.isNotEmpty &&
+                        (chaseAlpha == cleanQAlpha ||
+                            chaseAlpha.endsWith(cleanQAlpha) ||
+                            chaseAlpha.contains(cleanQAlpha))) ||
+                    progName.contains(cleanQ) ||
+                    progCode.contains(cleanQ) ||
+                    teamName.contains(cleanQ);
+              }).toList();
 
         // Group by Program
         final Map<String, List<Result>> progResults = {};
-        for (var r in published) {
+        for (var r in filteredPublished) {
           progResults.putIfAbsent(r.programId, () => []).add(r);
         }
 
@@ -604,14 +668,33 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: AppTheme.line),
             ),
-            child: Text(
-              'No results published yet.',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.workSans(
-                color: AppTheme.inkSoft,
-                fontSize: 13.5,
-                fontWeight: FontWeight.w600,
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  cleanQ.isNotEmpty
+                      ? 'No published results found matching "$cleanQ".'
+                      : 'No results published yet.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.workSans(
+                    color: AppTheme.inkSoft,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (cleanQ.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  TextButton.icon(
+                    icon: const Icon(Icons.clear, size: 16),
+                    label: const Text('Clear Search'),
+                    onPressed: () {
+                      setState(() {
+                        _searchController.clear();
+                      });
+                    },
+                  ),
+                ],
+              ],
             ),
           );
         } else {
@@ -706,6 +789,7 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
             programsAsync,
             teamsAsync,
             studentsAsync,
+            searchQuery: _searchController.text,
           ),
         ),
       ],

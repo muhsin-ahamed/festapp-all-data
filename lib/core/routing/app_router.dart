@@ -56,6 +56,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final user = authService.currentUser;
 
       if (loc == '/login' && user != null) {
+        if (state.uri.queryParameters['force'] == 'true' ||
+            state.uri.queryParameters['logout'] == 'true') {
+          return null;
+        }
         switch (user.role) {
           case UserRole.festController:
             return '/controller';

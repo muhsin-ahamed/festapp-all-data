@@ -6,11 +6,13 @@ import '../data/repositories/app_repositories.dart';
 class TvService extends ChangeNotifier {
   final TvSettingsRepository tvSettingsRepository;
   Timer? _timer;
+  Timer? _syncTimer;
   TvSettings _settings = TvSettings();
-  int _currentSlideIndex = 0; // 0: Poster, 1: Scoreboard, 2: Latest Results
+  int _currentSlideIndex = 0;
 
   TvService({required this.tvSettingsRepository}) {
     _loadSettings();
+    _startSyncTimer();
   }
 
   TvSettings get settings => _settings;
@@ -22,9 +24,41 @@ class TvService extends ChangeNotifier {
     _startTimerIfNeeded();
   }
 
+  void _startSyncTimer() {
+    _syncTimer?.cancel();
+    _syncTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
+      try {
+        final remote = await tvSettingsRepository.getSettings();
+        if (_hasSettingsChanged(_settings, remote)) {
+          _settings = remote;
+          _startTimerIfNeeded();
+          notifyListeners();
+        }
+      } catch (_) {}
+    });
+  }
+
+  bool _hasSettingsChanged(TvSettings a, TvSettings b) {
+    if (a.screenMode != b.screenMode) return true;
+    if (a.slideDuration != b.slideDuration) return true;
+    if (a.autoRotate != b.autoRotate) return true;
+    if (a.announcedProgramId != b.announcedProgramId) return true;
+    if (a.announcedResultNumber != b.announcedResultNumber) return true;
+    if (a.revealedPositions.length != b.revealedPositions.length) return true;
+    for (int i = 0; i < a.revealedPositions.length; i++) {
+      if (a.revealedPositions[i] != b.revealedPositions[i]) return true;
+    }
+    return false;
+  }
+
   void _startTimerIfNeeded() {
     _timer?.cancel();
-    if (_settings.autoRotate && _settings.screenMode == 'AUTO') {
+    final mode = _settings.screenMode;
+    final isAuto = mode == 'AUTO_WITH_SCOREBOARD' ||
+        mode == 'AUTO_WITHOUT_SCOREBOARD' ||
+        mode == 'AUTO';
+
+    if (_settings.autoRotate && isAuto) {
       _timer = Timer.periodic(
         Duration(seconds: _settings.slideDuration),
         (_) => nextSlide(),
@@ -33,12 +67,24 @@ class TvService extends ChangeNotifier {
   }
 
   void nextSlide() {
-    _currentSlideIndex = (_currentSlideIndex + 1) % 3;
+    int maxSlides = 3;
+    if (_settings.screenMode == 'AUTO_WITHOUT_SCOREBOARD') {
+      maxSlides = 2; // 0: Main Poster, 1: Results
+    } else {
+      maxSlides = 3; // 0: Main Poster, 1: Scoreboard, 2: Results
+    }
+    _currentSlideIndex = (_currentSlideIndex + 1) % maxSlides;
     notifyListeners();
   }
 
   void previousSlide() {
-    _currentSlideIndex = (_currentSlideIndex - 1 + 3) % 3;
+    int maxSlides = 3;
+    if (_settings.screenMode == 'AUTO_WITHOUT_SCOREBOARD') {
+      maxSlides = 2;
+    } else {
+      maxSlides = 3;
+    }
+    _currentSlideIndex = (_currentSlideIndex - 1 + maxSlides) % maxSlides;
     notifyListeners();
   }
 
@@ -57,9 +103,72 @@ class TvService extends ChangeNotifier {
   }
 
   Future<void> setScreenMode(String mode) async {
+    _currentSlideIndex = 0;
     _settings = _settings.copyWith(screenMode: mode);
     await tvSettingsRepository.updateSettings(_settings);
     _startTimerIfNeeded();
+    notifyListeners();
+  }
+
+  // --- RESULT ANNOUNCEMENT CONTROLLERS ---
+  Future<void> startAnnouncement({
+    required String programId,
+    required int resultNumber,
+  }) async {
+    _settings = _settings.copyWith(
+      screenMode: 'ANNOUNCE_RESULT',
+      announcedProgramId: programId,
+      announcedResultNumber: resultNumber,
+      revealedPositions: [],
+    );
+    await tvSettingsRepository.updateSettings(_settings);
+    _startTimerIfNeeded();
+    notifyListeners();
+  }
+
+  Future<void> setAnnouncedResultNumber(int number) async {
+    _settings = _settings.copyWith(announcedResultNumber: number);
+    await tvSettingsRepository.updateSettings(_settings);
+    notifyListeners();
+  }
+
+  Future<void> togglePositionReveal(int position) async {
+    final list = List<int>.from(_settings.revealedPositions);
+    if (list.contains(position)) {
+      list.remove(position);
+    } else {
+      list.add(position);
+    }
+    _settings = _settings.copyWith(revealedPositions: list);
+    await tvSettingsRepository.updateSettings(_settings);
+    notifyListeners();
+  }
+
+  Future<void> revealPosition(int position) async {
+    if (_settings.revealedPositions.contains(position)) return;
+    final list = List<int>.from(_settings.revealedPositions)..add(position);
+    _settings = _settings.copyWith(revealedPositions: list);
+    await tvSettingsRepository.updateSettings(_settings);
+    notifyListeners();
+  }
+
+  Future<void> hidePosition(int position) async {
+    if (!_settings.revealedPositions.contains(position)) return;
+    final list = List<int>.from(_settings.revealedPositions)..remove(position);
+    _settings = _settings.copyWith(revealedPositions: list);
+    await tvSettingsRepository.updateSettings(_settings);
+    notifyListeners();
+  }
+
+  Future<void> revealAllPositions() async {
+    _settings = _settings.copyWith(revealedPositions: [1, 2, 3]);
+    await tvSettingsRepository.updateSettings(_settings);
+    notifyListeners();
+  }
+
+  Future<void> hideAllPositions() async {
+    _settings = _settings.copyWith(revealedPositions: []);
+    await tvSettingsRepository.updateSettings(_settings);
     notifyListeners();
   }
 
@@ -72,6 +181,7 @@ class TvService extends ChangeNotifier {
   @override
   void dispose() {
     _timer?.cancel();
+    _syncTimer?.cancel();
     super.dispose();
   }
 }

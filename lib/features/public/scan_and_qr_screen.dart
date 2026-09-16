@@ -254,6 +254,17 @@ class _ScanAndQrScreenState extends ConsumerState<ScanAndQrScreen> {
   }
 
   @override
+  void didUpdateWidget(covariant ScanAndQrScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialQuery != oldWidget.initialQuery &&
+        widget.initialQuery != null &&
+        widget.initialQuery!.trim().isNotEmpty) {
+      _searchController.text = widget.initialQuery!;
+      _handleSearch(widget.initialQuery!);
+    }
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
@@ -265,6 +276,7 @@ class _ScanAndQrScreenState extends ConsumerState<ScanAndQrScreen> {
 
     final parsed = QrService.parseQrPayload(clean);
     final query = parsed.value.trim().toLowerCase();
+    final queryAlpha = query.replaceAll(RegExp(r'[^a-z0-9]'), '');
 
     setState(() {
       _hasSearched = true;
@@ -273,29 +285,56 @@ class _ScanAndQrScreenState extends ConsumerState<ScanAndQrScreen> {
       _foundProgram = null;
     });
 
-    final students = ref.read(studentsProvider).value ?? [];
-    final programs = ref.read(programsProvider).value ?? [];
-    final registrations = ref.read(registrationsProvider).value ?? [];
+    List<Student> students = ref.read(studentsProvider).value ?? [];
+    List<Program> programs = ref.read(programsProvider).value ?? [];
+    List<Registration> registrations =
+        ref.read(registrationsProvider).value ?? [];
+
+    if (students.isEmpty) {
+      try {
+        students = await ref.read(studentsProvider.future);
+      } catch (_) {}
+    }
+    if (programs.isEmpty) {
+      try {
+        programs = await ref.read(programsProvider.future);
+      } catch (_) {}
+    }
+    if (registrations.isEmpty) {
+      try {
+        registrations = await ref.read(registrationsProvider.future);
+      } catch (_) {}
+    }
 
     // 1. Check for Student by Chase Number or ID or Name
-    final matchedStudent =
+    final matchedStudent = students.where((s) {
+      final sChase = s.chaseNumber.trim().toLowerCase();
+      final sChaseAlpha = sChase.replaceAll(RegExp(r'[^a-z0-9]'), '');
+      final sId = s.id.trim().toLowerCase();
+      final sName = s.name.trim().toLowerCase();
+      return sChase == query ||
+          (queryAlpha.isNotEmpty && sChaseAlpha == queryAlpha) ||
+          sId == query ||
+          sName == query;
+    }).firstOrNull ??
         students.where((s) {
           final sChase = s.chaseNumber.trim().toLowerCase();
-          final sId = s.id.trim().toLowerCase();
+          final sChaseAlpha = sChase.replaceAll(RegExp(r'[^a-z0-9]'), '');
           final sName = s.name.trim().toLowerCase();
-          return sChase == query || sId == query || sName == query;
-        }).firstOrNull ??
-        students.where((s) {
-          final sChase = s.chaseNumber.trim().toLowerCase();
-          final sName = s.name.trim().toLowerCase();
-          return sChase.contains(query) || sName.contains(query);
+          return (queryAlpha.isNotEmpty &&
+                  (sChaseAlpha.endsWith(queryAlpha) ||
+                      sChaseAlpha.contains(queryAlpha))) ||
+              sChase.contains(query) ||
+              sName.contains(query);
         }).firstOrNull;
 
     if (matchedStudent != null) {
-      setState(() {
-        _foundStudent = matchedStudent;
-        _isCameraActive = false;
-      });
+      if (mounted) {
+        setState(() {
+          _foundStudent = matchedStudent;
+          _isCameraActive = false;
+        });
+      }
       return;
     }
 
@@ -315,12 +354,27 @@ class _ScanAndQrScreenState extends ConsumerState<ScanAndQrScreen> {
     // 1c. Check if query matches a registration number or student chase in registration
     final matchedReg = registrations.where((r) {
       final regNum = r.registrationNumber.trim().toLowerCase();
+      final regNumAlpha = regNum.replaceAll(RegExp(r'[^a-z0-9]'), '');
       final regStud = r.studentId.trim().toLowerCase();
-      if (regStud == query) return true;
-      if (regNum == query || regNum.contains(query)) return true;
+      final regStudAlpha = regStud.replaceAll(RegExp(r'[^a-z0-9]'), '');
+      if (regStud == query ||
+          (queryAlpha.isNotEmpty && regStudAlpha == queryAlpha)) {
+        return true;
+      }
+      if (regNum == query ||
+          regNum.contains(query) ||
+          (queryAlpha.isNotEmpty && regNumAlpha.contains(queryAlpha))) {
+        return true;
+      }
       if (regNum.startsWith('reg-')) {
         final parts = regNum.split('-');
-        if (parts.length >= 2 && parts[1] == query) return true;
+        if (parts.length >= 2) {
+          final partAlpha = parts[1].replaceAll(RegExp(r'[^a-z0-9]'), '');
+          if (parts[1] == query ||
+              (queryAlpha.isNotEmpty && partAlpha == queryAlpha)) {
+            return true;
+          }
+        }
       }
       return false;
     }).firstOrNull;
@@ -329,15 +383,22 @@ class _ScanAndQrScreenState extends ConsumerState<ScanAndQrScreen> {
       final regStudent = students.where((s) {
         final sId = s.id.trim().toLowerCase();
         final sChase = s.chaseNumber.trim().toLowerCase();
+        final sChaseAlpha = sChase.replaceAll(RegExp(r'[^a-z0-9]'), '');
         final matchTarget = matchedReg.studentId.trim().toLowerCase();
-        return sId == matchTarget || sChase == matchTarget;
+        final matchTargetAlpha =
+            matchTarget.replaceAll(RegExp(r'[^a-z0-9]'), '');
+        return sId == matchTarget ||
+            sChase == matchTarget ||
+            (matchTargetAlpha.isNotEmpty && sChaseAlpha == matchTargetAlpha);
       }).firstOrNull;
 
       if (regStudent != null) {
-        setState(() {
-          _foundStudent = regStudent;
-          _isCameraActive = false;
-        });
+        if (mounted) {
+          setState(() {
+            _foundStudent = regStudent;
+            _isCameraActive = false;
+          });
+        }
         return;
       } else {
         // Synthesize student from registration so details still render
@@ -359,10 +420,12 @@ class _ScanAndQrScreenState extends ConsumerState<ScanAndQrScreen> {
           schoolName: '',
           qrCode: chase,
         );
-        setState(() {
-          _foundStudent = fallbackStudent;
-          _isCameraActive = false;
-        });
+        if (mounted) {
+          setState(() {
+            _foundStudent = fallbackStudent;
+            _isCameraActive = false;
+          });
+        }
         return;
       }
     }
@@ -375,16 +438,20 @@ class _ScanAndQrScreenState extends ConsumerState<ScanAndQrScreen> {
     }).firstOrNull;
 
     if (matchedProgram != null) {
-      setState(() {
-        _foundProgram = matchedProgram;
-        _isCameraActive = false;
-      });
+      if (mounted) {
+        setState(() {
+          _foundProgram = matchedProgram;
+          _isCameraActive = false;
+        });
+      }
       return;
     }
 
-    setState(() {
-      _searchErrorMessage = 'No student or program found matching "$clean"';
-    });
+    if (mounted) {
+      setState(() {
+        _searchErrorMessage = 'No student or program found matching "$clean"';
+      });
+    }
   }
 
   void _resetSearch() {
@@ -920,20 +987,38 @@ class _ScanAndQrScreenState extends ConsumerState<ScanAndQrScreen> {
 
     final cleanId = student.id.trim().toLowerCase();
     final cleanChase = student.chaseNumber.trim().toLowerCase();
+    final cleanChaseAlpha = cleanChase.replaceAll(RegExp(r'[^a-z0-9]'), '');
     final cleanName = student.name.trim().toLowerCase();
 
     // 1. Match Registrations taken from FestController registration program
     final matchedRegistrations = registrations.where((r) {
       final rStud = r.studentId.trim().toLowerCase();
+      final rStudAlpha = rStud.replaceAll(RegExp(r'[^a-z0-9]'), '');
       final regNum = r.registrationNumber.trim().toLowerCase();
+      final regNumAlpha = regNum.replaceAll(RegExp(r'[^a-z0-9]'), '');
 
       if (cleanId.isNotEmpty && rStud == cleanId) return true;
-      if (cleanChase.isNotEmpty && rStud == cleanChase) return true;
+      if (cleanChase.isNotEmpty &&
+          (rStud == cleanChase ||
+              (cleanChaseAlpha.isNotEmpty && rStudAlpha == cleanChaseAlpha))) {
+        return true;
+      }
       if (cleanName.isNotEmpty && rStud == cleanName) return true;
-      if (cleanChase.isNotEmpty && regNum.contains(cleanChase)) return true;
+      if (cleanChase.isNotEmpty &&
+          (regNum.contains(cleanChase) ||
+              (cleanChaseAlpha.isNotEmpty &&
+                  regNumAlpha.contains(cleanChaseAlpha)))) {
+        return true;
+      }
       if (regNum.startsWith('reg-')) {
         final parts = regNum.split('-');
-        if (parts.length >= 2 && parts[1] == cleanChase) return true;
+        if (parts.length >= 2) {
+          final partAlpha = parts[1].replaceAll(RegExp(r'[^a-z0-9]'), '');
+          if (parts[1] == cleanChase ||
+              (cleanChaseAlpha.isNotEmpty && partAlpha == cleanChaseAlpha)) {
+            return true;
+          }
+        }
       }
       return false;
     }).toList();
@@ -1048,11 +1133,16 @@ class _ScanAndQrScreenState extends ConsumerState<ScanAndQrScreen> {
     // 4. Published Results for this student
     final studentPublishedResults = results.where((r) {
       final rStud = r.studentId.trim().toLowerCase();
+      final rStudAlpha = rStud.replaceAll(RegExp(r'[^a-z0-9]'), '');
       final matchStudent = (cleanId.isNotEmpty && rStud == cleanId) ||
-          (cleanChase.isNotEmpty && rStud == cleanChase) ||
+          (cleanChase.isNotEmpty &&
+              (rStud == cleanChase ||
+                  (cleanChaseAlpha.isNotEmpty &&
+                      rStudAlpha == cleanChaseAlpha))) ||
           (cleanName.isNotEmpty && rStud == cleanName);
-      final isPublished =
-          r.status == ResultStatus.published || r.publishedAt != null;
+      final isPublished = r.status == ResultStatus.published ||
+          r.status == ResultStatus.announced ||
+          r.publishedAt != null;
       return matchStudent && isPublished;
     }).toList();
 

@@ -49,6 +49,7 @@ class Result {
     DateTime? createdAt,
     DateTime? updatedAt,
     DateTime? publishedAt,
+    bool clearPublishedAt = false,
   }) {
     return Result(
       id: id ?? this.id,
@@ -64,7 +65,7 @@ class Result {
       status: status ?? this.status,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
-      publishedAt: publishedAt ?? this.publishedAt,
+      publishedAt: clearPublishedAt ? null : (publishedAt ?? this.publishedAt),
     );
   }
 
@@ -80,7 +81,7 @@ class Result {
       'position': position,
       'points': points,
       'remarks': remarks,
-      'status': status.name,
+      'status': status.label,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'publishedAt': publishedAt?.toIso8601String(),

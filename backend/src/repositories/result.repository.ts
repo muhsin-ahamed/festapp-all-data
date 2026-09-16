@@ -19,7 +19,13 @@ export class ResultRepository {
       queryBuilder = queryBuilder.eq('juryId', filters.juryId);
     }
     if (filters?.status) {
-      queryBuilder = queryBuilder.eq('status', filters.status);
+      if (filters.status.toUpperCase() === 'PUBLISHED') {
+        queryBuilder = queryBuilder.or('status.eq.PUBLISHED,status.eq.published,status.eq.ANNOUNCED,status.eq.announced');
+      } else if (filters.status.toUpperCase() === 'DRAFT') {
+        queryBuilder = queryBuilder.or('status.eq.DRAFT,status.eq.draft');
+      } else {
+        queryBuilder = queryBuilder.or(`status.eq.${filters.status.toUpperCase()},status.eq.${filters.status.toLowerCase()}`);
+      }
     }
 
     const { data, error } = await queryBuilder;
@@ -28,7 +34,10 @@ export class ResultRepository {
   }
 
   async findPublished(): Promise<ResultEntity[]> {
-    const { data, error } = await supabase.from(this.table).select('*').eq('status', 'PUBLISHED');
+    const { data, error } = await supabase
+      .from(this.table)
+      .select('*')
+      .or('status.eq.PUBLISHED,status.eq.published,status.eq.ANNOUNCED,status.eq.announced');
     if (error) throw error;
     return data || [];
   }

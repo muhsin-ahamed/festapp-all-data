@@ -1,3 +1,6 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -499,6 +502,7 @@ class StatCard extends StatelessWidget {
   final String value;
   final IconData icon;
   final Color color;
+  final VoidCallback? onTap;
 
   const StatCard({
     super.key,
@@ -506,11 +510,13 @@ class StatCard extends StatelessWidget {
     required this.value,
     required this.icon,
     required this.color,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return AppCard(
+      onTap: onTap,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
         children: [
@@ -1092,6 +1098,36 @@ class _QRScannerWidgetState extends State<QRScannerWidget> {
   DateTime? _lastScannedTime;
   String? _lastScannedPayload;
   bool _isProcessing = false;
+  MobileScannerController? _controller;
+  bool _isTorchOn = false;
+  bool _showManualInput = false;
+  final _manualInputController = TextEditingController();
+
+  bool get _isDesktop => !kIsWeb && (Platform.isWindows || Platform.isLinux);
+
+  @override
+  void initState() {
+    super.initState();
+    if (!_isDesktop) {
+      try {
+        _controller = MobileScannerController(
+          detectionSpeed: DetectionSpeed.noDuplicates,
+          autoStart: true,
+        );
+      } catch (_) {
+        _controller = null;
+      }
+    } else {
+      _showManualInput = true;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    _manualInputController.dispose();
+    super.dispose();
+  }
 
   void _handleBarcode(String raw) {
     final clean = raw.trim();
@@ -1125,6 +1161,23 @@ class _QRScannerWidgetState extends State<QRScannerWidget> {
     });
   }
 
+  Future<void> _pasteFromClipboard() async {
+    try {
+      final data = await Clipboard.getData(Clipboard.kTextPlain);
+      final text = data?.text?.trim() ?? '';
+      if (text.isNotEmpty) {
+        _manualInputController.text = text;
+        _handleBarcode(text);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Clipboard is empty')),
+          );
+        }
+      }
+    } catch (_) {}
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -1141,58 +1194,325 @@ class _QRScannerWidgetState extends State<QRScannerWidget> {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(14),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            MobileScanner(
-              onDetect: (capture) {
-                final List<Barcode> barcodes = capture.barcodes;
-                for (final barcode in barcodes) {
-                  final raw = barcode.rawValue;
-                  if (raw != null && raw.isNotEmpty) {
-                    _handleBarcode(raw);
-                    break;
-                  }
-                }
-              },
-            ),
-            // Viewfinder Reticle Overlay
-            _buildScannerOverlay(),
-            // Scan confirmation flash badge
-            if (_isProcessing)
-              Positioned(
-                bottom: 16,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AppTheme.green,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.3),
-                        blurRadius: 8,
-                      ),
-                    ],
+        child: _isDesktop || _showManualInput || _controller == null
+            ? _buildManualEntryView()
+            : Stack(
+                alignment: Alignment.center,
+                children: [
+                  MobileScanner(
+                    controller: _controller,
+                    errorBuilder: (context, error) {
+                      return _buildErrorFallback(error.errorCode.name);
+                    },
+                    onDetect: (capture) {
+                      final List<Barcode> barcodes = capture.barcodes;
+                      for (final barcode in barcodes) {
+                        final raw = barcode.rawValue;
+                        if (raw != null && raw.isNotEmpty) {
+                          _handleBarcode(raw);
+                          break;
+                        }
+                      }
+                    },
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.check_circle,
-                          color: Colors.white, size: 16),
-                      const SizedBox(width: 6),
-                      Text(
-                        'QR Scanned!',
-                        style: GoogleFonts.workSans(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
+                  // Viewfinder Reticle Overlay
+                  _buildScannerOverlay(),
+                  // Top scanner controls (Torch, Switch Camera, Keyboard)
+                  Positioned(
+                    top: 10,
+                    right: 10,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildControlIconButton(
+                          icon: _isTorchOn
+                              ? Icons.flash_on
+                              : Icons.flash_off,
+                          tooltip: 'Toggle Flash',
+                          onPressed: () async {
+                            try {
+                              await _controller?.toggleTorch();
+                              setState(() {
+                                _isTorchOn = !_isTorchOn;
+                              });
+                            } catch (_) {}
+                          },
+                        ),
+                        const SizedBox(width: 6),
+                        _buildControlIconButton(
+                          icon: Icons.flip_camera_ios,
+                          tooltip: 'Switch Camera',
+                          onPressed: () async {
+                            try {
+                              await _controller?.switchCamera();
+                            } catch (_) {}
+                          },
+                        ),
+                        const SizedBox(width: 6),
+                        _buildControlIconButton(
+                          icon: Icons.keyboard,
+                          tooltip: 'Manual Entry',
+                          onPressed: () {
+                            setState(() {
+                              _showManualInput = true;
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Scan confirmation flash badge
+                  if (_isProcessing)
+                    Positioned(
+                      bottom: 16,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.green,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.3),
+                              blurRadius: 8,
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.check_circle,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'QR Scanned!',
+                              style: GoogleFonts.workSans(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
+                    ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  Widget _buildControlIconButton({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onPressed,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.55),
+        shape: BoxShape.circle,
+      ),
+      child: IconButton(
+        icon: Icon(icon, color: Colors.white, size: 18),
+        tooltip: tooltip,
+        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+        padding: EdgeInsets.zero,
+        onPressed: onPressed,
+      ),
+    );
+  }
+
+  Widget _buildErrorFallback(String errorDetails) {
+    return Container(
+      color: AppTheme.ink,
+      padding: const EdgeInsets.all(16),
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.videocam_off_rounded,
+            color: AppTheme.mustard,
+            size: 38,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Camera Unavailable',
+            style: GoogleFonts.workSans(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Permission denied or no camera device found ($errorDetails).',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.workSans(
+              color: Colors.white70,
+              fontSize: 11.5,
+            ),
+          ),
+          const SizedBox(height: 12),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.red,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            ),
+            icon: const Icon(Icons.edit_note, size: 16),
+            label: const Text('Enter QR Payload Manually', style: TextStyle(fontSize: 12)),
+            onPressed: () {
+              setState(() {
+                _showManualInput = true;
+              });
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildManualEntryView() {
+    return Container(
+      color: AppTheme.ink,
+      padding: const EdgeInsets.all(16),
+      alignment: Alignment.center,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  _isDesktop
+                      ? Icons.desktop_windows_rounded
+                      : Icons.qr_code_2_rounded,
+                  color: AppTheme.mustard,
+                  size: 22,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _isDesktop
+                      ? 'Desktop QR Code Input'
+                      : 'Manual QR Code Entry',
+                  style: GoogleFonts.workSans(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
                   ),
                 ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _isDesktop
+                  ? 'Camera scanning is not supported on Windows desktop.\nEnter or paste your QR payload string below:'
+                  : 'Enter or paste the QR payload string below:',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.workSans(
+                color: Colors.white70,
+                fontSize: 11.5,
               ),
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _manualInputController,
+                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                    decoration: InputDecoration(
+                      hintText: 'e.g. fest_jury_login:jury1:pass:...',
+                      hintStyle: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.4),
+                        fontSize: 12,
+                      ),
+                      filled: true,
+                      fillColor: Colors.black.withValues(alpha: 0.35),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: AppTheme.line),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: AppTheme.mustard),
+                      ),
+                    ),
+                    onSubmitted: (val) {
+                      if (val.trim().isNotEmpty) {
+                        _handleBarcode(val);
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton.filled(
+                  icon: const Icon(Icons.paste_rounded, size: 18),
+                  tooltip: 'Paste from clipboard',
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppTheme.mustard,
+                    foregroundColor: AppTheme.ink,
+                  ),
+                  onPressed: _pasteFromClipboard,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.login, size: 16),
+                  label: const Text('Process Code', style: TextStyle(fontSize: 12)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.green,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                  ),
+                  onPressed: () {
+                    final text = _manualInputController.text.trim();
+                    if (text.isNotEmpty) {
+                      _handleBarcode(text);
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Please enter or paste a QR code string'),
+                        ),
+                      );
+                    }
+                  },
+                ),
+                if (!_isDesktop && _controller != null) ...[
+                  const SizedBox(width: 10),
+                  TextButton.icon(
+                    icon: const Icon(Icons.camera_alt, size: 16),
+                    label: const Text('Use Camera', style: TextStyle(fontSize: 12)),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.white70,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _showManualInput = false;
+                      });
+                    },
+                  ),
+                ],
+              ],
+            ),
           ],
         ),
       ),

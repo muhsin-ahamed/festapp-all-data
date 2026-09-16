@@ -20,8 +20,11 @@ import '../../data/models/announcement_model.dart';
 import '../../data/models/user_model.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:printing/printing.dart';
+import 'package:intl/intl.dart';
 import '../../services/excel_service.dart';
 import '../../services/qr_service.dart';
+import '../../services/scoring_service.dart';
+import '../../services/tv_service.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 class ControllerPortalScreen extends ConsumerStatefulWidget {
@@ -49,7 +52,15 @@ class _ControllerPortalScreenState
   String? _selectedResultStudentId;
   final _resultMarksController = TextEditingController();
   final _resultGradeController = TextEditingController();
+  final _resultStudentSearchController = TextEditingController();
   int _resultPosition = 1;
+
+  // Published Results Management State
+  String _pubResultSearchQuery = '';
+  String _pubResultSectionFilter = 'ALL';
+  String? _pubResultProgramFilter;
+  String _pubResultViewMode = 'program'; // 'program' or 'list'
+  final _pubResultSearchController = TextEditingController();
 
   // Team Form Controllers
   final _teamNameController = TextEditingController();
@@ -71,6 +82,11 @@ class _ControllerPortalScreenState
   final _regStudentNameController = TextEditingController();
   final _regProgramNameController = TextEditingController();
   FestSection _regSection = FestSection.subJunior;
+
+  // TV Control State & Controllers
+  String _tvDraftSearchQuery = '';
+  String _tvDraftSectionFilter = 'ALL';
+  final _tvDraftSearchController = TextEditingController();
 
   // Schedule & Venue State & Controllers
   String _scheduleSearchQuery = '';
@@ -108,6 +124,7 @@ class _ControllerPortalScreenState
     _studentPhoneController.dispose();
     _resultMarksController.dispose();
     _resultGradeController.dispose();
+    _resultStudentSearchController.dispose();
     _teamNameController.dispose();
     _teamMentorController.dispose();
     _teamLeaderNameController.dispose();
@@ -132,6 +149,8 @@ class _ControllerPortalScreenState
     _regChaseController.dispose();
     _regStudentNameController.dispose();
     _regProgramNameController.dispose();
+    _pubResultSearchController.dispose();
+    _tvDraftSearchController.dispose();
     super.dispose();
   }
 
@@ -167,6 +186,10 @@ class _ControllerPortalScreenState
         label: 'Schedule & Venue',
       ),
       SidebarNavItem(icon: Icons.rate_review_rounded, label: 'Result Upload'),
+      SidebarNavItem(
+        icon: Icons.emoji_events_rounded,
+        label: 'Published Results',
+      ),
       SidebarNavItem(icon: Icons.tv_rounded, label: 'TV Control'),
       SidebarNavItem(icon: Icons.upload_file_rounded, label: 'Excel Import'),
       SidebarNavItem(icon: Icons.manage_accounts_rounded, label: 'User Logins'),
@@ -218,11 +241,23 @@ class _ControllerPortalScreenState
           resultsAsync,
           registrationsAsync,
         ),
-        // 7. TV Control & Announcements
-        _buildTvControlSection(),
-        // 8. Excel Import
+        // 7. Published Results Management & Deletion
+        _buildPublishedResultsSection(
+          resultsAsync,
+          programsAsync,
+          teamsAsync,
+          studentsAsync,
+        ),
+        // 8. TV Control & Announcements
+        _buildTvControlSection(
+          programsAsync,
+          resultsAsync,
+          studentsAsync,
+          teamsAsync,
+        ),
+        // 9. Excel Import
         _buildExcelImportSection(),
-        // 9. User Logins Management (Team Leaders & Jury)
+        // 10. User Logins Management (Team Leaders & Jury)
         _buildUserManagementSection(
           usersAsync,
           leadersAsync,
@@ -230,7 +265,7 @@ class _ControllerPortalScreenState
           teamsAsync,
           programsAsync,
         ),
-        // 10. Settings & Demo Data Generator
+        // 11. Settings & Demo Data Generator
         _buildSettingsSection(),
       ],
     );
@@ -369,12 +404,14 @@ class _ControllerPortalScreenState
                     value: '$pendingDrafts',
                     icon: Icons.pending_actions,
                     color: Colors.amber,
+                    onTap: () => setState(() => _selectedNavIndex = 6),
                   ),
                   StatCard(
                     title: 'Published Results',
                     value: '$publishedCount',
                     icon: Icons.emoji_events,
                     color: Colors.green,
+                    onTap: () => setState(() => _selectedNavIndex = 7),
                   ),
                   StatCard(
                     title: 'Active Venues',
@@ -5678,6 +5715,7 @@ class _ControllerPortalScreenState
   ) {
     final progs = programsAsync.value ?? [];
     final students = studentsAsync.value ?? [];
+    final teams = teamsAsync.value ?? [];
     final results = resultsAsync.value ?? [];
     final registrations = registrationsAsync.value ?? [];
 
@@ -5699,23 +5737,63 @@ class _ControllerPortalScreenState
     final registeredStudentIds = currentProgId != null
         ? registrations
             .where((r) => r.programId == currentProgId)
-            .map((r) => r.studentId)
+            .expand((r) {
+              final ids = <String>[r.studentId, r.studentId.trim().toLowerCase()];
+              if (r.registrationNumber.toUpperCase().startsWith('REG-')) {
+                final parts = r.registrationNumber.split('-');
+                if (parts.length >= 2) {
+                  ids.addAll([parts[1], parts[1].trim().toLowerCase()]);
+                }
+              }
+              return ids;
+            })
             .toSet()
         : <String>{};
 
     final registeredStudents = students
-        .where((s) => registeredStudentIds.contains(s.id))
+        .where((s) {
+          if (registeredStudentIds.contains(s.id)) return true;
+          if (registeredStudentIds.contains(s.id.toLowerCase())) return true;
+          final cleanChase = s.chaseNumber.trim().toLowerCase();
+          if (cleanChase.isNotEmpty && registeredStudentIds.contains(cleanChase)) {
+            return true;
+          }
+          return false;
+        })
         .toList();
 
-    // Ensure selected student ID is valid within registeredStudents
+    // Filter displayed registered students based on quick search
+    final studentQuery =
+        _resultStudentSearchController.text.trim().toLowerCase();
+    final studentQueryClean = studentQuery.replaceAll(RegExp(r'[^a-z0-9]'), '');
+    final displayedStudents = studentQuery.isEmpty
+        ? registeredStudents
+        : registeredStudents.where((s) {
+            final sChase = s.chaseNumber.trim().toLowerCase();
+            final sChaseClean = sChase.replaceAll(RegExp(r'[^a-z0-9]'), '');
+            final sName = s.name.trim().toLowerCase();
+            return sChase == studentQuery ||
+                (studentQueryClean.isNotEmpty &&
+                    (sChaseClean == studentQueryClean ||
+                        sChaseClean.endsWith(studentQueryClean) ||
+                        sChaseClean.contains(studentQueryClean))) ||
+                sChase.contains(studentQuery) ||
+                sName.contains(studentQuery);
+          }).toList();
+
+    // Ensure selected student ID is valid within registeredStudents or displayedStudents
     String? currentStudentId = _selectedResultStudentId;
     if (currentStudentId != null &&
         !registeredStudents.any((s) => s.id == currentStudentId)) {
-      currentStudentId =
-          registeredStudents.isNotEmpty ? registeredStudents.first.id : null;
+      currentStudentId = displayedStudents.isNotEmpty
+          ? displayedStudents.first.id
+          : (registeredStudents.isNotEmpty
+              ? registeredStudents.first.id
+              : null);
+    } else if (currentStudentId == null && displayedStudents.isNotEmpty) {
+      currentStudentId = displayedStudents.first.id;
     } else if (currentStudentId == null && registeredStudents.isNotEmpty) {
-      currentStudentId =
-          registeredStudents.isNotEmpty ? registeredStudents.first.id : null;
+      currentStudentId = registeredStudents.first.id;
     }
 
     final scoring = ref.read(scoringServiceProvider);
@@ -5807,7 +5885,7 @@ class _ControllerPortalScreenState
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.amber.withOpacity(0.12),
+                      color: Colors.amber.withValues(alpha: 0.12),
                       border: Border.all(color: Colors.amber.shade400),
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -5828,12 +5906,54 @@ class _ControllerPortalScreenState
                       ],
                     ),
                   )
-                else
+                else ...[
+                  TextField(
+                    controller: _resultStudentSearchController,
+                    decoration: InputDecoration(
+                      hintText: 'Search by Chest No (e.g. SB7882) or Name...',
+                      prefixIcon: const Icon(Icons.search, size: 20),
+                      suffixIcon: _resultStudentSearchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 18),
+                              onPressed: () {
+                                setState(() {
+                                  _resultStudentSearchController.clear();
+                                });
+                              },
+                            )
+                          : null,
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    onChanged: (val) {
+                      setState(() {
+                        final q = val.trim().toLowerCase();
+                        final qClean = q.replaceAll(RegExp(r'[^a-z0-9]'), '');
+                        final autoMatch = displayedStudents.where((s) {
+                          final sChase = s.chaseNumber.trim().toLowerCase();
+                          final sChaseClean =
+                              sChase.replaceAll(RegExp(r'[^a-z0-9]'), '');
+                          return sChase == q ||
+                              (qClean.isNotEmpty && sChaseClean == qClean);
+                        }).firstOrNull;
+                        if (autoMatch != null) {
+                          _selectedResultStudentId = autoMatch.id;
+                        }
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 10),
                   AppDropdown<String>(
                     label:
-                        '3. Select Registered Student (${registeredStudents.length} registered)',
+                        '3. Select Registered Student (${displayedStudents.length} of ${registeredStudents.length} matched)',
                     value: currentStudentId,
-                    items: registeredStudents
+                    items: displayedStudents
                         .map(
                           (s) => DropdownMenuItem(
                             value: s.id,
@@ -5844,6 +5964,7 @@ class _ControllerPortalScreenState
                     onChanged: (val) =>
                         setState(() => _selectedResultStudentId = val),
                   ),
+                ],
                 const SizedBox(height: 12),
                 LayoutBuilder(
                   builder: (context, constraints) {
@@ -5911,142 +6032,182 @@ class _ControllerPortalScreenState
                   ),
                 ),
                 const SizedBox(height: 16),
-                AppButton(
-                  label: 'Save & Publish Result',
-                  onPressed: () async {
-                    if (currentStudentId == null || currentProgId == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Please select a program and a registered student first.',
-                          ),
-                          backgroundColor: Colors.redAccent,
-                        ),
-                      );
-                      return;
-                    }
-
-                    final student = students
-                        .where((s) => s.id == currentStudentId)
-                        .firstOrNull;
-                    if (student == null) return;
-
-                    // Position Uniqueness Validation per program
-                    final progResults = results
-                        .where((r) => r.programId == currentProgId)
-                        .toList();
-
-                    if (_resultPosition > 0) {
-                      final existingPosResult = progResults
-                          .where((r) =>
-                              r.position == _resultPosition &&
-                              r.studentId != currentStudentId)
-                          .firstOrNull;
-                      if (existingPosResult != null) {
-                        final occupiedStud = students
-                            .where((s) => s.id == existingPosResult.studentId)
-                            .firstOrNull;
-                        final occupiedName =
-                            occupiedStud?.name ?? existingPosResult.studentId;
-
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Position $_resultPosition is already assigned to $occupiedName in this program! In the same program, each position can only be assigned once.',
-                            ),
-                            backgroundColor: Colors.redAccent,
-                          ),
-                        );
-                        return;
-                      }
-                    }
-
-                    // Check if this student already has a result for this program
-                    final existingStudentResult = progResults
-                        .where((r) => r.studentId == currentStudentId)
-                        .firstOrNull;
-
-                    final points = scoring.calculateResultPoints(
-                      position: _resultPosition > 0 ? _resultPosition : null,
-                      grade: _resultGradeController.text.trim(),
-                    );
-
-                    final result = Result(
-                      id: existingStudentResult?.id ??
-                          'res_${const Uuid().v4()}',
-                      programId: currentProgId,
-                      studentId: student.id,
-                      teamId: student.teamId,
-                      marks:
-                          double.tryParse(_resultMarksController.text) ?? 85.0,
-                      grade: _resultGradeController.text.trim().toUpperCase(),
-                      position: _resultPosition > 0 ? _resultPosition : null,
-                      points: points,
-                      remarks: 'Published by Fest Controller',
-                      status: ResultStatus.published,
-                      publishedAt: DateTime.now(),
-                    );
-
-                    await ref
-                        .read(resultRepositoryProvider)
-                        .saveResult(result);
-                    await scoring.recalculateTeamScoresAndRanks();
-                    triggerDataRefresh(ref);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          existingStudentResult != null
-                              ? 'Student result updated and republished!'
-                              : 'Result successfully verified and published!',
-                        ),
-                        backgroundColor: Colors.green,
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    AppButton(
+                      label: 'Save & Publish Result',
+                      onPressed: () => _submitResultForm(
+                        asDraft: false,
+                        currentProgId: currentProgId,
+                        currentStudentId: currentStudentId,
+                        students: students,
+                        results: results,
+                        scoring: scoring,
                       ),
-                    );
-                  },
+                    ),
+                    ElevatedButton.icon(
+                      icon: const Icon(
+                        Icons.drafts_outlined,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                      label: Text(
+                        'Save as Draft',
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.amber.shade800,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 14,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      onPressed: () => _submitResultForm(
+                        asDraft: true,
+                        currentProgId: currentProgId,
+                        currentStudentId: currentStudentId,
+                        students: students,
+                        results: results,
+                        scoring: scoring,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
           const SizedBox(height: 24),
-          Text(
-            'Existing Results & Draft Reviews',
-            style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Existing Results & Draft Reviews',
+                style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.emoji_events_rounded, size: 16, color: Colors.green),
+                label: Text(
+                  'View Published Results (${results.where((r) => r.status == ResultStatus.published || r.status == ResultStatus.announced).length})',
+                ),
+                onPressed: () => setState(() => _selectedNavIndex = 7),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.green.shade800,
+                  side: BorderSide(color: Colors.green.shade400),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: results.length,
-            itemBuilder: (context, idx) {
-              final r = results[idx];
-              return Card(
-                margin: const EdgeInsets.only(bottom: 8),
-                child: ListTile(
-                  title: Text(
-                    'Result ID: ${r.id} • Marks/Points: ${r.marks} (Grade ${r.grade.isEmpty ? "N/A" : r.grade})',
-                  ),
-                  subtitle: Text(
-                    'Position: ${r.position != null ? "${r.position} Place" : "Participant"} • Total Points: ${r.points} PTS',
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Chip(
-                        label: Text(r.status.label),
-                        backgroundColor: r.status == ResultStatus.published
-                            ? Colors.green[100]
-                            : Colors.amber[100],
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        icon: const Icon(
-                          Icons.delete_outline,
-                          color: Colors.redAccent,
+          if (results.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.line),
+              ),
+              child: Center(
+                child: Text(
+                  'No results recorded yet.',
+                  style: GoogleFonts.inter(color: AppTheme.inkSoft, fontSize: 13),
+                ),
+              ),
+            )
+          else
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: results.length,
+              itemBuilder: (context, idx) {
+                final r = results[idx];
+                final stud = students.where((s) => s.id == r.studentId).firstOrNull;
+                final prog = progs.where((p) => p.id == r.programId).firstOrNull;
+                final tm = teams.where((t) => t.id == r.teamId).firstOrNull;
+
+                final studentTitle = stud != null ? '${stud.name} (${stud.chaseNumber})' : r.studentId;
+                final programTitle = prog != null ? '${prog.programName} [${prog.programCode}]' : r.programId;
+
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: ListTile(
+                    title: Text(
+                      '$studentTitle • $programTitle',
+                      style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: Text(
+                      'Team: ${tm?.teamName ?? "N/A"} • ${r.position != null ? "${r.position} Place" : "Participant"} • ${r.points} PTS (Marks: ${r.marks}, Grade: ${r.grade.isEmpty ? "N/A" : r.grade})',
+                      style: GoogleFonts.inter(fontSize: 12, color: AppTheme.inkSoft),
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Chip(
+                          label: Text(r.status.label),
+                          backgroundColor: r.status == ResultStatus.published
+                              ? Colors.green[100]
+                              : Colors.amber[100],
                         ),
-                        tooltip: 'Delete Result',
-                        onPressed: () => _confirmDeleteResult(r),
-                      ),
-                    ],
+                        if (r.status != ResultStatus.published) ...[
+                          IconButton(
+                            icon: const Icon(
+                              Icons.check_circle_outline,
+                              color: Colors.green,
+                            ),
+                            tooltip: 'Verify & Publish Result',
+                            onPressed: () async {
+                              final updated = r.copyWith(
+                                status: ResultStatus.published,
+                                publishedAt: DateTime.now(),
+                              );
+                              await ref
+                                  .read(resultRepositoryProvider)
+                                  .saveResult(updated);
+                              final scoring = ref.read(scoringServiceProvider);
+                              await scoring.recalculateTeamScoresAndRanks();
+                              triggerDataRefresh(ref);
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Result verified and published! Scores updated.',
+                                    ),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              }
+                            },
+                          ),
+                          const SizedBox(width: 4),
+                        ],
+                        if (r.status != ResultStatus.draft) ...[
+                          IconButton(
+                            icon: const Icon(
+                              Icons.drafts_outlined,
+                              color: Colors.orange,
+                            ),
+                            tooltip: 'Move to Draft',
+                            onPressed: () => _confirmMoveToDraft(r),
+                          ),
+                          const SizedBox(width: 4),
+                        ],
+                        IconButton(
+                          icon: const Icon(
+                            Icons.delete_outline,
+                            color: Colors.redAccent,
+                          ),
+                          tooltip: 'Delete Result',
+                          onPressed: () => _confirmDeleteResult(r),
+                        ),
+                      ],
                   ),
                 ),
               );
@@ -6057,14 +6218,20 @@ class _ControllerPortalScreenState
     );
   }
 
-  void _confirmDeleteResult(Result result) {
+  void _confirmMoveToDraft(Result result) {
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Confirm Result Deletion'),
+          title: const Row(
+            children: [
+              Icon(Icons.drafts_outlined, color: Colors.orange),
+              SizedBox(width: 8),
+              Text('Move Result to Draft'),
+            ],
+          ),
           content: Text(
-            'Are you sure you want to delete this result (ID: ${result.id})? Points will be automatically recalculated.',
+            'Are you sure you want to move this result (ID: ${result.id}) back to Draft? It will be unpublished and its points will be deducted from live team scores.',
           ),
           actions: [
             TextButton(
@@ -6072,7 +6239,200 @@ class _ControllerPortalScreenState
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange.shade800,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () async {
+                final updated = result.copyWith(
+                  status: ResultStatus.draft,
+                  publishedAt: null,
+                  clearPublishedAt: true,
+                  remarks: 'Moved to draft by Fest Controller',
+                );
+                await ref
+                    .read(resultRepositoryProvider)
+                    .saveResult(updated);
+                final scoring = ref.read(scoringServiceProvider);
+                await scoring.recalculateTeamScoresAndRanks();
+                triggerDataRefresh(ref);
+                if (mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Result successfully moved to Draft. Scores recalculated.',
+                      ),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                }
+              },
+              child: const Text('Move to Draft'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _submitResultForm({
+    required bool asDraft,
+    required String? currentProgId,
+    required String? currentStudentId,
+    required List<Student> students,
+    required List<Result> results,
+    required ScoringService scoring,
+  }) async {
+    if (currentStudentId == null || currentProgId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Please select a program and a registered student first.',
+          ),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    final student =
+        students.where((s) => s.id == currentStudentId).firstOrNull;
+    if (student == null) return;
+
+    // Position Uniqueness Validation per program
+    final progResults =
+        results.where((r) => r.programId == currentProgId).toList();
+
+    if (_resultPosition > 0 && !asDraft) {
+      final existingPosResults = progResults
+          .where((r) =>
+              r.position == _resultPosition &&
+              r.studentId != currentStudentId &&
+              r.status == ResultStatus.published)
+          .toList();
+      if (existingPosResults.length >= 2) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Position $_resultPosition is already assigned twice in this program (maximum 2 participants for ties).',
+            ),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        return;
+      }
+    }
+
+    // Check if this student already has a result for this program
+    final existingStudentResult = progResults
+        .where((r) => r.studentId == currentStudentId)
+        .firstOrNull;
+
+    final points = scoring.calculateResultPoints(
+      position: _resultPosition > 0 ? _resultPosition : null,
+      grade: _resultGradeController.text.trim(),
+    );
+
+    final result = Result(
+      id: existingStudentResult?.id ?? 'res_${const Uuid().v4()}',
+      programId: currentProgId,
+      studentId: student.id,
+      teamId: student.teamId,
+      marks: double.tryParse(_resultMarksController.text) ?? 85.0,
+      grade: _resultGradeController.text.trim().toUpperCase(),
+      position: _resultPosition > 0 ? _resultPosition : null,
+      points: points,
+      remarks: asDraft
+          ? 'Draft saved by Fest Controller'
+          : 'Published by Fest Controller',
+      status: asDraft ? ResultStatus.draft : ResultStatus.published,
+      publishedAt: asDraft ? null : DateTime.now(),
+    );
+
+    await ref.read(resultRepositoryProvider).saveResult(result);
+    await scoring.recalculateTeamScoresAndRanks();
+    triggerDataRefresh(ref);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            asDraft
+                ? (existingStudentResult != null
+                    ? 'Student result updated and saved to Draft!'
+                    : 'Result successfully saved to Draft!')
+                : (existingStudentResult != null
+                    ? 'Student result updated and republished!'
+                    : 'Result successfully verified and published!'),
+          ),
+          backgroundColor: asDraft ? Colors.amber.shade800 : Colors.green,
+        ),
+      );
+    }
+  }
+
+  void _confirmDeleteResult(Result result, [Student? student, Program? program, Team? team]) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 28),
+              SizedBox(width: 10),
+              Expanded(child: Text('Confirm Result Deletion')),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Are you sure you want to delete this result? Points will be automatically recalculated for all teams.',
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (student != null)
+                      Text('• Student: ${student.name} (${student.chaseNumber})',
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                    if (program != null)
+                      Text('• Program: ${program.programName} (${program.programCode})',
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                    if (team != null)
+                      Text('• Team: ${team.teamName}',
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                    Text(
+                      '• Award: ${result.position != null ? "${result.position} Place" : "Participant"} (${result.points} PTS)',
+                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              icon: const Icon(Icons.delete_forever, size: 18),
+              label: const Text('Delete Result'),
               onPressed: () async {
                 await ref
                     .read(resultRepositoryProvider)
@@ -6084,12 +6444,12 @@ class _ControllerPortalScreenState
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text(
-                      'Result deleted successfully and team scores updated.',
+                      'Result deleted successfully. Team scores updated.',
                     ),
+                    backgroundColor: Colors.green,
                   ),
                 );
               },
-              child: const Text('Delete'),
             ),
           ],
         );
@@ -6097,178 +6457,2035 @@ class _ControllerPortalScreenState
     );
   }
 
-  // --- 5. TV CONTROL & ANNOUNCEMENTS SECTION ---
-  Widget _buildTvControlSection() {
-    final tvService = ref.watch(tvServiceProvider);
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
+  // --- 7. PUBLISHED RESULTS MANAGEMENT SECTION ---
+  Widget _buildPublishedResultsSection(
+    AsyncValue<List<Result>> resultsAsync,
+    AsyncValue<List<Program>> programsAsync,
+    AsyncValue<List<Team>> teamsAsync,
+    AsyncValue<List<Student>> studentsAsync,
+  ) {
+    final allResults = resultsAsync.value ?? [];
+    final progs = programsAsync.value ?? [];
+    final teams = teamsAsync.value ?? [];
+    final students = studentsAsync.value ?? [];
+
+    final progMap = {for (var p in progs) p.id: p};
+    final teamMap = {for (var t in teams) t.id: t};
+    final studentMap = {
+      for (var s in students) s.id: s,
+      for (var s in students) s.chaseNumber.trim().toLowerCase(): s,
+      for (var s in students) s.chaseNumber.trim(): s,
+    };
+
+    // Filter only published / announced results
+    final publishedResults = allResults
+        .where(
+          (r) =>
+              r.status == ResultStatus.published ||
+              r.status == ResultStatus.announced,
+        )
+        .toList();
+
+    // Calculate metrics
+    final totalPublished = publishedResults.length;
+    final publishedProgIds = publishedResults.map((r) => r.programId).toSet();
+    final totalPoints = publishedResults.fold<int>(0, (sum, r) => sum + r.points);
+
+    // Filter by Section
+    List<Result> filteredResults = publishedResults;
+    if (_pubResultSectionFilter != 'ALL') {
+      filteredResults = filteredResults.where((r) {
+        final prog = progMap[r.programId];
+        return prog != null &&
+            prog.section.name.toUpperCase() == _pubResultSectionFilter;
+      }).toList();
+    }
+
+    // Filter by Program
+    if (_pubResultProgramFilter != null && _pubResultProgramFilter!.isNotEmpty) {
+      filteredResults = filteredResults
+          .where((r) => r.programId == _pubResultProgramFilter)
+          .toList();
+    }
+
+    // Filter by Search Query
+    if (_pubResultSearchQuery.isNotEmpty) {
+      final q = _pubResultSearchQuery.toLowerCase().trim();
+      final qClean = q.replaceAll(RegExp(r'[^a-z0-9]'), '');
+      filteredResults = filteredResults.where((r) {
+        final stud = studentMap[r.studentId] ??
+            studentMap[r.studentId.trim().toLowerCase()];
+        final prog = progMap[r.programId];
+        final tm = teamMap[r.teamId];
+
+        final studName = stud?.name.toLowerCase() ?? '';
+        final chase = stud?.chaseNumber.toLowerCase() ?? '';
+        final chaseClean = chase.replaceAll(RegExp(r'[^a-z0-9]'), '');
+        final progName = prog?.programName.toLowerCase() ?? '';
+        final progCode = prog?.programCode.toLowerCase() ?? '';
+        final teamName = tm?.teamName.toLowerCase() ?? '';
+        final grade = r.grade.toLowerCase();
+
+        return studName.contains(q) ||
+            chase.contains(q) ||
+            (qClean.isNotEmpty &&
+                (chaseClean == qClean ||
+                    chaseClean.endsWith(qClean) ||
+                    chaseClean.contains(qClean))) ||
+            progName.contains(q) ||
+            progCode.contains(q) ||
+            teamName.contains(q) ||
+            grade.contains(q);
+      }).toList();
+    }
+
+    // Program dropdown items based on section filter
+    final availablePrograms = _pubResultSectionFilter == 'ALL'
+        ? progs
+        : progs
+            .where((p) => p.section.name.toUpperCase() == _pubResultSectionFilter)
+            .toList();
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'TV / Projector Master Controller',
-            style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.bold),
+          // Header
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.emoji_events_rounded,
+                  color: Colors.green,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Published Results Management',
+                      style: GoogleFonts.inter(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Browse, search, and delete officially published festival results. Deleting a result automatically recalculates team scores and rankings.',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: AppTheme.inkSoft,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.add_circle_outline, size: 18),
+                label: const Text('Upload Result'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.red,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+                onPressed: () => setState(() => _selectedNavIndex = 6),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
+
+          // Overview Metric Cards
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth > 700;
+              return Row(
+                children: [
+                  Expanded(
+                    child: StatCard(
+                      title: 'Total Published Results',
+                      value: '$totalPublished',
+                      icon: Icons.workspace_premium_rounded,
+                      color: Colors.green,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: StatCard(
+                      title: 'Programs With Results',
+                      value: '${publishedProgIds.length} of ${progs.length}',
+                      icon: Icons.category_rounded,
+                      color: Colors.blue,
+                    ),
+                  ),
+                  if (isWide) ...[
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: StatCard(
+                        title: 'Total Points Awarded',
+                        value: '$totalPoints PTS',
+                        icon: Icons.stars_rounded,
+                        color: Colors.orange,
+                      ),
+                    ),
+                  ],
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 20),
+
+          // Search & Filter Toolbar
           AppCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Current TV Screen Mode: ${tvService.settings.screenMode}',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Select Display Mode for Live TV Screen:',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: [
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.image_rounded),
-                      label: const Text('🖼️ Fest Poster Mode (Default)'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: tvService.settings.screenMode == 'POSTER'
-                            ? Colors.deepOrange
-                            : Colors.grey[800],
-                        foregroundColor: Colors.white,
-                      ),
-                      onPressed: () => tvService.setScreenMode('POSTER'),
-                    ),
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.leaderboard_rounded),
-                      label: const Text('🏆 Scoreboard Mode'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: tvService.settings.screenMode == 'SCOREBOARD'
-                            ? Colors.deepOrange
-                            : Colors.grey[800],
-                        foregroundColor: Colors.white,
-                      ),
-                      onPressed: () => tvService.setScreenMode('SCOREBOARD'),
-                    ),
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.assessment_rounded),
-                      label: const Text('📊 Results Mode'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: tvService.settings.screenMode == 'RESULTS'
-                            ? Colors.deepOrange
-                            : Colors.grey[800],
-                        foregroundColor: Colors.white,
-                      ),
-                      onPressed: () => tvService.setScreenMode('RESULTS'),
-                    ),
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.autorenew_rounded),
-                      label: const Text('🔄 Auto-Rotate All Slides'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: tvService.settings.screenMode == 'AUTO'
-                            ? Colors.deepOrange
-                            : Colors.grey[800],
-                        foregroundColor: Colors.white,
-                      ),
-                      onPressed: () => tvService.setScreenMode('AUTO'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
+                // Search bar and view toggle
                 Row(
                   children: [
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.skip_next),
-                      label: const Text('Next Slide'),
-                      onPressed: () => tvService.nextSlide(),
+                    Expanded(
+                      child: TextField(
+                        controller: _pubResultSearchController,
+                        onChanged: (val) {
+                          setState(() {
+                            _pubResultSearchQuery = val.trim();
+                          });
+                        },
+                        decoration: InputDecoration(
+                          hintText: 'Search by student name, chase no, program, team, or grade...',
+                          hintStyle: GoogleFonts.inter(fontSize: 13, color: AppTheme.inkSoft),
+                          prefixIcon: const Icon(Icons.search, size: 20, color: AppTheme.inkSoft),
+                          suffixIcon: _pubResultSearchQuery.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear, size: 18),
+                                  onPressed: () {
+                                    _pubResultSearchController.clear();
+                                    setState(() {
+                                      _pubResultSearchQuery = '';
+                                    });
+                                  },
+                                )
+                              : null,
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          filled: true,
+                          fillColor: Colors.white,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: const BorderSide(color: AppTheme.line),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: const BorderSide(color: AppTheme.line),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: const BorderSide(color: AppTheme.red, width: 1.5),
+                          ),
+                        ),
+                      ),
                     ),
                     const SizedBox(width: 12),
-                    OutlinedButton.icon(
-                      icon: Icon(
-                        tvService.settings.autoRotate
-                            ? Icons.pause
-                            : Icons.play_arrow,
-                      ),
-                      label: Text(
-                        tvService.settings.autoRotate
-                            ? 'Pause Auto-Rotate'
-                            : 'Start Auto-Rotate',
-                      ),
-                      onPressed: () => tvService.setAutoRotate(
-                        !tvService.settings.autoRotate,
+                    // View Mode Switcher
+                    SegmentedButton<String>(
+                      segments: const [
+                        ButtonSegment(
+                          value: 'program',
+                          icon: Icon(Icons.folder_special_outlined, size: 18),
+                          label: Text('By Program'),
+                        ),
+                        ButtonSegment(
+                          value: 'list',
+                          icon: Icon(Icons.view_list_rounded, size: 18),
+                          label: Text('All List'),
+                        ),
+                      ],
+                      selected: {_pubResultViewMode},
+                      onSelectionChanged: (val) {
+                        setState(() {
+                          _pubResultViewMode = val.first;
+                        });
+                      },
+                      style: ButtonStyle(
+                        visualDensity: VisualDensity.compact,
+                        textStyle: WidgetStateProperty.all(
+                          GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600),
+                        ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
-                const Divider(),
-                const SizedBox(height: 12),
-                const Text(
-                  'Active TV Poster Preview:',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 10),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    height: 180,
-                    width: double.infinity,
-                    color: Colors.grey[200],
-                    child: Image.asset(
-                      'assets/images/tv_poster.png',
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Trigger Live Result Announcement Overlay',
-                  style: GoogleFonts.inter(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.campaign),
-                  label: const Text('ANNOUNCE LATEST RESULT ON TV'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.amber[800],
-                  ),
-                  onPressed: () async {
-                    final ann = Announcement(
-                      id: 'ann_${const Uuid().v4()}',
-                      title: '🎉 LIVE RESULT ANNOUNCEMENT 🎉',
-                      message: 'New championship result published!',
-                      status: 'ANNOUNCED',
-                      announcedAt: DateTime.now(),
+                const SizedBox(height: 14),
+
+                // Section Filter Chips & Program Dropdown
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final sectionChips = Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _buildFilterChoiceChip(
+                          label: 'All Sections',
+                          selected: _pubResultSectionFilter == 'ALL',
+                          onSelected: () => setState(() {
+                            _pubResultSectionFilter = 'ALL';
+                            _pubResultProgramFilter = null;
+                          }),
+                        ),
+                        ...FestSection.values.map(
+                          (sec) => _buildFilterChoiceChip(
+                            label: sec.label,
+                            selected: _pubResultSectionFilter == sec.name.toUpperCase(),
+                            onSelected: () => setState(() {
+                              _pubResultSectionFilter = sec.name.toUpperCase();
+                              _pubResultProgramFilter = null;
+                            }),
+                          ),
+                        ),
+                      ],
                     );
-                    await ref
-                        .read(announcementRepositoryProvider)
-                        .addAnnouncement(ann);
-                    triggerDataRefresh(ref);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Announcement broadcasted live to TV screen!',
+
+                    final programDropdown = DropdownButtonFormField<String?>(
+                      value: _pubResultProgramFilter,
+                      isExpanded: true,
+                      decoration: InputDecoration(
+                        labelText: 'Filter by Program',
+                        labelStyle: GoogleFonts.inter(fontSize: 12),
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: AppTheme.line),
                         ),
                       ),
+                      items: [
+                        const DropdownMenuItem<String?>(
+                          value: null,
+                          child: Text('All Programs (No Filter)'),
+                        ),
+                        ...availablePrograms.map(
+                          (p) => DropdownMenuItem<String?>(
+                            value: p.id,
+                            child: Text(
+                              '${p.programName} (${p.programCode})',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                      ],
+                      onChanged: (val) => setState(() => _pubResultProgramFilter = val),
+                    );
+
+                    if (constraints.maxWidth < 750) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          sectionChips,
+                          const SizedBox(height: 12),
+                          programDropdown,
+                        ],
+                      );
+                    }
+
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(child: sectionChips),
+                        const SizedBox(width: 16),
+                        SizedBox(width: 280, child: programDropdown),
+                      ],
                     );
                   },
                 ),
               ],
             ),
           ),
+          const SizedBox(height: 20),
+
+          // Content rendering
+          if (filteredResults.isEmpty)
+            _buildEmptyPublishedResultsView(publishedResults.isEmpty)
+          else if (_pubResultViewMode == 'program')
+            _buildGroupedByProgramView(
+              filteredResults,
+              progMap,
+              teamMap,
+              studentMap,
+            )
+          else
+            _buildFlatListView(
+              filteredResults,
+              progMap,
+              teamMap,
+              studentMap,
+            ),
         ],
       ),
     );
+  }
+
+  Widget _buildFilterChoiceChip({
+    required String label,
+    required bool selected,
+    required VoidCallback onSelected,
+  }) {
+    return ChoiceChip(
+      label: Text(
+        label,
+        style: GoogleFonts.inter(
+          fontSize: 12,
+          fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+          color: selected ? Colors.white : AppTheme.ink,
+        ),
+      ),
+      selected: selected,
+      selectedColor: AppTheme.red,
+      backgroundColor: Colors.white,
+      side: BorderSide(color: selected ? AppTheme.red : AppTheme.line),
+      onSelected: (_) => onSelected(),
+    );
+  }
+
+  Widget _buildEmptyPublishedResultsView(bool hasNoResultsAtAll) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.line),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: const BoxDecoration(
+              color: AppTheme.cream,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.emoji_events_outlined,
+              size: 48,
+              color: AppTheme.inkSoft,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            hasNoResultsAtAll
+                ? 'No Published Results Yet'
+                : 'No Results Match Your Filter',
+            style: GoogleFonts.inter(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.ink,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            hasNoResultsAtAll
+                ? 'Results uploaded and published from "Result Upload" will appear here.'
+                : 'Try adjusting your search query, section filter, or program selection.',
+            style: GoogleFonts.inter(fontSize: 13, color: AppTheme.inkSoft),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 20),
+          if (hasNoResultsAtAll)
+            ElevatedButton.icon(
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Go to Result Upload'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.red,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () => setState(() => _selectedNavIndex = 6),
+            )
+          else
+            OutlinedButton.icon(
+              icon: const Icon(Icons.clear, size: 18),
+              label: const Text('Clear All Filters'),
+              onPressed: () {
+                _pubResultSearchController.clear();
+                setState(() {
+                  _pubResultSearchQuery = '';
+                  _pubResultSectionFilter = 'ALL';
+                  _pubResultProgramFilter = null;
+                });
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGroupedByProgramView(
+    List<Result> filteredResults,
+    Map<String, Program> progMap,
+    Map<String, Team> teamMap,
+    Map<String, Student> studentMap,
+  ) {
+    // Group results by programId
+    final Map<String, List<Result>> progGroups = {};
+    for (final r in filteredResults) {
+      progGroups.putIfAbsent(r.programId, () => []).add(r);
+    }
+
+    final progKeys = progGroups.keys.toList();
+    // Sort programs by section then program name
+    progKeys.sort((a, b) {
+      final pa = progMap[a];
+      final pb = progMap[b];
+      final secComp = (pa?.section.index ?? 0).compareTo(pb?.section.index ?? 0);
+      if (secComp != 0) return secComp;
+      return (pa?.programName ?? '').compareTo(pb?.programName ?? '');
+    });
+
+    return Column(
+      children: progKeys.map((pId) {
+        final prog = progMap[pId];
+        final resList = progGroups[pId]!;
+        // Sort results: 1st, 2nd, 3rd, others
+        resList.sort((a, b) => (a.position ?? 99).compareTo(b.position ?? 99));
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: AppCard(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Program Header
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppTheme.red.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.category_rounded, color: AppTheme.red, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            prog?.programName ?? 'Program ID: $pId',
+                            style: GoogleFonts.inter(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.ink,
+                            ),
+                          ),
+                          if (prog != null)
+                            Text(
+                              'Code: ${prog.programCode} • Section: ${prog.section.label} • Category: ${prog.category.label}',
+                              style: GoogleFonts.inter(fontSize: 12, color: AppTheme.inkSoft),
+                            ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '${resList.length} Awards',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green.shade800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const Divider(height: 24),
+                // Results in this program
+                ...resList.map((r) {
+                  final stud = studentMap[r.studentId];
+                  final tm = teamMap[r.teamId];
+                  return _buildResultAwardCard(
+                    result: r,
+                    student: stud,
+                    program: prog,
+                    team: tm,
+                    showProgramHeader: false,
+                  );
+                }),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildFlatListView(
+    List<Result> filteredResults,
+    Map<String, Program> progMap,
+    Map<String, Team> teamMap,
+    Map<String, Student> studentMap,
+  ) {
+    return Column(
+      children: filteredResults.map((r) {
+        final prog = progMap[r.programId];
+        final stud = studentMap[r.studentId];
+        final tm = teamMap[r.teamId];
+        return _buildResultAwardCard(
+          result: r,
+          student: stud,
+          program: prog,
+          team: tm,
+          showProgramHeader: true,
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildResultAwardCard({
+    required Result result,
+    required Student? student,
+    required Program? program,
+    required Team? team,
+    bool showProgramHeader = false,
+  }) {
+    Color medalColor;
+    IconData medalIcon;
+    String positionLabel;
+
+    if (result.position == 1) {
+      medalColor = const Color(0xFFD4AF37); // Gold
+      medalIcon = Icons.emoji_events;
+      positionLabel = '1st Place (Winner)';
+    } else if (result.position == 2) {
+      medalColor = const Color(0xFFA0A0A0); // Silver
+      medalIcon = Icons.military_tech;
+      positionLabel = '2nd Place';
+    } else if (result.position == 3) {
+      medalColor = const Color(0xFFCD7F32); // Bronze
+      medalIcon = Icons.military_tech_outlined;
+      positionLabel = '3rd Place';
+    } else {
+      medalColor = Colors.blueGrey;
+      medalIcon = Icons.star_border_rounded;
+      positionLabel = 'Participant';
+    }
+
+    final dateStr = result.publishedAt != null
+        ? DateFormat('MMM dd, yyyy · hh:mm a').format(result.publishedAt!)
+        : 'Published';
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: result.position == 1
+              ? const Color(0xFFD4AF37).withValues(alpha: 0.5)
+              : AppTheme.line,
+          width: result.position == 1 ? 1.5 : 1.0,
+        ),
+      ),
+      color: result.position == 1
+          ? const Color(0xFFFFFDF5)
+          : Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Medal / Position badge
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: medalColor.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(medalIcon, color: medalColor, size: 24),
+            ),
+            const SizedBox(width: 14),
+
+            // Student & details
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (showProgramHeader && program != null) ...[
+                    Row(
+                      children: [
+                        Text(
+                          program.programName,
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.red,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppTheme.cream2,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            program.section.label,
+                            style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                  ],
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          student?.name ?? 'Student #${result.studentId}',
+                          style: GoogleFonts.inter(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.ink,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (student?.chaseNumber != null && student!.chaseNumber.isNotEmpty) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppTheme.cream,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: AppTheme.line),
+                          ),
+                          child: Text(
+                            'Chase #${student.chaseNumber}',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.ink,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: medalColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          positionLabel,
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: medalColor,
+                          ),
+                        ),
+                      ),
+                      if (team != null)
+                        Text(
+                          'Team: ${team.teamName}',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: AppTheme.inkSoft,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      Text(
+                        '•  Marks: ${result.marks}',
+                        style: GoogleFonts.inter(fontSize: 12, color: AppTheme.inkSoft),
+                      ),
+                      if (result.grade.isNotEmpty)
+                        Text(
+                          '•  Grade: ${result.grade}',
+                          style: GoogleFonts.inter(fontSize: 12, color: AppTheme.inkSoft),
+                        ),
+                      Text(
+                        '•  $dateStr',
+                        style: GoogleFonts.inter(fontSize: 11, color: Colors.grey.shade500),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(width: 12),
+
+            // Points badge
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.green.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+              ),
+              child: Text(
+                '+${result.points} PTS',
+                style: GoogleFonts.inter(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                  color: Colors.green.shade800,
+                ),
+              ),
+            ),
+
+            const SizedBox(width: 8),
+
+            // Delete Action Button
+            IconButton(
+              icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 22),
+              tooltip: 'Delete Published Result',
+              onPressed: () => _confirmDeleteResult(result, student, program, team),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- 8. TV CONTROL & ANNOUNCEMENTS SECTION ---
+  Widget _buildTvControlSection(
+    AsyncValue<List<Program>> programsAsync,
+    AsyncValue<List<Result>> resultsAsync,
+    AsyncValue<List<Student>> studentsAsync,
+    AsyncValue<List<Team>> teamsAsync,
+  ) {
+    final tvService = ref.watch(tvServiceProvider);
+    final allPrograms = programsAsync.value ?? [];
+    final allResults = resultsAsync.value ?? [];
+    final allStudents = studentsAsync.value ?? [];
+    final allTeams = teamsAsync.value ?? [];
+
+    final studentMap = {for (var s in allStudents) s.id: s};
+    final teamMap = {for (var t in allTeams) t.id: t};
+
+    final currentMode = tvService.settings.screenMode;
+    final activeProgId = tvService.settings.announcedProgramId;
+    final activeProg = allPrograms.where((p) => p.id == activeProgId).firstOrNull;
+
+    // Distinct published programs count for sequential numbering
+    final publishedProgIds = allResults
+        .where(
+          (r) =>
+              r.status == ResultStatus.published ||
+              r.status == ResultStatus.announced,
+        )
+        .map((r) => r.programId)
+        .toSet();
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Bar
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'TV / Projector Master Controller',
+                    style: GoogleFonts.inter(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Broadcast live fest visuals, 15s auto-rotating slides, and interactive stage result announcements.',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      color: AppTheme.inkSoft,
+                    ),
+                  ),
+                ],
+              ),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.tv_rounded, size: 20),
+                label: const Text('Open TV Display Screen'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.red,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 12,
+                  ),
+                ),
+                onPressed: () {
+                  context.push('/tv');
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // Top Mode Selection Grid (4 Primary Buttons)
+          AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Live TV Display Mode',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.green, width: 1.2),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.fiber_manual_record,
+                            color: Colors.green,
+                            size: 12,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'LIVE ON TV: ${_getModeLabel(currentMode)}',
+                            style: GoogleFonts.workSans(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.green[800],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isWide = constraints.maxWidth > 800;
+                    return GridView.count(
+                      crossAxisCount: isWide ? 4 : 2,
+                      crossAxisSpacing: 14,
+                      mainAxisSpacing: 14,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      childAspectRatio: isWide ? 1.5 : 1.25,
+                      children: [
+                        // Button 1: Auto Rotate With Scoreboard
+                        _buildModeButton(
+                          title: '1. Auto Rotate With Scoreboard',
+                          subtitle: 'Rotates Main, Scoreboard & Results (15s)',
+                          icon: Icons.scoreboard_rounded,
+                          isActive: currentMode == 'AUTO_WITH_SCOREBOARD',
+                          activeColor: Colors.deepOrange,
+                          onTap: () {
+                            tvService.setScreenMode('AUTO_WITH_SCOREBOARD');
+                            tvService.updateSlideDuration(15);
+                            tvService.setAutoRotate(true);
+                          },
+                        ),
+
+                        // Button 2: Auto Rotate Without Scoreboard
+                        _buildModeButton(
+                          title: '2. Auto Rotate Without Scoreboard',
+                          subtitle: 'Rotates Main Screen & Results only (15s)',
+                          icon: Icons.view_carousel_rounded,
+                          isActive: currentMode == 'AUTO_WITHOUT_SCOREBOARD',
+                          activeColor: Colors.indigo,
+                          onTap: () {
+                            tvService.setScreenMode('AUTO_WITHOUT_SCOREBOARD');
+                            tvService.updateSlideDuration(15);
+                            tvService.setAutoRotate(true);
+                          },
+                        ),
+
+                        // Button 3: Announce Result
+                        _buildModeButton(
+                          title: '3. Announce Result',
+                          subtitle: 'Draft results & position-by-position stage reveal',
+                          icon: Icons.campaign_rounded,
+                          isActive: currentMode == 'ANNOUNCE_RESULT',
+                          activeColor: Colors.amber[900]!,
+                          onTap: () {
+                            tvService.setScreenMode('ANNOUNCE_RESULT');
+                          },
+                        ),
+
+                        // Button 4: Only Main
+                        _buildModeButton(
+                          title: '4. Only Main',
+                          subtitle: 'Shows static Main Fest Poster full screen',
+                          icon: Icons.image_rounded,
+                          isActive: currentMode == 'ONLY_MAIN' || currentMode == 'POSTER',
+                          activeColor: Colors.teal[800]!,
+                          onTap: () {
+                            tvService.setScreenMode('ONLY_MAIN');
+                            tvService.setAutoRotate(false);
+                          },
+                        ),
+                      ],
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // Slide Controls (for auto-rotate modes)
+                if (currentMode == 'AUTO_WITH_SCOREBOARD' ||
+                    currentMode == 'AUTO_WITHOUT_SCOREBOARD' ||
+                    currentMode == 'AUTO') ...[
+                  const Divider(),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.skip_next_rounded),
+                        label: const Text('Next Slide'),
+                        onPressed: () => tvService.nextSlide(),
+                      ),
+                      const SizedBox(width: 12),
+                      OutlinedButton.icon(
+                        icon: Icon(
+                          tvService.settings.autoRotate
+                              ? Icons.pause_rounded
+                              : Icons.play_arrow_rounded,
+                        ),
+                        label: Text(
+                          tvService.settings.autoRotate
+                              ? 'Pause Rotation'
+                              : 'Resume Rotation',
+                        ),
+                        onPressed: () => tvService.setAutoRotate(
+                          !tvService.settings.autoRotate,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        'Slide Duration: ${tvService.settings.slideDuration}s per slide',
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                          color: AppTheme.inkSoft,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // --- SECTION: ANNOUNCE RESULT STAGE CONSOLE ---
+          if (currentMode == 'ANNOUNCE_RESULT') ...[
+            if (activeProg != null) ...[
+              _buildActiveAnnouncementConsole(
+                context,
+                tvService,
+                activeProg,
+                allResults,
+                studentMap,
+                teamMap,
+                publishedProgIds,
+              ),
+              const SizedBox(height: 24),
+            ],
+
+            // Draft Results Selector
+            _buildDraftResultsSelector(
+              context,
+              tvService,
+              allPrograms,
+              allResults,
+              publishedProgIds,
+            ),
+            const SizedBox(height: 24),
+          ],
+
+          // Live TV Screen Preview
+          _buildTvLivePreviewCard(tvService, activeProg),
+        ],
+      ),
+    );
+  }
+
+  String _getModeLabel(String mode) {
+    switch (mode) {
+      case 'AUTO_WITH_SCOREBOARD':
+        return 'Auto Rotate With Scoreboard (15s)';
+      case 'AUTO_WITHOUT_SCOREBOARD':
+        return 'Auto Rotate Without Scoreboard (15s)';
+      case 'ANNOUNCE_RESULT':
+        return 'Result Announcement Poster';
+      case 'ONLY_MAIN':
+      case 'POSTER':
+        return 'Main Poster';
+      case 'SCOREBOARD':
+        return 'Scoreboard Only';
+      case 'RESULTS':
+        return 'Results Only';
+      default:
+        return mode;
+    }
+  }
+
+  Widget _buildModeButton({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required bool isActive,
+    required Color activeColor,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isActive ? activeColor.withValues(alpha: 0.12) : AppTheme.cream2,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isActive ? activeColor : AppTheme.line,
+            width: isActive ? 2.5 : 1.2,
+          ),
+          boxShadow: isActive
+              ? [
+                  BoxShadow(
+                    color: activeColor.withValues(alpha: 0.25),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : null,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: isActive ? activeColor : AppTheme.ink,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, color: Colors.white, size: 22),
+                ),
+                const Spacer(),
+                if (isActive)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: activeColor,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      'ACTIVE',
+                      style: GoogleFonts.workSans(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              style: GoogleFonts.inter(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: isActive ? activeColor : AppTheme.ink,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                color: AppTheme.inkSoft,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- INTERACTIVE STAGE CONSOLE FOR ACTIVE ANNOUNCEMENT ---
+  Widget _buildActiveAnnouncementConsole(
+    BuildContext context,
+    TvService tvService,
+    Program prog,
+    List<Result> allResults,
+    Map<String, Student> studentMap,
+    Map<String, Team> teamMap,
+    Set<String> publishedProgIds,
+  ) {
+    final progResults = allResults.where((r) => r.programId == prog.id).toList();
+    final res1 = progResults.where((r) => r.position == 1).firstOrNull;
+    final res2 = progResults.where((r) => r.position == 2).firstOrNull;
+    final res3 = progResults.where((r) => r.position == 3).firstOrNull;
+
+    final s1 = res1 != null ? studentMap[res1.studentId] : null;
+    final t1 = res1 != null ? teamMap[res1.teamId] : null;
+    final s2 = res2 != null ? studentMap[res2.studentId] : null;
+    final t2 = res2 != null ? teamMap[res2.teamId] : null;
+    final s3 = res3 != null ? studentMap[res3.studentId] : null;
+    final t3 = res3 != null ? teamMap[res3.teamId] : null;
+
+    final revealed = tvService.settings.revealedPositions;
+    final isPos1Revealed = revealed.contains(1);
+    final isPos2Revealed = revealed.contains(2);
+    final isPos3Revealed = revealed.contains(3);
+
+    final resNum = tvService.settings.announcedResultNumber ?? 1;
+    final resNumStr = resNum < 10 ? '0$resNum' : '$resNum';
+
+    final isPublished = publishedProgIds.contains(prog.id);
+
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Banner Header
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.amber[900]!, Colors.deepOrange[800]!],
+              ),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.amber, width: 1.5),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        'RESULT #',
+                        style: GoogleFonts.workSans(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.amber,
+                        ),
+                      ),
+                      Text(
+                        resNumStr,
+                        style: GoogleFonts.rye(
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              prog.section.label.toUpperCase(),
+                              style: GoogleFonts.workSans(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            prog.programCode,
+                            style: GoogleFonts.workSans(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.amber[200],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        prog.programName,
+                        style: GoogleFonts.inter(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.edit, size: 14, color: Colors.white),
+                  label: const Text(
+                    'Edit Result #',
+                    style: TextStyle(color: Colors.white, fontSize: 12),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Colors.white54),
+                  ),
+                  onPressed: () => _showEditResultNumberDialog(context, tvService, resNum),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+
+          Text(
+            'Stage Position Reveal Console (Click to broadcast onto TV screen):',
+            style: GoogleFonts.inter(
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Announce in traditional stage order: click 3rd Place first, then 2nd Place, then 1st Place to reveal winners across badges on TV.',
+            style: GoogleFonts.inter(fontSize: 12, color: AppTheme.inkSoft),
+          ),
+          const SizedBox(height: 14),
+
+          // 3 Position Cards
+          _buildStagePositionCard(
+            position: 3,
+            badgeLabel: '3rd Place',
+            badgeColor: const Color(0xFFDE1F33),
+            student: s3,
+            team: t3,
+            result: res3,
+            isRevealed: isPos3Revealed,
+            onToggle: () => tvService.togglePositionReveal(3),
+          ),
+          const SizedBox(height: 10),
+
+          _buildStagePositionCard(
+            position: 2,
+            badgeLabel: '2nd Place',
+            badgeColor: const Color(0xFF8B2B38),
+            student: s2,
+            team: t2,
+            result: res2,
+            isRevealed: isPos2Revealed,
+            onToggle: () => tvService.togglePositionReveal(2),
+          ),
+          const SizedBox(height: 10),
+
+          _buildStagePositionCard(
+            position: 1,
+            badgeLabel: '1st Place (Winner)',
+            badgeColor: const Color(0xFF5A8E33),
+            student: s1,
+            team: t1,
+            result: res1,
+            isRevealed: isPos1Revealed,
+            onToggle: () => tvService.togglePositionReveal(1),
+          ),
+          const SizedBox(height: 16),
+
+          // Action Buttons Bar
+          Row(
+            children: [
+              ElevatedButton.icon(
+                icon: const Icon(Icons.visibility_rounded, size: 18),
+                label: const Text('👁️ Reveal All Winners'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.olive,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () => tvService.revealAllPositions(),
+              ),
+              const SizedBox(width: 10),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.visibility_off_rounded, size: 18),
+                label: const Text('🙈 Hide All (Suspense)'),
+                onPressed: () => tvService.hideAllPositions(),
+              ),
+              const Spacer(),
+              ElevatedButton.icon(
+                icon: Icon(
+                  isPublished ? Icons.check_circle_rounded : Icons.publish_rounded,
+                  size: 18,
+                ),
+                label: Text(
+                  isPublished
+                      ? 'Already Published (Re-publish)'
+                      : '✅ Publish & Complete Result',
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isPublished ? Colors.green[800] : AppTheme.red,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 12,
+                  ),
+                ),
+                onPressed: () async {
+                  await _publishActiveProgramResults(context, prog, progResults);
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStagePositionCard({
+    required int position,
+    required String badgeLabel,
+    required Color badgeColor,
+    required Student? student,
+    required Team? team,
+    required Result? result,
+    required bool isRevealed,
+    required VoidCallback onToggle,
+  }) {
+    final hasStudent = student != null || result != null;
+    final studName = student?.name ?? (result != null ? 'Registered Student' : 'No result entered');
+    final chaseNo = student?.chaseNumber ?? '';
+    final teamName = team?.teamName ?? '';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: isRevealed ? badgeColor.withValues(alpha: 0.08) : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isRevealed ? badgeColor : AppTheme.line,
+          width: isRevealed ? 2.0 : 1.0,
+        ),
+      ),
+      child: Row(
+        children: [
+          // Position Badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: badgeColor,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              badgeLabel,
+              style: GoogleFonts.workSans(
+                fontWeight: FontWeight.w900,
+                fontSize: 12,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+
+          // Winner Information
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      studName,
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: hasStudent ? AppTheme.ink : Colors.grey,
+                      ),
+                    ),
+                    if (chaseNo.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: AppTheme.cream,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: AppTheme.line),
+                        ),
+                        child: Text(
+                          '#$chaseNo',
+                          style: GoogleFonts.workSans(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                if (teamName.isNotEmpty || result != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    '${teamName.isNotEmpty ? teamName : "Team"} • ${result?.grade.isNotEmpty == true ? "Grade ${result?.grade}" : ""} • ${result?.points ?? 0} PTS',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: AppTheme.inkSoft,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+
+          // Live Broadcast Indicator
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: isRevealed ? Colors.green.withValues(alpha: 0.15) : Colors.grey[200],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isRevealed ? Colors.green : Colors.grey[400]!,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  isRevealed ? Icons.visibility : Icons.visibility_off,
+                  size: 14,
+                  color: isRevealed ? Colors.green[800] : Colors.grey[600],
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  isRevealed ? 'ON TV' : 'HIDDEN',
+                  style: GoogleFonts.workSans(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: isRevealed ? Colors.green[800] : Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+
+          // Reveal / Hide Action Button
+          ElevatedButton(
+            onPressed: onToggle,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isRevealed ? Colors.grey[800] : badgeColor,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            ),
+            child: Text(
+              isRevealed ? 'Hide from TV' : 'Reveal on TV',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- DRAFT RESULTS LIST / PICKER ---
+  Widget _buildDraftResultsSelector(
+    BuildContext context,
+    TvService tvService,
+    List<Program> allPrograms,
+    List<Result> allResults,
+    Set<String> publishedProgIds,
+  ) {
+    // Find programs with entered results
+    final progResultsMap = <String, List<Result>>{};
+    for (final r in allResults) {
+      progResultsMap.putIfAbsent(r.programId, () => []).add(r);
+    }
+
+    final programsWithResults = allPrograms
+        .where((p) => progResultsMap.containsKey(p.id) && progResultsMap[p.id]!.isNotEmpty)
+        .toList();
+
+    // Filter by Section
+    var filtered = programsWithResults;
+    if (_tvDraftSectionFilter != 'ALL') {
+      filtered = filtered
+          .where((p) => p.section.name.toUpperCase() == _tvDraftSectionFilter)
+          .toList();
+    }
+
+    // Filter by Search Query
+    if (_tvDraftSearchQuery.isNotEmpty) {
+      final q = _tvDraftSearchQuery.toLowerCase();
+      filtered = filtered
+          .where((p) =>
+              p.programName.toLowerCase().contains(q) ||
+              p.programCode.toLowerCase().contains(q))
+          .toList();
+    }
+
+    // Sort: draft/unpublished first, then published
+    filtered.sort((a, b) {
+      final aPub = publishedProgIds.contains(a.id);
+      final bPub = publishedProgIds.contains(b.id);
+      if (!aPub && bPub) return -1;
+      if (aPub && !bPub) return 1;
+      return a.programName.compareTo(b.programName);
+    });
+
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Draft Results Awaiting Announcement',
+                style: GoogleFonts.inter(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppTheme.cream,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppTheme.line),
+                ),
+                child: Text(
+                  '${filtered.length} Programs Available',
+                  style: GoogleFonts.workSans(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Search and Section Filters
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _tvDraftSearchController,
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.search, size: 20),
+                    hintText: 'Search program by name or code (e.g. Song MLM)...',
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    isDense: true,
+                    suffixIcon: _tvDraftSearchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, size: 18),
+                            onPressed: () {
+                              setState(() {
+                                _tvDraftSearchController.clear();
+                                _tvDraftSearchQuery = '';
+                              });
+                            },
+                          )
+                        : null,
+                  ),
+                  onChanged: (val) {
+                    setState(() {
+                      _tvDraftSearchQuery = val;
+                    });
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Section Filter Dropdown
+              DropdownButton<String>(
+                value: _tvDraftSectionFilter,
+                underline: const SizedBox.shrink(),
+                items: const [
+                  DropdownMenuItem(value: 'ALL', child: Text('All Sections')),
+                  DropdownMenuItem(value: 'SUBJUNIOR', child: Text('Sub Junior')),
+                  DropdownMenuItem(value: 'SENIOR', child: Text('Senior')),
+                  DropdownMenuItem(value: 'SUPERSENIOR', child: Text('Super Senior')),
+                  DropdownMenuItem(value: 'GENERAL', child: Text('General')),
+                ],
+                onChanged: (val) {
+                  if (val != null) {
+                    setState(() {
+                      _tvDraftSectionFilter = val;
+                    });
+                  }
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          if (filtered.isEmpty) ...[
+            Container(
+              padding: const EdgeInsets.all(28),
+              alignment: Alignment.center,
+              child: Column(
+                children: [
+                  const Icon(Icons.inbox_rounded, size: 40, color: Colors.grey),
+                  const SizedBox(height: 8),
+                  Text(
+                    'No draft results match filter criteria.',
+                    style: GoogleFonts.inter(color: AppTheme.inkSoft),
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: filtered.length,
+              separatorBuilder: (context, index) => const Divider(height: 1),
+              itemBuilder: (context, idx) {
+                final p = filtered[idx];
+                final pResults = progResultsMap[p.id] ?? [];
+                final isPublished = publishedProgIds.contains(p.id);
+                final isCurrent = tvService.settings.announcedProgramId == p.id;
+
+                final winnersCount = pResults.where((r) => r.position != null).length;
+
+                return Container(
+                  color: isCurrent
+                      ? Colors.amber.withValues(alpha: 0.12)
+                      : Colors.transparent,
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    leading: CircleAvatar(
+                      backgroundColor: isPublished
+                          ? Colors.green.withValues(alpha: 0.15)
+                          : Colors.orange.withValues(alpha: 0.15),
+                      child: Icon(
+                        isPublished ? Icons.check : Icons.hourglass_top,
+                        color: isPublished ? Colors.green[800] : Colors.orange[800],
+                        size: 20,
+                      ),
+                    ),
+                    title: Row(
+                      children: [
+                        Text(
+                          p.programName,
+                          style: GoogleFonts.inter(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppTheme.cream,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: AppTheme.line),
+                          ),
+                          child: Text(
+                            p.section.label,
+                            style: GoogleFonts.workSans(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        if (isCurrent) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.amber[800],
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'ON TV SCREEN',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    subtitle: Text(
+                      '${p.programCode} • $winnersCount Winners Assigned • ${isPublished ? "PUBLISHED" : "DRAFT READY"}',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: AppTheme.inkSoft,
+                      ),
+                    ),
+                    trailing: ElevatedButton.icon(
+                      icon: const Icon(Icons.campaign, size: 16),
+                      label: Text(
+                        isCurrent ? 'Current' : 'Select for TV',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isCurrent ? Colors.grey[800] : AppTheme.red,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () {
+                        // Calculate next sequential published number
+                        final nextNum = publishedProgIds.contains(p.id)
+                            ? publishedProgIds.toList().indexOf(p.id) + 1
+                            : publishedProgIds.length + 1;
+
+                        tvService.startAnnouncement(
+                          programId: p.id,
+                          resultNumber: nextNum,
+                        );
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Now broadcasting ${p.programName} onto TV Screen as Result #${nextNum < 10 ? "0$nextNum" : nextNum}!',
+                            ),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // --- LIVE TV SCREEN MINIATURE PREVIEW ---
+  Widget _buildTvLivePreviewCard(TvService tvService, Program? activeProg) {
+    final mode = tvService.settings.screenMode;
+
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Active TV Screen Live Preview',
+                style: GoogleFonts.inter(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+              Chip(
+                label: Text(
+                  _getModeLabel(mode),
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                ),
+                backgroundColor: AppTheme.cream,
+                side: const BorderSide(color: AppTheme.line),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              height: 220,
+              width: double.infinity,
+              color: Colors.black,
+              child: Center(
+                child: AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: mode == 'ANNOUNCE_RESULT'
+                      ? Image.asset(
+                          'assets/images/announce_result_template.jpg',
+                          fit: BoxFit.contain,
+                        )
+                      : Image.asset(
+                          'assets/images/tv_poster.png',
+                          fit: BoxFit.contain,
+                        ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditResultNumberDialog(
+    BuildContext context,
+    TvService tvService,
+    int currentNum,
+  ) {
+    final controller = TextEditingController(text: currentNum.toString());
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Edit Result Number for TV Poster'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'This number replaces the "00" position on the TV announcement template (e.g. 01, 70).',
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: controller,
+                keyboardType: TextInputType.number,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  labelText: 'Result Number',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.tag),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final val = int.tryParse(controller.text.trim());
+                if (val != null && val > 0) {
+                  tvService.setAnnouncedResultNumber(val);
+                }
+                Navigator.pop(ctx);
+              },
+              child: const Text('Save & Update TV'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _publishActiveProgramResults(
+    BuildContext context,
+    Program prog,
+    List<Result> progResults,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Publish Results for ${prog.programName}?'),
+        content: Text(
+          'This will publish ${progResults.length} winner results and recalculate team championship points.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Confirm & Publish'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final repo = ref.read(resultRepositoryProvider);
+    final scoring = ref.read(scoringServiceProvider);
+
+    for (final r in progResults) {
+      final updated = r.copyWith(
+        status: ResultStatus.published,
+        publishedAt: DateTime.now(),
+      );
+      await repo.updateResult(updated);
+    }
+
+    await scoring.recalculateTeamScoresAndRanks();
+    triggerDataRefresh(ref);
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '🎉 Results for ${prog.programName} officially published and team championship points recalculated!',
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
   }
 
   // --- 6. EXCEL IMPORT SECTION ---

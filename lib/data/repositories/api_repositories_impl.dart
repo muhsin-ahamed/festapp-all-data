@@ -410,30 +410,71 @@ class ApiRegistrationRepository implements RegistrationRepository {
 
 class ApiResultRepository implements ResultRepository {
   final ResultApi _api = ResultApi(globalApiClient);
+  final SupabaseResultRepository _supabase = SupabaseResultRepository();
 
   @override
   Future<List<Result>> getResults() async {
-    return await _api.getResults();
+    try {
+      final res = await _api.getResults();
+      if (res.isNotEmpty) return res;
+    } catch (_) {}
+    try {
+      return await _supabase.getResults();
+    } catch (_) {
+      return [];
+    }
   }
 
   @override
   Future<List<Result>> getPublishedResults() async {
-    return await _api.getPublishedResults();
+    try {
+      final res = await _api.getPublishedResults();
+      if (res.isNotEmpty) return res;
+    } catch (_) {}
+    try {
+      return await _supabase.getPublishedResults();
+    } catch (_) {
+      return [];
+    }
   }
 
   @override
   Future<List<Result>> getByProgram(String programId) async {
-    return await _api.getResults(programId: programId);
+    try {
+      final res = await _api.getResults(programId: programId);
+      if (res.isNotEmpty) return res;
+    } catch (_) {}
+    try {
+      return await _supabase.getByProgram(programId);
+    } catch (_) {
+      return [];
+    }
   }
 
   @override
   Future<List<Result>> getByStudent(String studentId) async {
-    return await _api.getResults(studentId: studentId);
+    try {
+      final res = await _api.getResults(studentId: studentId);
+      if (res.isNotEmpty) return res;
+    } catch (_) {}
+    try {
+      return await _supabase.getByStudent(studentId);
+    } catch (_) {
+      return [];
+    }
   }
 
   @override
   Future<List<Result>> getByTeam(String teamId) async {
-    return await _api.getResults(teamId: teamId);
+    try {
+      final res = await _api.getResults(teamId: teamId);
+      if (res.isNotEmpty) return res;
+    } catch (_) {}
+    try {
+      return await _supabase.getByTeam(teamId);
+    } catch (_) {
+      return [];
+    }
   }
 
   @override
@@ -448,15 +489,61 @@ class ApiResultRepository implements ResultRepository {
 
   @override
   Future<void> saveResult(Result result) async {
-    await _api.submitJuryResult(
-      programId: result.programId,
-      studentId: result.studentId,
-      marks: result.marks,
-      grade: result.grade,
-      position: result.position,
-      remarks: result.remarks,
-      isDraft: result.status == ResultStatus.draft,
-    );
+    bool apiSuccess = false;
+    try {
+      // 1. Attempt direct controller endpoint first
+      try {
+        final res = await globalApiClient.post(
+          '/controller/results',
+          body: {
+            'id': result.id,
+            'programId': result.programId,
+            'studentId': result.studentId,
+            'marks': result.marks,
+            'grade': result.grade,
+            'position': result.position,
+            'remarks': result.remarks,
+            'status': result.status == ResultStatus.published
+                ? 'PUBLISHED'
+                : (result.status == ResultStatus.draft
+                    ? 'DRAFT'
+                    : result.status.label),
+            'isDraft': result.status == ResultStatus.draft,
+          },
+        );
+        if (res != null) {
+          apiSuccess = true;
+        }
+      } catch (_) {}
+
+      // 2. Fallback to submitJuryResult + publishResult/draftResult
+      if (!apiSuccess) {
+        final res = await _api.submitJuryResult(
+          programId: result.programId,
+          studentId: result.studentId,
+          marks: result.marks,
+          grade: result.grade,
+          position: result.position,
+          remarks: result.remarks,
+          isDraft: result.status == ResultStatus.draft,
+        );
+        final idToPublish = res?.id ?? result.id;
+        if (result.status == ResultStatus.published && idToPublish.isNotEmpty) {
+          await _api.publishResult(idToPublish);
+        } else if (result.status == ResultStatus.draft &&
+            idToPublish.isNotEmpty) {
+          await _api.draftResult(idToPublish);
+        }
+        apiSuccess = true;
+      }
+    } catch (_) {}
+
+    // 3. Redundantly persist directly to Supabase so both databases stay in sync
+    try {
+      await _supabase.saveResult(result);
+    } catch (e) {
+      if (!apiSuccess) rethrow;
+    }
   }
 
   @override
