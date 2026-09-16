@@ -2,17 +2,36 @@ name: Build Android APK
 
 on:
   workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build Type'
+        required: true
+        default: 'release'
+        type: choice
+        options:
+          - release
+          - debug
+      create_release:
+        description: 'Create GitHub Release with direct APK download?'
+        required: true
+        type: boolean
+        default: true
   push:
     branches:
       - main
       - master
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
+      - 'backend/**'
 
 permissions:
   contents: write
 
 jobs:
   build:
-    name: Build & Release APK
+    name: Build & Export APK
     runs-on: ubuntu-latest
 
     steps:
@@ -24,6 +43,7 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
+          cache: 'gradle'
 
       - name: Set Up Flutter
         uses: subosito/flutter-action@v2
@@ -31,25 +51,58 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Make Gradle Wrapper Executable
+        run: chmod +x android/gradlew
+
       - name: Install Dependencies
         run: flutter pub get
 
-      - name: Build Release APK
-        run: flutter build apk --release
+      - name: Build Android APK
+        run: |
+          BUILD_TYPE="${{ github.event.inputs.build_type || 'release' }}"
+          echo "Building APK mode: $BUILD_TYPE"
+          flutter build apk --$BUILD_TYPE
 
-      - name: Upload APK to Artifacts
+      - name: Prepare Branded APK File
+        run: |
+          BUILD_TYPE="${{ github.event.inputs.build_type || 'release' }}"
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-${BUILD_TYPE}.apk dist/amia-fest-${BUILD_TYPE}.apk
+          ls -lh dist/
+
+      - name: Upload APK to Workflow Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: app-release
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: amia-fest-${{ github.event.inputs.build_type || 'release' }}-apk
+          path: dist/amia-fest-*.apk
+          retention-days: 30
 
-      - name: Create GitHub Release
+      - name: Create GitHub Release & Direct Download APK
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/heads/')
+        if: (github.event_name == 'push' || github.event.inputs.create_release == true || github.event.inputs.create_release == 'true') && startsWith(github.ref, 'refs/heads/')
+        continue-on-error: true
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           tag_name: v1.0.${{ github.run_number }}
-          name: Release v1.0.${{ github.run_number }}
-          files: build/app/outputs/flutter-apk/app-release.apk
+          name: "AMIA Fest v1.0.${{ github.run_number }}"
+          files: dist/amia-fest-*.apk
           generate_release_notes: true
           draft: false
           prerelease: false
+
+      - name: Generate Build Summary
+        run: |
+          BUILD_TYPE="${{ github.event.inputs.build_type || 'release' }}"
+          APK_FILE="dist/amia-fest-${BUILD_TYPE}.apk"
+          FILE_SIZE=$(du -h "$APK_FILE" | cut -f1)
+          echo "### 📱 Android APK Build Completed! 🎉" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Item | Details |" >> $GITHUB_STEP_SUMMARY
+          echo "| :--- | :--- |" >> $GITHUB_STEP_SUMMARY
+          echo "| **App Name** | AMIA Fest / Askesis |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Build Type** | \`$BUILD_TYPE\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **File Size** | \`$FILE_SIZE\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Artifact Name** | \`amia-fest-${BUILD_TYPE}-apk\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Run Number** | \`#${{ github.run_number }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "You can download the APK directly from the **Artifacts** section below." >> $GITHUB_STEP_SUMMARY
