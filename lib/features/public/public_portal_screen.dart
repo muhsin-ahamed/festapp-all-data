@@ -611,6 +611,13 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
             )
             .toList();
 
+        // Sort newest published first so recent results appear on top
+        published.sort((a, b) {
+          final timeA = a.publishedAt ?? a.createdAt;
+          final timeB = b.publishedAt ?? b.createdAt;
+          return timeB.compareTo(timeA);
+        });
+
         final progs = programsAsync.value ?? [];
         final teams = teamsAsync.value ?? [];
         final students = studentsAsync.value ?? [];

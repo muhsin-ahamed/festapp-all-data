@@ -79,10 +79,12 @@ export async function submitJuryResult(req: Request, res: Response, next: NextFu
     const juryId = req.user?.juryId || req.user?.id || '';
 
     if (req.user?.role === 'JURY') {
-      const assignedPrograms = await juryService.getAssignedPrograms(juryId);
-      const isAssigned = assignedPrograms.some((p) => p.id === programId);
-      if (!isAssigned) {
-        return sendError(res, 'Forbidden: Jury is not assigned to evaluate this program', 403, 'JURY_NOT_ASSIGNED');
+      const assignedPrograms = await juryService.getAssignedPrograms(juryId, req.user?.username);
+      if (assignedPrograms.length > 0) {
+        const isAssigned = assignedPrograms.some((p) => p.id === programId);
+        if (!isAssigned) {
+          return sendError(res, 'Forbidden: Jury is not assigned to evaluate this program', 403, 'JURY_NOT_ASSIGNED');
+        }
       }
     }
 
@@ -107,8 +109,24 @@ export async function submitJuryResult(req: Request, res: Response, next: NextFu
 export async function getJuryResults(req: Request, res: Response, next: NextFunction) {
   try {
     const juryId = req.user?.juryId || req.user?.id || '';
-    const results = await resultService.getResults({ juryId });
+    const programId = req.query.programId as string | undefined;
+    const filters: any = {};
+    if (programId) {
+      filters.programId = programId;
+    } else if (juryId) {
+      filters.juryId = juryId;
+    }
+    const results = await resultService.getResults(filters);
     return sendSuccess(res, results, 'Submitted evaluations');
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function deleteJuryResult(req: Request, res: Response, next: NextFunction) {
+  try {
+    await resultService.deleteResult(req.params.id, req.user?.username);
+    return sendSuccess(res, {}, 'Result deleted successfully');
   } catch (error) {
     next(error);
   }

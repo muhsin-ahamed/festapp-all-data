@@ -157,7 +157,17 @@ class ApiTeamRepository implements TeamRepository {
 
   @override
   Future<void> addTeam(Team team) async {
-    await globalApiClient.post('/controller/teams', body: team.toMap());
+    bool apiSuccess = false;
+    try {
+      await globalApiClient.post('/controller/teams', body: team.toMap());
+      apiSuccess = true;
+    } catch (_) {}
+    try {
+      final supabaseRepo = SupabaseTeamRepository();
+      await supabaseRepo.addTeam(team);
+    } catch (e) {
+      if (!apiSuccess) rethrow;
+    }
   }
 
   @override
@@ -169,10 +179,20 @@ class ApiTeamRepository implements TeamRepository {
 
   @override
   Future<void> updateTeam(Team team) async {
-    await globalApiClient.put(
-      '/controller/teams/${team.id}',
-      body: team.toMap(),
-    );
+    bool apiSuccess = false;
+    try {
+      await globalApiClient.put(
+        '/controller/teams/${team.id}',
+        body: team.toMap(),
+      );
+      apiSuccess = true;
+    } catch (_) {}
+    try {
+      final supabaseRepo = SupabaseTeamRepository();
+      await supabaseRepo.updateTeam(team);
+    } catch (e) {
+      if (!apiSuccess) rethrow;
+    }
   }
 
   @override
@@ -414,67 +434,64 @@ class ApiResultRepository implements ResultRepository {
 
   @override
   Future<List<Result>> getResults() async {
+    final Map<String, Result> merged = {};
     try {
-      final res = await _api.getResults();
-      if (res.isNotEmpty) return res;
+      final supa = await _supabase.getResults();
+      for (final r in supa) {
+        merged[r.id] = r;
+      }
     } catch (_) {}
     try {
-      return await _supabase.getResults();
-    } catch (_) {
-      return [];
-    }
+      final apiRes = await _api.getResults();
+      for (final r in apiRes) {
+        merged[r.id] = r;
+      }
+    } catch (_) {}
+    final list = merged.values.toList();
+    list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return list;
   }
 
   @override
   Future<List<Result>> getPublishedResults() async {
+    final Map<String, Result> merged = {};
     try {
-      final res = await _api.getPublishedResults();
-      if (res.isNotEmpty) return res;
+      final supa = await _supabase.getPublishedResults();
+      for (final r in supa) {
+        merged[r.id] = r;
+      }
     } catch (_) {}
     try {
-      return await _supabase.getPublishedResults();
-    } catch (_) {
-      return [];
-    }
+      final apiRes = await _api.getPublishedResults();
+      for (final r in apiRes) {
+        merged[r.id] = r;
+      }
+    } catch (_) {}
+    final list = merged.values.toList();
+    list.sort((a, b) {
+      final timeA = a.publishedAt ?? a.createdAt;
+      final timeB = b.publishedAt ?? b.createdAt;
+      return timeB.compareTo(timeA);
+    });
+    return list;
   }
 
   @override
   Future<List<Result>> getByProgram(String programId) async {
-    try {
-      final res = await _api.getResults(programId: programId);
-      if (res.isNotEmpty) return res;
-    } catch (_) {}
-    try {
-      return await _supabase.getByProgram(programId);
-    } catch (_) {
-      return [];
-    }
+    final results = await getResults();
+    return results.where((r) => r.programId == programId).toList();
   }
 
   @override
   Future<List<Result>> getByStudent(String studentId) async {
-    try {
-      final res = await _api.getResults(studentId: studentId);
-      if (res.isNotEmpty) return res;
-    } catch (_) {}
-    try {
-      return await _supabase.getByStudent(studentId);
-    } catch (_) {
-      return [];
-    }
+    final results = await getResults();
+    return results.where((r) => r.studentId == studentId).toList();
   }
 
   @override
   Future<List<Result>> getByTeam(String teamId) async {
-    try {
-      final res = await _api.getResults(teamId: teamId);
-      if (res.isNotEmpty) return res;
-    } catch (_) {}
-    try {
-      return await _supabase.getByTeam(teamId);
-    } catch (_) {
-      return [];
-    }
+    final results = await getResults();
+    return results.where((r) => r.teamId == teamId).toList();
   }
 
   @override
@@ -490,34 +507,34 @@ class ApiResultRepository implements ResultRepository {
   @override
   Future<void> saveResult(Result result) async {
     bool apiSuccess = false;
+    // 1. Attempt direct controller endpoint first
     try {
-      // 1. Attempt direct controller endpoint first
-      try {
-        final res = await globalApiClient.post(
-          '/controller/results',
-          body: {
-            'id': result.id,
-            'programId': result.programId,
-            'studentId': result.studentId,
-            'marks': result.marks,
-            'grade': result.grade,
-            'position': result.position,
-            'remarks': result.remarks,
-            'status': result.status == ResultStatus.published
-                ? 'PUBLISHED'
-                : (result.status == ResultStatus.draft
-                    ? 'DRAFT'
-                    : result.status.label),
-            'isDraft': result.status == ResultStatus.draft,
-          },
-        );
-        if (res != null) {
-          apiSuccess = true;
-        }
-      } catch (_) {}
+      final res = await globalApiClient.post(
+        '/controller/results',
+        body: {
+          'id': result.id,
+          'programId': result.programId,
+          'studentId': result.studentId,
+          'marks': result.marks,
+          'grade': result.grade,
+          'position': result.position,
+          'remarks': result.remarks,
+          'status': result.status == ResultStatus.published
+              ? 'PUBLISHED'
+              : (result.status == ResultStatus.draft
+                  ? 'DRAFT'
+                  : result.status.label),
+          'isDraft': result.status == ResultStatus.draft,
+        },
+      );
+      if (res != null) {
+        apiSuccess = true;
+      }
+    } catch (_) {}
 
-      // 2. Fallback to submitJuryResult + publishResult/draftResult
-      if (!apiSuccess) {
+    // 2. Fallback to submitJuryResult (for Jury users)
+    if (!apiSuccess) {
+      try {
         final res = await _api.submitJuryResult(
           programId: result.programId,
           studentId: result.studentId,
@@ -527,18 +544,18 @@ class ApiResultRepository implements ResultRepository {
           remarks: result.remarks,
           isDraft: result.status == ResultStatus.draft,
         );
-        final idToPublish = res?.id ?? result.id;
-        if (result.status == ResultStatus.published && idToPublish.isNotEmpty) {
-          await _api.publishResult(idToPublish);
-        } else if (result.status == ResultStatus.draft &&
-            idToPublish.isNotEmpty) {
-          await _api.draftResult(idToPublish);
+        if (res != null) {
+          apiSuccess = true;
+          if (result.status == ResultStatus.published && res.id.isNotEmpty) {
+            await _api.publishResult(res.id);
+          } else if (result.status == ResultStatus.draft && res.id.isNotEmpty) {
+            await _api.draftResult(res.id);
+          }
         }
-        apiSuccess = true;
-      }
-    } catch (_) {}
+      } catch (_) {}
+    }
 
-    // 3. Redundantly persist directly to Supabase so both databases stay in sync
+    // 3. Persist directly to Supabase so both databases stay in sync
     try {
       await _supabase.saveResult(result);
     } catch (e) {
@@ -555,8 +572,8 @@ class ApiResultRepository implements ResultRepository {
   Future<void> deleteResult(String id) async {
     bool apiSuccess = false;
     try {
-      await globalApiClient.delete('/controller/results/$id');
-      apiSuccess = true;
+      final deleted = await _api.deleteResult(id);
+      if (deleted) apiSuccess = true;
     } catch (_) {}
     try {
       final supabaseRepo = SupabaseResultRepository();

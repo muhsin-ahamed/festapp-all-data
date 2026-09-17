@@ -1206,6 +1206,11 @@ class _TvPortalScreenState extends ConsumerState<TvPortalScreen> {
                           r.status == ResultStatus.announced,
                     )
                     .toList();
+                published.sort((a, b) {
+                  final timeA = a.publishedAt ?? a.createdAt;
+                  final timeB = b.publishedAt ?? b.createdAt;
+                  return timeB.compareTo(timeA);
+                });
                 if (published.isEmpty) {
                   return const Center(
                     child: Text(
@@ -1271,13 +1276,27 @@ class _TvPortalScreenState extends ConsumerState<TvPortalScreen> {
                           const SizedBox(width: 12),
                           FittedBox(
                             fit: BoxFit.scaleDown,
-                            child: Text(
-                              '${res.position != null ? "${res.position}st Place" : "Grade ${res.grade}"} • ${res.points} PTS',
-                              style: GoogleFonts.rye(
-                                fontSize: isCompact ? 16 : 22,
-                                color: AppTheme.red,
-                              ),
-                            ),
+                            child: Builder(builder: (context) {
+                              final posStr = res.position == 1
+                                  ? '1st Place'
+                                  : res.position == 2
+                                      ? '2nd Place'
+                                      : res.position == 3
+                                          ? '3rd Place'
+                                          : res.position != null
+                                              ? '${res.position}th Place'
+                                              : (res.grade.isNotEmpty
+                                                  ? 'Grade ${res.grade}'
+                                                  : '');
+                              final suffix = posStr.isNotEmpty ? '$posStr • ' : '';
+                              return Text(
+                                '$suffix${res.points} PTS',
+                                style: GoogleFonts.rye(
+                                  fontSize: isCompact ? 16 : 22,
+                                  color: AppTheme.red,
+                                ),
+                              );
+                            }),
                           ),
                         ],
                       ),

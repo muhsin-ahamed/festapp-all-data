@@ -15,5 +15,6 @@ router.get('/programs/:id/participants', JuryController.getProgramParticipants);
 router.post('/scan', JuryController.scanQrCode);
 router.post('/results', validateRequest({ body: submitResultSchema }), JuryController.submitJuryResult);
 router.get('/results', JuryController.getJuryResults);
+router.delete('/results/:id', JuryController.deleteJuryResult);
 
 export default router;

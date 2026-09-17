@@ -42,12 +42,14 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
     if (user != null) {
       await prefs.setString(_userKey, jsonEncode(user.toMap()));
-      if (token != null) {
+      if (token != null && token.isNotEmpty) {
         await prefs.setString(_tokenKey, token);
+        globalApiClient.setAuthToken(token);
       }
     } else {
       await prefs.remove(_userKey);
       await prefs.remove(_tokenKey);
+      globalApiClient.setAuthToken(null);
     }
   }
 
@@ -125,7 +127,10 @@ class AuthService {
         final user = User.fromMap(res['user'] as Map<String, dynamic>);
         _currentUser = user;
         final token = res['accessToken'] ?? res['token'];
-        await _saveUser(user, token);
+        if (token != null && token.toString().isNotEmpty) {
+          globalApiClient.setAuthToken(token.toString());
+        }
+        await _saveUser(user, token?.toString());
         return user;
       }
     } catch (e) {
@@ -145,6 +150,16 @@ class AuthService {
         if (user != null && _verifyPassword(cleanPassword, user)) {
           _currentUser = user;
           await _saveUser(user);
+          // Try background login to obtain JWT token for globalApiClient if backend is available
+          try {
+            final apiRes = await _authApi.login(cleanUsername, cleanPassword);
+            final token = apiRes['accessToken'] ?? apiRes['token'];
+            if (token != null && token.toString().isNotEmpty) {
+              globalApiClient.setAuthToken(token.toString());
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setString(_tokenKey, token.toString());
+            }
+          } catch (_) {}
           return user;
         }
       } catch (_) {}

@@ -20,8 +20,11 @@ export class JuryService {
     return await this.juryRepo.findById(id);
   }
 
-  async getAssignedPrograms(juryId: string): Promise<ProgramEntity[]> {
-    const jury = await this.juryRepo.findById(juryId);
+  async getAssignedPrograms(juryId: string, username?: string): Promise<ProgramEntity[]> {
+    let jury = await this.juryRepo.findById(juryId);
+    if (!jury && username) {
+      jury = await this.juryRepo.findByUsername(username);
+    }
     if (!jury) return [];
 
     const assignedIds: string[] = jury.assignedPrograms || [];

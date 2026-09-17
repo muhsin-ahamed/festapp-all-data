@@ -33,6 +33,17 @@ class ResultApi {
             .toList();
       }
     } catch (_) {
+      try {
+        final res = await client.get(
+          '/jury/results',
+          queryParams: queryParams,
+        );
+        if (res is List) {
+          return res
+              .map((e) => Result.fromMap(e as Map<String, dynamic>))
+              .toList();
+        }
+      } catch (_) {}
       return getPublishedResults(section: section, programId: programId);
     }
     return [];
@@ -118,7 +129,12 @@ class ResultApi {
       await client.delete('/controller/results/$resultId');
       return true;
     } catch (_) {
-      return false;
+      try {
+        await client.delete('/jury/results/$resultId');
+        return true;
+      } catch (_) {
+        return false;
+      }
     }
   }
 }

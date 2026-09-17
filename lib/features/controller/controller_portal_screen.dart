@@ -16,7 +16,6 @@ import '../../data/models/result_model.dart';
 import '../../data/models/venue_model.dart';
 import '../../data/models/schedule_model.dart';
 import '../../data/models/registration_model.dart';
-import '../../data/models/announcement_model.dart';
 import '../../data/models/user_model.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:printing/printing.dart';
@@ -54,6 +53,8 @@ class _ControllerPortalScreenState
   final _resultGradeController = TextEditingController();
   final _resultStudentSearchController = TextEditingController();
   int _resultPosition = 1;
+  String _resultsReviewFilter = 'ALL';
+  bool _showAllSectionStudents = false;
 
   // Published Results Management State
   String _pubResultSearchQuery = '';
@@ -89,7 +90,6 @@ class _ControllerPortalScreenState
   final _tvDraftSearchController = TextEditingController();
 
   // Schedule & Venue State & Controllers
-  String _scheduleSearchQuery = '';
   String _selectedScheduleDateFilter = 'ALL';
   String _selectedScheduleVenueFilter = 'ALL';
   String _selectedScheduleStatusFilter = 'ALL';
@@ -404,7 +404,10 @@ class _ControllerPortalScreenState
                     value: '$pendingDrafts',
                     icon: Icons.pending_actions,
                     color: Colors.amber,
-                    onTap: () => setState(() => _selectedNavIndex = 6),
+                    onTap: () => setState(() {
+                      _selectedNavIndex = 6;
+                      _resultsReviewFilter = 'DRAFT';
+                    }),
                   ),
                   StatCard(
                     title: 'Published Results',
@@ -5762,13 +5765,22 @@ class _ControllerPortalScreenState
         })
         .toList();
 
-    // Filter displayed registered students based on quick search
+    final selectedProg = progs.where((p) => p.id == currentProgId).firstOrNull;
+    final sectionStudents = selectedProg != null
+        ? students.where((s) => s.section == selectedProg.section).toList()
+        : students;
+
+    final candidateStudents = (_showAllSectionStudents || registeredStudents.isEmpty)
+        ? (sectionStudents.isNotEmpty ? sectionStudents : students)
+        : registeredStudents;
+
+    // Filter displayed candidate students based on quick search
     final studentQuery =
         _resultStudentSearchController.text.trim().toLowerCase();
     final studentQueryClean = studentQuery.replaceAll(RegExp(r'[^a-z0-9]'), '');
     final displayedStudents = studentQuery.isEmpty
-        ? registeredStudents
-        : registeredStudents.where((s) {
+        ? candidateStudents
+        : candidateStudents.where((s) {
             final sChase = s.chaseNumber.trim().toLowerCase();
             final sChaseClean = sChase.replaceAll(RegExp(r'[^a-z0-9]'), '');
             final sName = s.name.trim().toLowerCase();
@@ -5781,19 +5793,15 @@ class _ControllerPortalScreenState
                 sName.contains(studentQuery);
           }).toList();
 
-    // Ensure selected student ID is valid within registeredStudents or displayedStudents
+    // Ensure selected student ID is valid within displayedStudents
     String? currentStudentId = _selectedResultStudentId;
     if (currentStudentId != null &&
-        !registeredStudents.any((s) => s.id == currentStudentId)) {
+        !displayedStudents.any((s) => s.id == currentStudentId)) {
       currentStudentId = displayedStudents.isNotEmpty
           ? displayedStudents.first.id
-          : (registeredStudents.isNotEmpty
-              ? registeredStudents.first.id
-              : null);
+          : null;
     } else if (currentStudentId == null && displayedStudents.isNotEmpty) {
       currentStudentId = displayedStudents.first.id;
-    } else if (currentStudentId == null && registeredStudents.isNotEmpty) {
-      currentStudentId = registeredStudents.first.id;
     }
 
     final scoring = ref.read(scoringServiceProvider);
@@ -5801,6 +5809,43 @@ class _ControllerPortalScreenState
       position: _resultPosition > 0 ? _resultPosition : null,
       grade: _resultGradeController.text.trim(),
     );
+
+    final draftResultsCount = results
+        .where((r) =>
+            r.status == ResultStatus.draft ||
+            r.status == ResultStatus.submitted)
+        .length;
+    final publishedResultsCount = results
+        .where((r) =>
+            r.status == ResultStatus.published ||
+            r.status == ResultStatus.announced)
+        .length;
+
+    List<Result> displayedReviewResults = List.from(results);
+    if (_resultsReviewFilter == 'DRAFT') {
+      displayedReviewResults = displayedReviewResults
+          .where((r) =>
+              r.status == ResultStatus.draft ||
+              r.status == ResultStatus.submitted)
+          .toList();
+    } else if (_resultsReviewFilter == 'PUBLISHED') {
+      displayedReviewResults = displayedReviewResults
+          .where((r) =>
+              r.status == ResultStatus.published ||
+              r.status == ResultStatus.announced)
+          .toList();
+    }
+
+    // Sort: draft results first, then by updated date
+    displayedReviewResults.sort((a, b) {
+      final aIsDraft =
+          a.status == ResultStatus.draft || a.status == ResultStatus.submitted;
+      final bIsDraft =
+          b.status == ResultStatus.draft || b.status == ResultStatus.submitted;
+      if (aIsDraft && !bIsDraft) return -1;
+      if (!aIsDraft && bIsDraft) return 1;
+      return b.updatedAt.compareTo(a.updatedAt);
+    });
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -5880,91 +5925,143 @@ class _ControllerPortalScreenState
                 const SizedBox(height: 12),
 
                 // 3rd Dropdown: Registered Student Selection (Filtered by Program)
+                // 3rd Dropdown: Student Selection (Filtered by Program / Section)
                 if (currentProgId != null && registeredStudents.isEmpty)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.withValues(alpha: 0.12),
-                      border: Border.all(color: Colors.amber.shade400),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.warning_amber_rounded, color: Colors.amber),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'No registered students found for this program.',
-                            style: GoogleFonts.inter(
-                              color: AppTheme.ink,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withValues(alpha: 0.08),
+                        border: Border.all(color: Colors.blue.shade300),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.info_outline, color: Colors.blue),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'No pre-registered students found for this program. Showing all ${candidateStudents.length} students in ${selectedProg?.section.label ?? "this section"} so you can enter results directly.',
+                              style: GoogleFonts.inter(
+                                color: AppTheme.ink,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12.5,
+                              ),
                             ),
                           ),
+                        ],
+                      ),
+                    ),
+                  )
+                else if (currentProgId != null && registeredStudents.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Row(
+                      children: [
+                        Text(
+                          'Student Source: ',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.inkSoft,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ChoiceChip(
+                          label: Text('Registered (${registeredStudents.length})'),
+                          selected: !_showAllSectionStudents,
+                          onSelected: (val) {
+                            if (val) {
+                              setState(() {
+                                _showAllSectionStudents = false;
+                                _selectedResultStudentId = null;
+                              });
+                            }
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        ChoiceChip(
+                          label: Text('All in Section (${sectionStudents.length})'),
+                          selected: _showAllSectionStudents,
+                          onSelected: (val) {
+                            if (val) {
+                              setState(() {
+                                _showAllSectionStudents = true;
+                                _selectedResultStudentId = null;
+                              });
+                            }
+                          },
                         ),
                       ],
                     ),
-                  )
-                else ...[
-                  TextField(
-                    controller: _resultStudentSearchController,
-                    decoration: InputDecoration(
-                      hintText: 'Search by Chest No (e.g. SB7882) or Name...',
-                      prefixIcon: const Icon(Icons.search, size: 20),
-                      suffixIcon: _resultStudentSearchController.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear, size: 18),
-                              onPressed: () {
-                                setState(() {
-                                  _resultStudentSearchController.clear();
-                                });
-                              },
-                            )
-                          : null,
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                  ),
+
+                TextField(
+                  controller: _resultStudentSearchController,
+                  decoration: InputDecoration(
+                    hintText: 'Search by Chest No (e.g. SB7882) or Name...',
+                    prefixIcon: const Icon(Icons.search, size: 20),
+                    suffixIcon: _resultStudentSearchController.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, size: 18),
+                            onPressed: () {
+                              setState(() {
+                                _resultStudentSearchController.clear();
+                              });
+                            },
+                          )
+                        : null,
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
                     ),
-                    onChanged: (val) {
-                      setState(() {
-                        final q = val.trim().toLowerCase();
-                        final qClean = q.replaceAll(RegExp(r'[^a-z0-9]'), '');
-                        final autoMatch = displayedStudents.where((s) {
-                          final sChase = s.chaseNumber.trim().toLowerCase();
-                          final sChaseClean =
-                              sChase.replaceAll(RegExp(r'[^a-z0-9]'), '');
-                          return sChase == q ||
-                              (qClean.isNotEmpty && sChaseClean == qClean);
-                        }).firstOrNull;
-                        if (autoMatch != null) {
-                          _selectedResultStudentId = autoMatch.id;
-                        }
-                      });
-                    },
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
-                  const SizedBox(height: 10),
-                  AppDropdown<String>(
-                    label:
-                        '3. Select Registered Student (${displayedStudents.length} of ${registeredStudents.length} matched)',
-                    value: currentStudentId,
-                    items: displayedStudents
-                        .map(
-                          (s) => DropdownMenuItem(
-                            value: s.id,
-                            child: Text('${s.name} (${s.chaseNumber})'),
+                  onChanged: (val) {
+                    setState(() {
+                      final q = val.trim().toLowerCase();
+                      final qClean = q.replaceAll(RegExp(r'[^a-z0-9]'), '');
+                      final autoMatch = displayedStudents.where((s) {
+                        final sChase = s.chaseNumber.trim().toLowerCase();
+                        final sChaseClean =
+                            sChase.replaceAll(RegExp(r'[^a-z0-9]'), '');
+                        return sChase == q ||
+                            (qClean.isNotEmpty && sChaseClean == qClean);
+                      }).firstOrNull;
+                      if (autoMatch != null) {
+                        _selectedResultStudentId = autoMatch.id;
+                      }
+                    });
+                  },
+                ),
+                const SizedBox(height: 10),
+                AppDropdown<String>(
+                  label:
+                      '3. Select Student (${displayedStudents.length} of ${candidateStudents.length} available)',
+                  value: currentStudentId,
+                  items: displayedStudents.isEmpty
+                      ? const [
+                          DropdownMenuItem(
+                            value: null,
+                            child: Text('No students match your search'),
                           ),
-                        )
-                        .toList(),
-                    onChanged: (val) =>
-                        setState(() => _selectedResultStudentId = val),
-                  ),
-                ],
+                        ]
+                      : displayedStudents
+                          .map(
+                            (s) => DropdownMenuItem(
+                              value: s.id,
+                              child: Text('${s.name} (${s.chaseNumber})'),
+                            ),
+                          )
+                          .toList(),
+                  onChanged: (val) =>
+                      setState(() => _selectedResultStudentId = val),
+                ),
                 const SizedBox(height: 12),
                 LayoutBuilder(
                   builder: (context, constraints) {
@@ -6106,7 +6203,47 @@ class _ControllerPortalScreenState
             ],
           ),
           const SizedBox(height: 16),
-          if (results.isEmpty)
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              ChoiceChip(
+                label: Text('All (${results.length})'),
+                selected: _resultsReviewFilter == 'ALL',
+                onSelected: (val) {
+                  if (val) setState(() => _resultsReviewFilter = 'ALL');
+                },
+              ),
+              ChoiceChip(
+                avatar: const Icon(
+                  Icons.drafts_outlined,
+                  size: 16,
+                  color: Colors.amber,
+                ),
+                label: Text('Pending Drafts ($draftResultsCount)'),
+                selected: _resultsReviewFilter == 'DRAFT',
+                selectedColor: Colors.amber.shade100,
+                onSelected: (val) {
+                  if (val) setState(() => _resultsReviewFilter = 'DRAFT');
+                },
+              ),
+              ChoiceChip(
+                avatar: const Icon(
+                  Icons.check_circle_outline,
+                  size: 16,
+                  color: Colors.green,
+                ),
+                label: Text('Published ($publishedResultsCount)'),
+                selected: _resultsReviewFilter == 'PUBLISHED',
+                selectedColor: Colors.green.shade100,
+                onSelected: (val) {
+                  if (val) setState(() => _resultsReviewFilter = 'PUBLISHED');
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (displayedReviewResults.isEmpty)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(24),
@@ -6117,8 +6254,15 @@ class _ControllerPortalScreenState
               ),
               child: Center(
                 child: Text(
-                  'No results recorded yet.',
-                  style: GoogleFonts.inter(color: AppTheme.inkSoft, fontSize: 13),
+                  _resultsReviewFilter == 'DRAFT'
+                      ? 'No pending draft results found. Submissions from Jury will appear here.'
+                      : (_resultsReviewFilter == 'PUBLISHED'
+                          ? 'No published results found.'
+                          : 'No results recorded yet.'),
+                  style: GoogleFonts.inter(
+                    color: AppTheme.inkSoft,
+                    fontSize: 13,
+                  ),
                 ),
               ),
             )
@@ -6126,26 +6270,56 @@ class _ControllerPortalScreenState
             ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: results.length,
+              itemCount: displayedReviewResults.length,
               itemBuilder: (context, idx) {
-                final r = results[idx];
-                final stud = students.where((s) => s.id == r.studentId).firstOrNull;
-                final prog = progs.where((p) => p.id == r.programId).firstOrNull;
+                final r = displayedReviewResults[idx];
+                final isDraft = r.status == ResultStatus.draft ||
+                    r.status == ResultStatus.submitted;
+                final stud =
+                    students.where((s) => s.id == r.studentId).firstOrNull;
+                final prog =
+                    progs.where((p) => p.id == r.programId).firstOrNull;
                 final tm = teams.where((t) => t.id == r.teamId).firstOrNull;
 
-                final studentTitle = stud != null ? '${stud.name} (${stud.chaseNumber})' : r.studentId;
-                final programTitle = prog != null ? '${prog.programName} [${prog.programCode}]' : r.programId;
+                final studentTitle = stud != null
+                    ? '${stud.name} (${stud.chaseNumber})'
+                    : r.studentId;
+                final programTitle = prog != null
+                    ? '${prog.programName} [${prog.programCode}]'
+                    : r.programId;
 
                 return Card(
                   margin: const EdgeInsets.only(bottom: 8),
+                  color:
+                      isDraft ? Colors.amber.withValues(alpha: 0.05) : null,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    side: BorderSide(
+                      color: isDraft ? Colors.amber.shade400 : AppTheme.line,
+                      width: isDraft ? 1.5 : 1.0,
+                    ),
+                  ),
                   child: ListTile(
+                    leading: isDraft
+                        ? CircleAvatar(
+                            backgroundColor: Colors.amber.shade100,
+                            child: Icon(
+                              Icons.drafts_rounded,
+                              color: Colors.amber.shade900,
+                              size: 20,
+                            ),
+                          )
+                        : null,
                     title: Text(
                       '$studentTitle • $programTitle',
                       style: GoogleFonts.inter(fontWeight: FontWeight.w600),
                     ),
                     subtitle: Text(
-                      'Team: ${tm?.teamName ?? "N/A"} • ${r.position != null ? "${r.position} Place" : "Participant"} • ${r.points} PTS (Marks: ${r.marks}, Grade: ${r.grade.isEmpty ? "N/A" : r.grade})',
-                      style: GoogleFonts.inter(fontSize: 12, color: AppTheme.inkSoft),
+                      'Team: ${tm?.teamName ?? "N/A"} • ${r.position != null ? "${r.position} Place" : "Participant"} • ${r.points} PTS (Marks: ${r.marks}, Grade: ${r.grade.isEmpty ? "N/A" : r.grade})${isDraft ? "\n[Draft Review - Submitted by Jury / Admin]" : ""}',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: AppTheme.inkSoft,
+                      ),
                     ),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -6164,25 +6338,41 @@ class _ControllerPortalScreenState
                             ),
                             tooltip: 'Verify & Publish Result',
                             onPressed: () async {
-                              final updated = r.copyWith(
-                                status: ResultStatus.published,
-                                publishedAt: DateTime.now(),
-                              );
-                              await ref
-                                  .read(resultRepositoryProvider)
-                                  .saveResult(updated);
-                              final scoring = ref.read(scoringServiceProvider);
-                              await scoring.recalculateTeamScoresAndRanks();
-                              triggerDataRefresh(ref);
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Result verified and published! Scores updated.',
-                                    ),
-                                    backgroundColor: Colors.green,
-                                  ),
+                              try {
+                                final updated = r.copyWith(
+                                  status: ResultStatus.published,
+                                  publishedAt: DateTime.now(),
                                 );
+                                await ref
+                                    .read(resultRepositoryProvider)
+                                    .saveResult(updated);
+                                try {
+                                  final scoring = ref.read(scoringServiceProvider);
+                                  await scoring.recalculateTeamScoresAndRanks();
+                                } catch (scoringErr) {
+                                  debugPrint('Team score recalculation warning: $scoringErr');
+                                }
+                                triggerDataRefresh(ref);
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Result verified and published! Scores updated.',
+                                      ),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                debugPrint('Error verifying result: $e');
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Failed to publish result: $e'),
+                                      backgroundColor: Colors.redAccent,
+                                    ),
+                                  );
+                                }
                               }
                             },
                           ),
@@ -6208,11 +6398,11 @@ class _ControllerPortalScreenState
                           onPressed: () => _confirmDeleteResult(r),
                         ),
                       ],
+                    ),
                   ),
-                ),
-              );
-            },
-          ),
+                );
+              },
+            ),
         ],
       ),
     );
@@ -6244,28 +6434,45 @@ class _ControllerPortalScreenState
                 foregroundColor: Colors.white,
               ),
               onPressed: () async {
-                final updated = result.copyWith(
-                  status: ResultStatus.draft,
-                  publishedAt: null,
-                  clearPublishedAt: true,
-                  remarks: 'Moved to draft by Fest Controller',
-                );
-                await ref
-                    .read(resultRepositoryProvider)
-                    .saveResult(updated);
-                final scoring = ref.read(scoringServiceProvider);
-                await scoring.recalculateTeamScoresAndRanks();
-                triggerDataRefresh(ref);
-                if (mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Result successfully moved to Draft. Scores recalculated.',
-                      ),
-                      backgroundColor: Colors.orange,
-                    ),
+                try {
+                  final updated = result.copyWith(
+                    status: ResultStatus.draft,
+                    publishedAt: null,
+                    clearPublishedAt: true,
+                    remarks: 'Moved to draft by Fest Controller',
                   );
+                  await ref
+                      .read(resultRepositoryProvider)
+                      .saveResult(updated);
+                  try {
+                    final scoring = ref.read(scoringServiceProvider);
+                    await scoring.recalculateTeamScoresAndRanks();
+                  } catch (scoringErr) {
+                    debugPrint('Team score recalculation warning: $scoringErr');
+                  }
+                  triggerDataRefresh(ref);
+                  if (mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Result successfully moved to Draft. Scores recalculated.',
+                        ),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  debugPrint('Error moving result to draft: $e');
+                  if (mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Failed to move result to draft: $e'),
+                        backgroundColor: Colors.redAccent,
+                      ),
+                    );
+                  }
                 }
               },
               child: const Text('Move to Draft'),
@@ -6298,7 +6505,15 @@ class _ControllerPortalScreenState
 
     final student =
         students.where((s) => s.id == currentStudentId).firstOrNull;
-    if (student == null) return;
+    if (student == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Selected student could not be found in records.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
 
     // Position Uniqueness Validation per program
     final progResults =
@@ -6350,24 +6565,40 @@ class _ControllerPortalScreenState
       publishedAt: asDraft ? null : DateTime.now(),
     );
 
-    await ref.read(resultRepositoryProvider).saveResult(result);
-    await scoring.recalculateTeamScoresAndRanks();
-    triggerDataRefresh(ref);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            asDraft
-                ? (existingStudentResult != null
-                    ? 'Student result updated and saved to Draft!'
-                    : 'Result successfully saved to Draft!')
-                : (existingStudentResult != null
-                    ? 'Student result updated and republished!'
-                    : 'Result successfully verified and published!'),
+    try {
+      await ref.read(resultRepositoryProvider).saveResult(result);
+      try {
+        await scoring.recalculateTeamScoresAndRanks();
+      } catch (scoringErr) {
+        debugPrint('Team score recalculation warning: $scoringErr');
+      }
+      triggerDataRefresh(ref);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              asDraft
+                  ? (existingStudentResult != null
+                      ? 'Student result updated and saved to Draft!'
+                      : 'Result successfully saved to Draft!')
+                  : (existingStudentResult != null
+                      ? 'Student result updated and republished!'
+                      : 'Result successfully verified and published!'),
+            ),
+            backgroundColor: asDraft ? Colors.amber.shade800 : Colors.green,
           ),
-          backgroundColor: asDraft ? Colors.amber.shade800 : Colors.green,
-        ),
-      );
+        );
+      }
+    } catch (e) {
+      debugPrint('Error saving result: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save result: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
     }
   }
 

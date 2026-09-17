@@ -53,6 +53,7 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
 
   bool _isScanningProgramQr = false;
   bool _hasInitialProgramSet = false;
+  bool _isSubmitting = false;
 
   @override
   void dispose() {
@@ -879,145 +880,187 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
 
               const SizedBox(height: 16),
               AppButton(
-                label: 'Submit Draft Results to Controller',
+                label: _isSubmitting
+                    ? 'Submitting Draft Results...'
+                    : 'Submit Draft Results to Controller',
+                icon: Icons.send_rounded,
+                isLoading: _isSubmitting,
                 width: double.infinity,
-                onPressed: () async {
-                  final assignedSlots = <int>[];
-                  final selectedStudentIds = <String>{};
+                onPressed: _isSubmitting
+                    ? null
+                    : () async {
+                        final assignedSlots = <int>[];
+                        final selectedStudentIds = <String>{};
 
-                  for (int i = 0; i < _prizeSlots!.length; i++) {
-                    final sId = _prizeSlots![i].studentId;
-                    if (sId != null && sId.isNotEmpty) {
-                      if (selectedStudentIds.contains(sId)) {
-                        final stud =
-                            allStudents.where((s) => s.id == sId).firstOrNull;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Duplicate student: "${stud?.name ?? sId}" is selected for multiple prize slots! Each student can only be awarded once.',
+                        for (int i = 0; i < _prizeSlots!.length; i++) {
+                          final sId = _prizeSlots![i].studentId;
+                          if (sId != null && sId.isNotEmpty) {
+                            if (selectedStudentIds.contains(sId)) {
+                              final stud = allStudents
+                                  .where((s) => s.id == sId)
+                                  .firstOrNull;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Duplicate student: "${stud?.name ?? sId}" is selected for multiple prize slots! Each student can only be awarded once.',
+                                  ),
+                                  backgroundColor: Colors.redAccent,
+                                ),
+                              );
+                              return;
+                            }
+                            selectedStudentIds.add(sId);
+                            assignedSlots.add(i);
+                          }
+                        }
+
+                        if (assignedSlots.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Please select at least one student before submitting.',
+                              ),
+                              backgroundColor: Colors.redAccent,
                             ),
-                            backgroundColor: Colors.redAccent,
-                          ),
-                        );
-                        return;
-                      }
-                      selectedStudentIds.add(sId);
-                      assignedSlots.add(i);
-                    }
-                  }
+                          );
+                          return;
+                        }
 
-                  if (assignedSlots.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Please select at least one student before submitting.',
-                        ),
-                        backgroundColor: Colors.redAccent,
-                      ),
-                    );
-                    return;
-                  }
+                        // Validate position counts: max 2 recipients per position (allowing ties)
+                        final positionCounts = <int, int>{};
+                        for (final slotIdx in assignedSlots) {
+                          final pos = _prizeSlots![slotIdx].position;
+                          if (pos > 0) {
+                            positionCounts[pos] =
+                                (positionCounts[pos] ?? 0) + 1;
+                            if (positionCounts[pos]! > 2) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Position $pos has been assigned more than twice! At most two students can share a position (tie).',
+                                  ),
+                                  backgroundColor: Colors.redAccent,
+                                ),
+                              );
+                              return;
+                            }
+                          }
+                        }
 
-                  // Validate position counts: max 2 recipients per position (allowing ties)
-                  final positionCounts = <int, int>{};
-                  for (final slotIdx in assignedSlots) {
-                    final pos = _prizeSlots![slotIdx].position;
-                    if (pos > 0) {
-                      positionCounts[pos] = (positionCounts[pos] ?? 0) + 1;
-                      if (positionCounts[pos]! > 2) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Position $pos has been assigned more than twice! At most two students can share a position (tie).',
+                        setState(() => _isSubmitting = true);
+
+                        try {
+                          final allExistingResults = await ref
+                              .read(resultRepositoryProvider)
+                              .getByProgram(program.id);
+
+                          // Delete any existing results for this program that are no longer assigned
+                          final currentStudentIds = assignedSlots
+                              .map((idx) => _prizeSlots![idx].studentId)
+                              .whereType<String>()
+                              .toSet();
+                          for (final ex in allExistingResults) {
+                            if (!currentStudentIds.contains(ex.studentId)) {
+                              await ref
+                                  .read(resultRepositoryProvider)
+                                  .deleteResult(ex.id);
+                            }
+                          }
+
+                          for (final slotIdx in assignedSlots) {
+                            final slot = _prizeSlots![slotIdx];
+                            final student = allStudents
+                                .where((s) => s.id == slot.studentId)
+                                .firstOrNull;
+                            if (student == null) continue;
+
+                            final pos = slot.position;
+                            final grade =
+                                slot.gradeController.text.trim().toUpperCase();
+                            final marks = double.tryParse(
+                                  slot.marksController.text.trim(),
+                                ) ??
+                                80.0;
+                            final pts = scoring.calculateResultPoints(
+                              position: pos > 0 ? pos : null,
+                              grade: grade,
+                            );
+
+                            final existing = allExistingResults
+                                .where((r) => r.studentId == student.id)
+                                .firstOrNull;
+
+                            final result = Result(
+                              id: existing?.id ?? 'res_${const Uuid().v4()}',
+                              programId: program.id,
+                              studentId: student.id,
+                              teamId: student.teamId,
+                              juryId: juryId,
+                              marks: marks,
+                              grade: grade,
+                              position: pos > 0 ? pos : null,
+                              points: pts,
+                              remarks: slot.isTieSlot && pos > 0
+                                  ? 'Shared / Tie Position $pos awarded by Jury (Draft)'
+                                  : 'Awarded by Jury ($pos Place - Draft)',
+                              status: ResultStatus.draft,
+                              publishedAt: null,
+                            );
+                            await ref
+                                .read(resultRepositoryProvider)
+                                .saveResult(result);
+                          }
+
+                          // Safely recalculate team scores and ranks (only affects published results)
+                          try {
+                            await scoring.recalculateTeamScoresAndRanks();
+                          } catch (_) {}
+
+                          triggerDataRefresh(ref);
+
+                          if (!mounted) return;
+                          setState(() {
+                            _isSubmitting = false;
+                            _selectedProgram = null;
+                            _prizeSlots = null;
+                            _currentProgramIdForSlots = null;
+                          });
+
+                          final isController = ref
+                                  .read(authServiceProvider)
+                                  .currentUser
+                                  ?.role ==
+                              UserRole.festController;
+
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Results for "${program.programName}" submitted as Draft to Controller successfully!',
+                              ),
+                              backgroundColor: Colors.green,
+                              duration: const Duration(seconds: 4),
+                              action: isController
+                                  ? SnackBarAction(
+                                      label: 'View in Controller',
+                                      textColor: Colors.white,
+                                      onPressed: () => context.go('/controller'),
+                                    )
+                                  : null,
                             ),
-                            backgroundColor: Colors.redAccent,
-                          ),
-                        );
-                        return;
-                      }
-                    }
-                  }
-
-                  final allExistingResults = await ref
-                      .read(resultRepositoryProvider)
-                      .getByProgram(program.id);
-
-                  // Delete any existing results for this program that are no longer assigned
-                  final currentStudentIds = assignedSlots
-                      .map((idx) => _prizeSlots![idx].studentId)
-                      .whereType<String>()
-                      .toSet();
-                  for (final ex in allExistingResults) {
-                    if (!currentStudentIds.contains(ex.studentId)) {
-                      await ref
-                          .read(resultRepositoryProvider)
-                          .deleteResult(ex.id);
-                    }
-                  }
-
-                  for (final slotIdx in assignedSlots) {
-                    final slot = _prizeSlots![slotIdx];
-                    final student = allStudents
-                        .where((s) => s.id == slot.studentId)
-                        .firstOrNull;
-                    if (student == null) continue;
-
-                    final pos = slot.position;
-                    final grade =
-                        slot.gradeController.text.trim().toUpperCase();
-                    final marks =
-                        double.tryParse(slot.marksController.text.trim()) ??
-                        80.0;
-                    final pts = scoring.calculateResultPoints(
-                      position: pos > 0 ? pos : null,
-                      grade: grade,
-                    );
-
-                    final existing = allExistingResults
-                        .where((r) => r.studentId == student.id)
-                        .firstOrNull;
-
-                    final result = Result(
-                      id: existing?.id ?? 'res_${const Uuid().v4()}',
-                      programId: program.id,
-                      studentId: student.id,
-                      teamId: student.teamId,
-                      juryId: juryId,
-                      marks: marks,
-                      grade: grade,
-                      position: pos > 0 ? pos : null,
-                      points: pts,
-                      remarks: slot.isTieSlot && pos > 0
-                          ? 'Shared / Tie Position $pos awarded by Jury (Draft)'
-                          : 'Awarded by Jury ($pos Place - Draft)',
-                      status: ResultStatus.draft,
-                      publishedAt: null,
-                    );
-                    await ref
-                        .read(resultRepositoryProvider)
-                        .saveResult(result);
-                  }
-
-                  // Recalculate team scores and ranks for published results
-                  await scoring.recalculateTeamScoresAndRanks();
-                  triggerDataRefresh(ref);
-
-                  if (!mounted) return;
-                  setState(() {
-                    _selectedProgram = null;
-                    _prizeSlots = null;
-                    _currentProgramIdForSlots = null;
-                  });
-
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Results for "${program.programName}" submitted as Draft to Controller successfully!',
-                      ),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                },
+                          );
+                        } catch (e) {
+                          if (!mounted) return;
+                          setState(() => _isSubmitting = false);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Error submitting draft: ${e.toString().replaceAll("Exception: ", "")}',
+                              ),
+                              backgroundColor: Colors.redAccent,
+                            ),
+                          );
+                        }
+                      },
               ),
             ],
           ],
