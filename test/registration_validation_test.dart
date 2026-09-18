@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:amia_fest/core/constants/app_constants.dart';
 import 'package:amia_fest/data/models/registration_model.dart';
 import 'package:amia_fest/data/models/student_model.dart';
+import 'package:amia_fest/data/models/result_model.dart';
 
 void main() {
   group('Registration Limit Validation Unit Tests', () {
@@ -151,6 +152,36 @@ void main() {
       ];
       final weekday = weekdays[parsed!.weekday - 1];
       expect(weekday, equals('Thursday'));
+    });
+
+    test('Result.fromMap handles both camelCase and snake_case keys', () {
+      final r1 = Result.fromMap({
+        'id': 'res_1',
+        'programId': 'prog_1',
+        'studentId': 'stud_1',
+        'teamId': 'team_1',
+        'createdAt': '2026-09-18T09:00:00.000Z',
+        'updatedAt': '2026-09-18T09:00:00.000Z',
+        'publishedAt': '2026-09-18T09:00:00.000Z',
+        'status': 'PUBLISHED',
+      });
+      expect(r1.id, equals('res_1'));
+      expect(r1.programId, equals('prog_1'));
+      expect(r1.status, equals(ResultStatus.published));
+
+      final r2 = Result.fromMap({
+        'id': 'res_2',
+        'program_id': 'prog_2',
+        'student_id': 'stud_2',
+        'team_id': 'team_2',
+        'created_at': '2026-09-18T09:00:00.000Z',
+        'updated_at': '2026-09-18T09:00:00.000Z',
+        'published_at': '2026-09-18T09:00:00.000Z',
+        'status': 'published',
+      });
+      expect(r2.id, equals('res_2'));
+      expect(r2.programId, equals('prog_2'));
+      expect(r2.status, equals(ResultStatus.published));
     });
   });
 }

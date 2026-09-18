@@ -174,9 +174,9 @@ class AppConstants {
   static const int maxStagePerStudent = 3;
 
   // Scoring default points
-  static const int pointsFirst = 10;
-  static const int pointsSecond = 7;
-  static const int pointsThird = 5;
+  static const int pointsFirst = 5;
+  static const int pointsSecond = 3;
+  static const int pointsThird = 1;
 
   static const int pointsGradeA = 5;
   static const int pointsGradeB = 3;

@@ -511,6 +511,10 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
       position: pos > 0 ? pos : null,
       grade: grade,
     );
+    final isGenProg = _selectedProgram != null &&
+        (_selectedProgram!.isGeneral ||
+            _selectedProgram!.section == FestSection.general);
+    final teamsList = ref.watch(teamsProvider).value ?? [];
 
     return AppCard(
       child: Column(
@@ -584,8 +588,9 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
 
           // Dropdown: Select Registered Student (Matches screenshot format)
           AppDropdown<String?>(
-            label:
-                '${slotIdx + 1}. Select Registered Student (${participants.length} registered)',
+            label: isGenProg
+                ? '${slotIdx + 1}. Select Group / Team (${participants.length} registered)'
+                : '${slotIdx + 1}. Select Registered Student (${participants.length} registered)',
             value: slot.studentId,
             items: [
               DropdownMenuItem<String?>(
@@ -601,10 +606,21 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
                 ),
               ),
               ...participants.map(
-                (s) => DropdownMenuItem<String?>(
-                  value: s.id,
-                  child: Text('${s.name} (${s.chaseNumber})'),
-                ),
+                (s) {
+                  final tm = teamsList
+                      .where((t) =>
+                          t.id == s.teamId ||
+                          t.teamCode.toLowerCase() == s.teamId.toLowerCase())
+                      .firstOrNull;
+                  final tmName = tm?.teamName.trim() ?? '';
+                  final displayStr = (isGenProg && tmName.isNotEmpty)
+                      ? '$tmName (${s.chaseNumber})'
+                      : '${s.name} (${s.chaseNumber})';
+                  return DropdownMenuItem<String?>(
+                    value: s.id,
+                    child: Text(displayStr),
+                  );
+                },
               ),
             ],
             onChanged: (val) {
@@ -984,6 +1000,7 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
                             final pts = scoring.calculateResultPoints(
                               position: pos > 0 ? pos : null,
                               grade: grade,
+                              marks: marks,
                             );
 
                             final existing = allExistingResults

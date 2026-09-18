@@ -14,6 +14,7 @@ class ScoringService {
   int calculateResultPoints({
     int? position,
     String? grade,
+    double? marks,
     int customFirst = AppConstants.pointsFirst,
     int customSecond = AppConstants.pointsSecond,
     int customThird = AppConstants.pointsThird,
@@ -33,6 +34,19 @@ class ScoringService {
     if (cleanGrade.contains('A')) total += customGradeA;
     if (cleanGrade.contains('B')) total += customGradeB;
     if (cleanGrade.contains('C')) total += customGradeC;
+
+    // Fallback based on raw marks if position and grade yielded no points
+    if (total == 0 && marks != null && marks > 0) {
+      if (marks >= 80) {
+        total = customGradeA;
+      } else if (marks >= 70) {
+        total = customGradeB;
+      } else if (marks >= 60) {
+        total = customGradeC;
+      } else {
+        total = (marks / 10).round();
+      }
+    }
 
     return total;
   }

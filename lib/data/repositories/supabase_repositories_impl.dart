@@ -21,8 +21,77 @@ class SupabaseHelper {
 
 SupabaseClient get _client => SupabaseHelper.client;
 
+bool _isPgrstColumnError(dynamic e) {
+  if (e is PostgrestException) {
+    if (e.code == 'PGRST204') return true;
+    final msg = e.message.toLowerCase();
+    if (msg.contains('could not find the') ||
+        msg.contains('column of') ||
+        msg.contains('schema cache')) {
+      return true;
+    }
+  }
+  final s = e.toString().toLowerCase();
+  return s.contains('pgrst204') ||
+      (s.contains('could not find the') && s.contains('column'));
+}
+
+Map<String, dynamic> _toSnakeCaseMap(Map<String, dynamic> map) {
+  final result = <String, dynamic>{};
+  map.forEach((key, value) {
+    final snakeKey = key.replaceAllMapped(
+      RegExp(r'([A-Z])'),
+      (m) => '_${m[1]!.toLowerCase()}',
+    );
+    result[snakeKey] = value;
+  });
+  return result;
+}
+
+String? _extractMissingColumn(dynamic e) {
+  final msg = e is PostgrestException ? e.message : e.toString();
+  final match = RegExp(r"Could not find the '([^']+)' column").firstMatch(msg);
+  if (match != null) {
+    return match.group(1);
+  }
+  return null;
+}
+
 Future<dynamic> _safeInsert(String table, Map<String, dynamic> data) async {
-  return await _client.from(table).insert(data).select();
+  try {
+    return await _client.from(table).insert(data).select();
+  } catch (e) {
+    if (_isPgrstColumnError(e)) {
+      final snake = _toSnakeCaseMap(data);
+      try {
+        return await _client.from(table).insert(snake).select();
+      } catch (e2) {
+        if (_isPgrstColumnError(e2)) {
+          var current = Map<String, dynamic>.from(data);
+          var currentSnake = Map<String, dynamic>.from(snake);
+          dynamic activeErr = e2;
+          for (int i = 0; i < 5; i++) {
+            final col = _extractMissingColumn(activeErr);
+            if (col != null) {
+              current.remove(col);
+              currentSnake.remove(col);
+            }
+            try {
+              return await _client.from(table).insert(current).select();
+            } catch (e3) {
+              try {
+                return await _client.from(table).insert(currentSnake).select();
+              } catch (e4) {
+                activeErr = e4;
+              }
+            }
+          }
+        }
+        rethrow;
+      }
+    }
+    rethrow;
+  }
 }
 
 Future<void> _safeInsertBatch(
@@ -30,7 +99,22 @@ Future<void> _safeInsertBatch(
   List<Map<String, dynamic>> dataList,
 ) async {
   if (dataList.isEmpty) return;
-  await _client.from(table).insert(dataList);
+  try {
+    await _client.from(table).insert(dataList);
+  } catch (e) {
+    if (_isPgrstColumnError(e)) {
+      final snakeList = dataList.map(_toSnakeCaseMap).toList();
+      try {
+        await _client.from(table).insert(snakeList);
+      } catch (_) {
+        for (final item in dataList) {
+          await _safeInsert(table, item);
+        }
+      }
+    } else {
+      rethrow;
+    }
+  }
 }
 
 Future<dynamic> _safeUpdate(
@@ -38,11 +122,77 @@ Future<dynamic> _safeUpdate(
   Map<String, dynamic> data,
   String id,
 ) async {
-  return await _client.from(table).update(data).eq('id', id).select();
+  try {
+    return await _client.from(table).update(data).eq('id', id).select();
+  } catch (e) {
+    if (_isPgrstColumnError(e)) {
+      final snake = _toSnakeCaseMap(data);
+      try {
+        return await _client.from(table).update(snake).eq('id', id).select();
+      } catch (e2) {
+        if (_isPgrstColumnError(e2)) {
+          var current = Map<String, dynamic>.from(data);
+          var currentSnake = Map<String, dynamic>.from(snake);
+          dynamic activeErr = e2;
+          for (int i = 0; i < 5; i++) {
+            final col = _extractMissingColumn(activeErr);
+            if (col != null) {
+              current.remove(col);
+              currentSnake.remove(col);
+            }
+            try {
+              return await _client.from(table).update(current).eq('id', id).select();
+            } catch (e3) {
+              try {
+                return await _client.from(table).update(currentSnake).eq('id', id).select();
+              } catch (e4) {
+                activeErr = e4;
+              }
+            }
+          }
+        }
+        rethrow;
+      }
+    }
+    rethrow;
+  }
 }
 
 Future<dynamic> _safeUpsert(String table, Map<String, dynamic> data) async {
-  return await _client.from(table).upsert(data, onConflict: 'id').select();
+  try {
+    return await _client.from(table).upsert(data, onConflict: 'id').select();
+  } catch (e) {
+    if (_isPgrstColumnError(e)) {
+      final snake = _toSnakeCaseMap(data);
+      try {
+        return await _client.from(table).upsert(snake, onConflict: 'id').select();
+      } catch (e2) {
+        if (_isPgrstColumnError(e2)) {
+          var current = Map<String, dynamic>.from(data);
+          var currentSnake = Map<String, dynamic>.from(snake);
+          dynamic activeErr = e2;
+          for (int i = 0; i < 5; i++) {
+            final col = _extractMissingColumn(activeErr);
+            if (col != null) {
+              current.remove(col);
+              currentSnake.remove(col);
+            }
+            try {
+              return await _client.from(table).upsert(current, onConflict: 'id').select();
+            } catch (e3) {
+              try {
+                return await _client.from(table).upsert(currentSnake, onConflict: 'id').select();
+              } catch (e4) {
+                activeErr = e4;
+              }
+            }
+          }
+        }
+        rethrow;
+      }
+    }
+    rethrow;
+  }
 }
 
 class SupabaseStudentRepository implements StudentRepository {
@@ -423,26 +573,59 @@ class SupabaseResultRepository implements ResultRepository {
 
   @override
   Future<List<Result>> getByProgram(String programId) async {
-    final res = await _client.from(_table).select().eq('programId', programId);
-    return (res as List)
-        .map((e) => Result.fromMap(e as Map<String, dynamic>))
-        .toList();
+    try {
+      final res = await _client
+          .from(_table)
+          .select()
+          .or('programId.eq.$programId,program_id.eq.$programId');
+      return (res as List)
+          .map((e) => Result.fromMap(e as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      final res = await _client.from(_table).select();
+      final all = (res as List)
+          .map((e) => Result.fromMap(e as Map<String, dynamic>))
+          .toList();
+      return all.where((r) => r.programId == programId).toList();
+    }
   }
 
   @override
   Future<List<Result>> getByStudent(String studentId) async {
-    final res = await _client.from(_table).select().eq('studentId', studentId);
-    return (res as List)
-        .map((e) => Result.fromMap(e as Map<String, dynamic>))
-        .toList();
+    try {
+      final res = await _client
+          .from(_table)
+          .select()
+          .or('studentId.eq.$studentId,student_id.eq.$studentId');
+      return (res as List)
+          .map((e) => Result.fromMap(e as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      final res = await _client.from(_table).select();
+      final all = (res as List)
+          .map((e) => Result.fromMap(e as Map<String, dynamic>))
+          .toList();
+      return all.where((r) => r.studentId == studentId).toList();
+    }
   }
 
   @override
   Future<List<Result>> getByTeam(String teamId) async {
-    final res = await _client.from(_table).select().eq('teamId', teamId);
-    return (res as List)
-        .map((e) => Result.fromMap(e as Map<String, dynamic>))
-        .toList();
+    try {
+      final res = await _client
+          .from(_table)
+          .select()
+          .or('teamId.eq.$teamId,team_id.eq.$teamId');
+      return (res as List)
+          .map((e) => Result.fromMap(e as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      final res = await _client.from(_table).select();
+      final all = (res as List)
+          .map((e) => Result.fromMap(e as Map<String, dynamic>))
+          .toList();
+      return all.where((r) => r.teamId == teamId).toList();
+    }
   }
 
   @override

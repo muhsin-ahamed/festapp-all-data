@@ -9,9 +9,9 @@ export class ScoringService {
   calculateResultPoints(position?: number, grade?: string): number {
     let total = 0;
 
-    if (position === 1) total += 10;
-    if (position === 2) total += 7;
-    if (position === 3) total += 5;
+    if (position === 1) total += 5;
+    if (position === 2) total += 3;
+    if (position === 3) total += 1;
 
     const cleanGrade = (grade || '').trim().toUpperCase();
     if (cleanGrade.includes('A')) total += 5;

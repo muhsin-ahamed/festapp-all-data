@@ -134,9 +134,13 @@ CREATE TABLE IF NOT EXISTS public.registrations (
 CREATE TABLE IF NOT EXISTS public.results (
   id TEXT PRIMARY KEY,
   "programId" TEXT NOT NULL,
+  program_id TEXT,
   "studentId" TEXT NOT NULL,
+  student_id TEXT,
   "teamId" TEXT NOT NULL,
+  team_id TEXT,
   "juryId" TEXT,
+  jury_id TEXT,
   marks NUMERIC DEFAULT 0,
   grade TEXT,
   position INT,
@@ -144,8 +148,11 @@ CREATE TABLE IF NOT EXISTS public.results (
   remarks TEXT,
   status TEXT NOT NULL,
   "createdAt" TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
   "updatedAt" TIMESTAMPTZ DEFAULT NOW(),
-  "publishedAt" TIMESTAMPTZ
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  "publishedAt" TIMESTAMPTZ,
+  published_at TIMESTAMPTZ
 );
 
 -- 8. VENUES TABLE

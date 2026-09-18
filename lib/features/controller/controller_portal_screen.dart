@@ -5725,7 +5725,14 @@ class _ControllerPortalScreenState
     // 1. Filter Programs by selected Section/Category
     final filteredProgs = _selectedResultSection == null
         ? progs
-        : progs.where((p) => p.section == _selectedResultSection).toList();
+        : progs.where((p) {
+            if (_selectedResultSection == FestSection.general) {
+              return p.section == FestSection.general ||
+                  p.isGeneral ||
+                  p.category == ProgramCategory.general;
+            }
+            return p.section == _selectedResultSection;
+          }).toList();
 
     // Ensure selected program ID is valid within filteredProgs
     String? currentProgId = _selectedResultProgId;
@@ -5766,6 +5773,8 @@ class _ControllerPortalScreenState
         .toList();
 
     final selectedProg = progs.where((p) => p.id == currentProgId).firstOrNull;
+    final isGenSectionOrProg = _selectedResultSection == FestSection.general ||
+        (selectedProg != null && (selectedProg.isGeneral || selectedProg.section == FestSection.general));
     final sectionStudents = selectedProg != null
         ? students.where((s) => s.section == selectedProg.section).toList()
         : students;
@@ -5804,10 +5813,12 @@ class _ControllerPortalScreenState
       currentStudentId = displayedStudents.first.id;
     }
 
+    final rawMarksVal = double.tryParse(_resultMarksController.text.trim());
     final scoring = ref.read(scoringServiceProvider);
     final calculatedPointsPreview = scoring.calculateResultPoints(
       position: _resultPosition > 0 ? _resultPosition : null,
       grade: _resultGradeController.text.trim(),
+      marks: rawMarksVal,
     );
 
     final draftResultsCount = results
@@ -6041,24 +6052,28 @@ class _ControllerPortalScreenState
                 ),
                 const SizedBox(height: 10),
                 AppDropdown<String>(
-                  label:
-                      '3. Select Student (${displayedStudents.length} of ${candidateStudents.length} available)',
+                  label: isGenSectionOrProg
+                      ? '3. Select Group / Team (${displayedStudents.length} of ${candidateStudents.length} available)'
+                      : '3. Select Student (${displayedStudents.length} of ${candidateStudents.length} available)',
                   value: currentStudentId,
                   items: displayedStudents.isEmpty
-                      ? const [
+                      ? [
                           DropdownMenuItem(
                             value: null,
-                            child: Text('No students match your search'),
+                            child: Text(isGenSectionOrProg ? 'No groups match your search' : 'No students match your search'),
                           ),
                         ]
-                      : displayedStudents
-                          .map(
-                            (s) => DropdownMenuItem(
-                              value: s.id,
-                              child: Text('${s.name} (${s.chaseNumber})'),
-                            ),
-                          )
-                          .toList(),
+                      : displayedStudents.map((s) {
+                          final team = teams.where((t) => t.id == s.teamId || t.teamCode.toLowerCase() == s.teamId.toLowerCase()).firstOrNull;
+                          final teamName = team?.teamName.trim() ?? '';
+                          final labelText = isGenSectionOrProg && teamName.isNotEmpty
+                              ? '$teamName (${s.chaseNumber})'
+                              : '${s.name} (${s.chaseNumber})';
+                          return DropdownMenuItem(
+                            value: s.id,
+                            child: Text(labelText),
+                          );
+                        }).toList(),
                   onChanged: (val) =>
                       setState(() => _selectedResultStudentId = val),
                 ),
@@ -6070,7 +6085,21 @@ class _ControllerPortalScreenState
                         label: 'Marks / Points Value',
                         controller: _resultMarksController,
                         keyboardType: TextInputType.number,
-                        onChanged: (_) => setState(() {}),
+                        onChanged: (v) {
+                          final m = double.tryParse(v.trim());
+                          if (m != null && _resultGradeController.text.trim().isEmpty) {
+                            if (m >= 80) {
+                              _resultGradeController.text = 'A';
+                            } else if (m >= 70) {
+                              _resultGradeController.text = 'B';
+                            } else if (m >= 60) {
+                              _resultGradeController.text = 'C';
+                            } else if (m >= 50) {
+                              _resultGradeController.text = 'D';
+                            }
+                          }
+                          setState(() {});
+                        },
                       ),
                       AppTextField(
                         label: 'Grade (A, B, C)',
@@ -6544,9 +6573,11 @@ class _ControllerPortalScreenState
         .where((r) => r.studentId == currentStudentId)
         .firstOrNull;
 
+    final rawMarksSubmitted = double.tryParse(_resultMarksController.text.trim());
     final points = scoring.calculateResultPoints(
       position: _resultPosition > 0 ? _resultPosition : null,
       grade: _resultGradeController.text.trim(),
+      marks: rawMarksSubmitted,
     );
 
     final result = Result(

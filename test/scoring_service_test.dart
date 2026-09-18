@@ -69,28 +69,28 @@ void main() {
       );
     });
 
-    test('1st place with Grade A yields 15 points (10 + 5)', () {
+    test('1st place with Grade A yields 10 points (5 + 5)', () {
       final points = scoringService.calculateResultPoints(
         position: 1,
         grade: 'A',
       );
-      expect(points, equals(15));
+      expect(points, equals(10));
     });
 
-    test('2nd place with Grade B yields 10 points (7 + 3)', () {
+    test('2nd place with Grade B yields 6 points (3 + 3)', () {
       final points = scoringService.calculateResultPoints(
         position: 2,
         grade: 'B',
       );
-      expect(points, equals(10));
+      expect(points, equals(6));
     });
 
-    test('3rd place with Grade C yields 6 points (5 + 1)', () {
+    test('3rd place with Grade C yields 2 points (1 + 1)', () {
       final points = scoringService.calculateResultPoints(
         position: 3,
         grade: 'C',
       );
-      expect(points, equals(6));
+      expect(points, equals(2));
     });
 
     test('Participant with Grade A yields 5 points', () {
