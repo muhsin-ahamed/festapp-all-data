@@ -121,9 +121,11 @@ class TvService extends ChangeNotifier {
       autoRotate: autoRotate ?? _settings.autoRotate,
     );
     _lastLocalUpdateTime = DateTime.now();
-    await tvSettingsRepository.updateSettings(_settings);
-    _startTimerIfNeeded();
     notifyListeners();
+    _startTimerIfNeeded();
+    try {
+      await tvSettingsRepository.updateSettings(_settings);
+    } catch (_) {}
   }
 
   // --- RESULT ANNOUNCEMENT CONTROLLERS ---
