@@ -1,5 +1,7 @@
 import '../core/constants/app_constants.dart';
 import '../data/models/team_model.dart';
+import '../data/models/result_model.dart';
+import '../data/models/student_model.dart';
 import '../data/repositories/app_repositories.dart';
 
 class ScoringService {
@@ -51,15 +53,28 @@ class ScoringService {
     return total;
   }
 
-  Future<List<Team>> recalculateTeamScoresAndRanks() async {
-    final teams = await teamRepository.getTeams();
-    final publishedResults = await resultRepository.getPublishedResults();
-
+  List<Team> calculateTeamScoresFromResults(
+    List<Team> teams,
+    List<Result> publishedResults, [
+    List<Student>? students,
+  ]) {
     final Map<String, String> teamIdMap = {};
     for (var t in teams) {
       teamIdMap[t.id] = t.id;
       if (t.teamCode.isNotEmpty) {
         teamIdMap[t.teamCode.trim().toLowerCase()] = t.id;
+      }
+      if (t.teamName.isNotEmpty) {
+        teamIdMap[t.teamName.trim().toLowerCase()] = t.id;
+      }
+    }
+
+    final Map<String, String> studentToTeamMap = {};
+    if (students != null) {
+      for (var s in students) {
+        if (s.teamId.isNotEmpty) {
+          studentToTeamMap[s.id] = s.teamId;
+        }
       }
     }
 
@@ -67,7 +82,17 @@ class ScoringService {
 
     for (final res in publishedResults) {
       final key = res.teamId.trim().toLowerCase();
-      final targetTeamId = teamIdMap[res.teamId] ?? teamIdMap[key];
+      var targetTeamId = teamIdMap[res.teamId] ?? teamIdMap[key];
+
+      // Fallback: look up student's teamId if res.teamId was empty or unmatched
+      if (targetTeamId == null && res.studentId.isNotEmpty) {
+        final studTeamId = studentToTeamMap[res.studentId];
+        if (studTeamId != null) {
+          final studTeamKey = studTeamId.trim().toLowerCase();
+          targetTeamId = teamIdMap[studTeamId] ?? teamIdMap[studTeamKey];
+        }
+      }
+
       if (targetTeamId != null && teamScores.containsKey(targetTeamId)) {
         teamScores[targetTeamId] = (teamScores[targetTeamId] ?? 0) + res.points;
       }
@@ -85,8 +110,22 @@ class ScoringService {
     List<Team> rankedTeams = [];
     for (int i = 0; i < updatedTeams.length; i++) {
       final ranked = updatedTeams[i].copyWith(rank: i + 1);
-      await teamRepository.updateTeam(ranked);
       rankedTeams.add(ranked);
+    }
+
+    return rankedTeams;
+  }
+
+  Future<List<Team>> recalculateTeamScoresAndRanks({List<Student>? students}) async {
+    final teams = await teamRepository.getTeams();
+    final publishedResults = await resultRepository.getPublishedResults();
+
+    final rankedTeams = calculateTeamScoresFromResults(teams, publishedResults, students);
+
+    for (final ranked in rankedTeams) {
+      try {
+        await teamRepository.updateTeam(ranked);
+      } catch (_) {}
     }
 
     return rankedTeams;

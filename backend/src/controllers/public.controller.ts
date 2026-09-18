@@ -20,6 +20,7 @@ const registrationService = new RegistrationService();
 
 export async function getPublicTeams(req: Request, res: Response, next: NextFunction) {
   try {
+    await scoringService.recalculateTeamScoresAndRanks();
     const teams = await teamService.getTeams();
     return sendSuccess(res, teams, 'Teams list');
   } catch (error) {

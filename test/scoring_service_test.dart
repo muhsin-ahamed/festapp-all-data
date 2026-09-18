@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:amia_fest/services/scoring_service.dart';
 import 'package:amia_fest/data/models/result_model.dart';
 import 'package:amia_fest/data/models/team_model.dart';
+import 'package:amia_fest/data/models/student_model.dart';
 import 'package:amia_fest/core/constants/app_constants.dart';
 import 'package:amia_fest/data/repositories/app_repositories.dart';
 
@@ -99,6 +100,57 @@ void main() {
         grade: 'A',
       );
       expect(points, equals(5));
+    });
+
+    test('calculateTeamScoresFromResults updates team points by teamName or student fallback', () {
+      final teams = [
+        Team(id: 't1', teamName: 'Telos', teamCode: 'TE'),
+        Team(id: 't2', teamName: 'Apex', teamCode: 'AP'),
+      ];
+
+      final publishedResults = [
+        Result(
+          id: 'r1',
+          programId: 'p1',
+          studentId: 's1',
+          teamId: 'Telos', // Matched by teamName
+          points: 10,
+          status: ResultStatus.published,
+        ),
+        Result(
+          id: 'r2',
+          programId: 'p2',
+          studentId: 's2',
+          teamId: '', // Unmatched teamId, fallback to student teamId
+          points: 6,
+          status: ResultStatus.published,
+        ),
+      ];
+
+      final students = <Student>[
+        Student(
+          id: 's2',
+          chaseNumber: '102',
+          name: 'Shahil',
+          gender: 'Male',
+          dateOfBirth: '2010-01-01',
+          section: FestSection.subJunior,
+          teamId: 'AP',
+          phone: '1234567890',
+          className: '10',
+          schoolName: 'School',
+        ),
+      ];
+
+      final updated = scoringService.calculateTeamScoresFromResults(teams, publishedResults, students);
+
+      final telos = updated.firstWhere((t) => t.id == 't1');
+      final apex = updated.firstWhere((t) => t.id == 't2');
+
+      expect(telos.totalPoints, equals(10));
+      expect(apex.totalPoints, equals(6));
+      expect(telos.rank, equals(1));
+      expect(apex.rank, equals(2));
     });
   });
 }

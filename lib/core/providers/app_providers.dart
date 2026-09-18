@@ -167,9 +167,23 @@ final teamsProvider = FutureProvider<List<Team>>((ref) async {
   ref.watch(dataRefreshSignalProvider);
   try {
     final repo = ref.watch(teamRepositoryProvider);
-    final teams = await repo.getTeams();
-    teams.sort((a, b) => b.totalPoints.compareTo(a.totalPoints));
-    return teams;
+    final rawTeams = await repo.getTeams();
+    final publishedResults = await ref.watch(publishedResultsProvider.future);
+    final students = await ref.watch(studentsProvider.future);
+    final scoring = ref.watch(scoringServiceProvider);
+
+    final updatedTeams = scoring.calculateTeamScoresFromResults(
+      rawTeams,
+      publishedResults,
+      students,
+    );
+
+    // Asynchronously sync ranks & scores back to repository
+    for (final t in updatedTeams) {
+      repo.updateTeam(t).catchError((_) {});
+    }
+
+    return updatedTeams;
   } catch (_) {
     return [];
   }

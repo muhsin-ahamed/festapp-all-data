@@ -1,10 +1,12 @@
 import { ResultRepository } from '../repositories/result.repository';
 import { TeamRepository } from '../repositories/team.repository';
+import { StudentRepository } from '../repositories/student.repository';
 import { TeamEntity, ResultEntity } from '../types';
 
 export class ScoringService {
   private resultRepo = new ResultRepository();
   private teamRepo = new TeamRepository();
+  private studentRepo = new StudentRepository();
 
   calculateResultPoints(position?: number, grade?: string): number {
     let total = 0;
@@ -24,6 +26,17 @@ export class ScoringService {
   async recalculateTeamScoresAndRanks(): Promise<TeamEntity[]> {
     const teams = await this.teamRepo.findAll();
     const publishedResults = await this.resultRepo.findPublished();
+    let students: any[] = [];
+    try {
+      students = await this.studentRepo.findAll();
+    } catch (_) {}
+
+    const studentToTeamMap: Record<string, string> = {};
+    for (const s of students) {
+      if (s.id && s.teamId) {
+        studentToTeamMap[s.id] = s.teamId;
+      }
+    }
 
     const teamScores: Record<string, number> = {};
     const teamIdMap: Record<string, string> = {};
@@ -33,11 +46,24 @@ export class ScoringService {
       if (t.teamCode) {
         teamIdMap[t.teamCode.trim().toLowerCase()] = t.id;
       }
+      if (t.teamName) {
+        teamIdMap[t.teamName.trim().toLowerCase()] = t.id;
+      }
     }
 
     for (const res of publishedResults) {
       const key = (res.teamId || '').trim().toLowerCase();
-      const targetTeamId = teamIdMap[res.teamId] || teamIdMap[key];
+      let targetTeamId = teamIdMap[res.teamId || ''] || teamIdMap[key];
+
+      // Fallback: lookup student's teamId if res.teamId is empty or unmatched
+      if (!targetTeamId && res.studentId) {
+        const studTeamId = studentToTeamMap[res.studentId];
+        if (studTeamId) {
+          const studTeamKey = studTeamId.trim().toLowerCase();
+          targetTeamId = teamIdMap[studTeamId] || teamIdMap[studTeamKey];
+        }
+      }
+
       if (targetTeamId && teamScores[targetTeamId] !== undefined) {
         teamScores[targetTeamId] += res.points || 0;
       }

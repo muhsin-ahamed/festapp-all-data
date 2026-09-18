@@ -93,6 +93,9 @@ class TvSettings {
     String? progId = map['announcedProgramId']?.toString();
     int? resNum = (map['announcedResultNumber'] as num?)?.toInt();
     List<int> positions = [];
+    String? modeStr = map['screenMode']?.toString();
+    int? slideDur = (map['slideDuration'] as num?)?.toInt();
+    bool? autoRot = map['autoRotate'] as bool?;
 
     if (map['revealedPositions'] is List) {
       positions = (map['revealedPositions'] as List)
@@ -107,6 +110,15 @@ class TvSettings {
         final decoded = jsonDecode(rawCustom) as Map<String, dynamic>;
         progId = progId ?? decoded['announcedProgramId']?.toString();
         resNum = resNum ?? (decoded['announcedResultNumber'] as num?)?.toInt();
+        if (decoded['screenMode'] != null) {
+          modeStr = modeStr ?? decoded['screenMode']?.toString();
+        }
+        if (decoded['slideDuration'] != null) {
+          slideDur = slideDur ?? (decoded['slideDuration'] as num?)?.toInt();
+        }
+        if (decoded['autoRotate'] != null) {
+          autoRot = autoRot ?? (decoded['autoRotate'] as bool?);
+        }
         if (positions.isEmpty && decoded['revealedPositions'] is List) {
           positions = (decoded['revealedPositions'] as List)
               .map((e) => int.tryParse(e.toString()) ?? 0)
@@ -118,10 +130,10 @@ class TvSettings {
 
     return TvSettings(
       id: map['id']?.toString() ?? 'default_tv_settings',
-      screenMode: map['screenMode']?.toString() ?? 'ONLY_MAIN',
-      slideDuration: (map['slideDuration'] as num?)?.toInt() ?? 30,
+      screenMode: modeStr ?? 'ONLY_MAIN',
+      slideDuration: slideDur ?? 30,
       currentSlide: (map['currentSlide'] as num?)?.toInt() ?? 0,
-      autoRotate: map['autoRotate'] == null ? true : (map['autoRotate'] as bool),
+      autoRotate: autoRot ?? (map['autoRotate'] == null ? true : (map['autoRotate'] as bool)),
       showTeamScores: map['showTeamScores'] == null ? true : (map['showTeamScores'] as bool),
       showResults: map['showResults'] == null ? true : (map['showResults'] as bool),
       showAnnouncements: map['showAnnouncements'] == null ? true : (map['showAnnouncements'] as bool),

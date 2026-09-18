@@ -7738,9 +7738,11 @@ class _ControllerPortalScreenState
                           isActive: currentMode == 'AUTO_WITH_SCOREBOARD',
                           activeColor: Colors.deepOrange,
                           onTap: () {
-                            tvService.setScreenMode('AUTO_WITH_SCOREBOARD');
-                            tvService.updateSlideDuration(30);
-                            tvService.setAutoRotate(true);
+                            tvService.setScreenMode(
+                              'AUTO_WITH_SCOREBOARD',
+                              slideDuration: 30,
+                              autoRotate: true,
+                            );
                           },
                         ),
 
@@ -7752,9 +7754,11 @@ class _ControllerPortalScreenState
                           isActive: currentMode == 'AUTO_WITHOUT_SCOREBOARD',
                           activeColor: Colors.indigo,
                           onTap: () {
-                            tvService.setScreenMode('AUTO_WITHOUT_SCOREBOARD');
-                            tvService.updateSlideDuration(30);
-                            tvService.setAutoRotate(true);
+                            tvService.setScreenMode(
+                              'AUTO_WITHOUT_SCOREBOARD',
+                              slideDuration: 30,
+                              autoRotate: true,
+                            );
                           },
                         ),
 
@@ -7778,8 +7782,7 @@ class _ControllerPortalScreenState
                           isActive: currentMode == 'ONLY_MAIN' || currentMode == 'POSTER',
                           activeColor: Colors.teal[800]!,
                           onTap: () {
-                            tvService.setScreenMode('ONLY_MAIN');
-                            tvService.setAutoRotate(false);
+                            tvService.setScreenMode('ONLY_MAIN', autoRotate: false);
                           },
                         ),
                       ],

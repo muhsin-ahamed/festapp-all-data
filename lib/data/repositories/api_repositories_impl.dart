@@ -120,13 +120,25 @@ class ApiStudentRepository implements StudentRepository {
 class ApiTeamRepository implements TeamRepository {
   @override
   Future<List<Team>> getTeams() async {
+    final Map<String, Team> merged = {};
+    try {
+      final supa = await SupabaseTeamRepository().getTeams();
+      for (final t in supa) {
+        merged[t.id] = t;
+      }
+    } catch (_) {}
     try {
       final res = await globalApiClient.get('/public/teams');
       if (res is List) {
-        return res.map((e) => Team.fromMap(e as Map<String, dynamic>)).toList();
+        for (final e in res) {
+          final t = Team.fromMap(e as Map<String, dynamic>);
+          merged[t.id] = t;
+        }
       }
     } catch (_) {}
-    return [];
+    final list = merged.values.toList();
+    list.sort((a, b) => b.totalPoints.compareTo(a.totalPoints));
+    return list;
   }
 
   @override

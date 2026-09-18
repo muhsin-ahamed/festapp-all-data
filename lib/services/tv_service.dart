@@ -9,6 +9,7 @@ class TvService extends ChangeNotifier {
   Timer? _syncTimer;
   TvSettings _settings = TvSettings();
   int _currentSlideIndex = 0;
+  DateTime? _lastLocalUpdateTime;
 
   TvService({required this.tvSettingsRepository}) {
     _loadSettings();
@@ -28,6 +29,10 @@ class TvService extends ChangeNotifier {
     _syncTimer?.cancel();
     _syncTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
       try {
+        if (_lastLocalUpdateTime != null &&
+            DateTime.now().difference(_lastLocalUpdateTime!).inSeconds < 3) {
+          return;
+        }
         final remote = await tvSettingsRepository.getSettings();
         if (_hasSettingsChanged(_settings, remote)) {
           _settings = remote;
@@ -90,6 +95,7 @@ class TvService extends ChangeNotifier {
 
   Future<void> updateSlideDuration(int seconds) async {
     _settings = _settings.copyWith(slideDuration: seconds);
+    _lastLocalUpdateTime = DateTime.now();
     await tvSettingsRepository.updateSettings(_settings);
     _startTimerIfNeeded();
     notifyListeners();
@@ -97,14 +103,24 @@ class TvService extends ChangeNotifier {
 
   Future<void> setAutoRotate(bool enabled) async {
     _settings = _settings.copyWith(autoRotate: enabled);
+    _lastLocalUpdateTime = DateTime.now();
     await tvSettingsRepository.updateSettings(_settings);
     _startTimerIfNeeded();
     notifyListeners();
   }
 
-  Future<void> setScreenMode(String mode) async {
+  Future<void> setScreenMode(
+    String mode, {
+    int? slideDuration,
+    bool? autoRotate,
+  }) async {
     _currentSlideIndex = 0;
-    _settings = _settings.copyWith(screenMode: mode);
+    _settings = _settings.copyWith(
+      screenMode: mode,
+      slideDuration: slideDuration ?? _settings.slideDuration,
+      autoRotate: autoRotate ?? _settings.autoRotate,
+    );
+    _lastLocalUpdateTime = DateTime.now();
     await tvSettingsRepository.updateSettings(_settings);
     _startTimerIfNeeded();
     notifyListeners();
@@ -121,6 +137,7 @@ class TvService extends ChangeNotifier {
       announcedResultNumber: resultNumber,
       revealedPositions: [],
     );
+    _lastLocalUpdateTime = DateTime.now();
     await tvSettingsRepository.updateSettings(_settings);
     _startTimerIfNeeded();
     notifyListeners();
@@ -128,6 +145,7 @@ class TvService extends ChangeNotifier {
 
   Future<void> setAnnouncedResultNumber(int number) async {
     _settings = _settings.copyWith(announcedResultNumber: number);
+    _lastLocalUpdateTime = DateTime.now();
     await tvSettingsRepository.updateSettings(_settings);
     notifyListeners();
   }
@@ -140,6 +158,7 @@ class TvService extends ChangeNotifier {
       list.add(position);
     }
     _settings = _settings.copyWith(revealedPositions: list);
+    _lastLocalUpdateTime = DateTime.now();
     await tvSettingsRepository.updateSettings(_settings);
     notifyListeners();
   }
@@ -148,6 +167,7 @@ class TvService extends ChangeNotifier {
     if (_settings.revealedPositions.contains(position)) return;
     final list = List<int>.from(_settings.revealedPositions)..add(position);
     _settings = _settings.copyWith(revealedPositions: list);
+    _lastLocalUpdateTime = DateTime.now();
     await tvSettingsRepository.updateSettings(_settings);
     notifyListeners();
   }
@@ -156,24 +176,28 @@ class TvService extends ChangeNotifier {
     if (!_settings.revealedPositions.contains(position)) return;
     final list = List<int>.from(_settings.revealedPositions)..remove(position);
     _settings = _settings.copyWith(revealedPositions: list);
+    _lastLocalUpdateTime = DateTime.now();
     await tvSettingsRepository.updateSettings(_settings);
     notifyListeners();
   }
 
   Future<void> revealAllPositions() async {
     _settings = _settings.copyWith(revealedPositions: [1, 2, 3]);
+    _lastLocalUpdateTime = DateTime.now();
     await tvSettingsRepository.updateSettings(_settings);
     notifyListeners();
   }
 
   Future<void> hideAllPositions() async {
     _settings = _settings.copyWith(revealedPositions: []);
+    _lastLocalUpdateTime = DateTime.now();
     await tvSettingsRepository.updateSettings(_settings);
     notifyListeners();
   }
 
   Future<void> setCustomMessage(String? msg) async {
     _settings = _settings.copyWith(customMessage: msg);
+    _lastLocalUpdateTime = DateTime.now();
     await tvSettingsRepository.updateSettings(_settings);
     notifyListeners();
   }
