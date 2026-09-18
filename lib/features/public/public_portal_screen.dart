@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -26,6 +27,7 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final _searchController = TextEditingController();
+  Timer? _refreshTimer;
 
   String _publicScheduleDate = 'ALL';
 
@@ -36,10 +38,17 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
     _tabController.addListener(() {
       if (mounted) setState(() {});
     });
+    // Live auto-refresh every 5 seconds so scoreboards & published results update instantly
+    _refreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (mounted) {
+        triggerDataRefresh(ref);
+      }
+    });
   }
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     _tabController.dispose();
     _searchController.dispose();
     super.dispose();
@@ -405,7 +414,7 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
                       ),
                     ),
                     GestureDetector(
-                      onTap: () => _tabController.animateTo(2),
+                      onTap: () => _showFullScoreboardDialog(context, teamsAsync.value ?? []),
                       child: Text(
                         'Full Scoreboard →',
                         style: GoogleFonts.workSans(
@@ -1251,6 +1260,170 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
           const PatternStrip(height: 12),
         ],
       ),
+    );
+  }
+
+  void _showFullScoreboardDialog(BuildContext context, List<Team> teams) {
+    final sortedTeams = List<Team>.from(teams)
+      ..sort((a, b) => b.totalPoints.compareTo(a.totalPoints));
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.75,
+          decoration: const BoxDecoration(
+            color: AppTheme.cream,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.emoji_events_rounded, color: AppTheme.mustard, size: 28),
+                      const SizedBox(width: 10),
+                      Text(
+                        'FULL TEAM SCOREBOARD',
+                        style: GoogleFonts.rye(
+                          fontSize: 18,
+                          color: AppTheme.ink,
+                        ),
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, color: AppTheme.inkSoft),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Live updated team championship standings & point totals.',
+                style: GoogleFonts.workSans(
+                  fontSize: 12.5,
+                  color: AppTheme.inkSoft,
+                ),
+              ),
+              const Divider(height: 24),
+              Expanded(
+                child: sortedTeams.isEmpty
+                    ? Center(
+                        child: Text(
+                          'No team scores available yet.',
+                          style: GoogleFonts.workSans(color: AppTheme.inkSoft),
+                        ),
+                      )
+                    : ListView.separated(
+                        itemCount: sortedTeams.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 10),
+                        itemBuilder: (context, index) {
+                          final team = sortedTeams[index];
+                          final rank = index + 1;
+                          final isFirst = rank == 1;
+                          final isSecond = rank == 2;
+                          final isThird = rank == 3;
+
+                          Color rankBg = AppTheme.ink;
+                          Color rankFg = Colors.white;
+                          if (isFirst) {
+                            rankBg = AppTheme.mustard;
+                            rankFg = AppTheme.ink;
+                          } else if (isSecond) {
+                            rankBg = Colors.grey.shade400;
+                            rankFg = AppTheme.ink;
+                          } else if (isThird) {
+                            rankBg = Colors.amber.shade700;
+                            rankFg = Colors.white;
+                          }
+
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            decoration: BoxDecoration(
+                              color: isFirst
+                                  ? const Color(0xFFFBF3DE)
+                                  : AppTheme.cream2,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: isFirst ? AppTheme.mustard : AppTheme.line,
+                                width: isFirst ? 1.5 : 1.0,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 34,
+                                  height: 34,
+                                  decoration: BoxDecoration(
+                                    color: rankBg,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    '#$rank',
+                                    style: GoogleFonts.workSans(
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 12,
+                                      color: rankFg,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        team.teamName,
+                                        style: GoogleFonts.workSans(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppTheme.ink,
+                                        ),
+                                      ),
+                                      if ((team.leaderName ?? '').isNotEmpty)
+                                        Text(
+                                          'Leader: ${team.leaderName}',
+                                          style: GoogleFonts.workSans(
+                                            fontSize: 12,
+                                            color: AppTheme.inkSoft,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.red,
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    '${team.totalPoints} PTS',
+                                    style: GoogleFonts.workSans(
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 13,
+                                      color: AppTheme.cream,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

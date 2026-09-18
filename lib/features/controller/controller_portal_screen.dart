@@ -26,6 +26,41 @@ import '../../services/scoring_service.dart';
 import '../../services/tv_service.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+class StudentTotalSummary {
+  final Student student;
+  final String teamName;
+  final double totalMarks;
+  final int totalPoints;
+  final int programCount;
+  final List<Result> results;
+  int overallRank;
+  int sectionRank;
+  bool isOverallTop1;
+  bool isSectionTop1;
+  bool isSectionTop2;
+
+  StudentTotalSummary({
+    required this.student,
+    required this.teamName,
+    required this.totalMarks,
+    required this.totalPoints,
+    required this.programCount,
+    required this.results,
+    this.overallRank = 0,
+    this.sectionRank = 0,
+    this.isOverallTop1 = false,
+    this.isSectionTop1 = false,
+    this.isSectionTop2 = false,
+  });
+
+  String get topHighlightText {
+    if (isOverallTop1) return '🏆 Fest Overall Top Scorer';
+    if (isSectionTop1) return '🥇 1st in ${student.section.label}';
+    if (isSectionTop2) return '🥈 2nd in ${student.section.label}';
+    return '-';
+  }
+}
+
 class ControllerPortalScreen extends ConsumerStatefulWidget {
   const ControllerPortalScreen({super.key});
 
@@ -89,6 +124,13 @@ class _ControllerPortalScreenState
   String _tvDraftSectionFilter = 'ALL';
   final _tvDraftSearchController = TextEditingController();
 
+  // Total Section State & Controllers
+  String _totalSearchQuery = '';
+  String _totalSectionFilter = 'ALL';
+  String _totalSortBy = 'marks';
+  final _totalSearchController = TextEditingController();
+
+
   // Schedule & Venue State & Controllers
   String _selectedScheduleDateFilter = 'ALL';
   String _selectedScheduleVenueFilter = 'ALL';
@@ -151,6 +193,7 @@ class _ControllerPortalScreenState
     _regProgramNameController.dispose();
     _pubResultSearchController.dispose();
     _tvDraftSearchController.dispose();
+    _totalSearchController.dispose();
     super.dispose();
   }
 
@@ -189,6 +232,10 @@ class _ControllerPortalScreenState
       SidebarNavItem(
         icon: Icons.emoji_events_rounded,
         label: 'Published Results',
+      ),
+      SidebarNavItem(
+        icon: Icons.calculate_rounded,
+        label: 'Total',
       ),
       SidebarNavItem(icon: Icons.tv_rounded, label: 'TV Control'),
       SidebarNavItem(icon: Icons.upload_file_rounded, label: 'Excel Import'),
@@ -248,7 +295,14 @@ class _ControllerPortalScreenState
           teamsAsync,
           studentsAsync,
         ),
-        // 8. TV Control & Announcements
+        // 8. Total Marks & Section Standings
+        _buildTotalSection(
+          studentsAsync,
+          teamsAsync,
+          resultsAsync,
+          programsAsync,
+        ),
+        // 9. TV Control & Announcements
         _buildTvControlSection(
           programsAsync,
           resultsAsync,
@@ -2214,7 +2268,7 @@ class _ControllerPortalScreenState
   void _confirmDeleteStudent(Student student) {
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogCtx) {
         return AlertDialog(
           title: const Text('Confirm Student Deletion'),
           content: Text(
@@ -2222,18 +2276,19 @@ class _ControllerPortalScreenState
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogCtx),
               child: const Text('Cancel'),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               onPressed: () async {
+                final messenger = ScaffoldMessenger.of(context);
+                Navigator.pop(dialogCtx);
                 await ref
                     .read(studentRepositoryProvider)
                     .deleteStudent(student.id);
                 triggerDataRefresh(ref);
-                if (mounted) Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
+                messenger.showSnackBar(
                   SnackBar(
                     content: Text(
                       'Student "${student.name}" deleted successfully.',
@@ -2573,7 +2628,7 @@ class _ControllerPortalScreenState
   void _confirmDeleteTeam(Team team) {
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogCtx) {
         return AlertDialog(
           title: const Text('Confirm Team Deletion'),
           content: Text(
@@ -2581,16 +2636,17 @@ class _ControllerPortalScreenState
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogCtx),
               child: const Text('Cancel'),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               onPressed: () async {
+                final messenger = ScaffoldMessenger.of(context);
+                Navigator.pop(dialogCtx);
                 await ref.read(teamRepositoryProvider).deleteTeam(team.id);
                 triggerDataRefresh(ref);
-                if (mounted) Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
+                messenger.showSnackBar(
                   SnackBar(
                     content: Text(
                       'Team "${team.teamName}" deleted successfully.',
@@ -3832,7 +3888,7 @@ class _ControllerPortalScreenState
   void _confirmDeleteProgram(Program program) {
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogCtx) {
         return AlertDialog(
           title: const Text('Confirm Program Deletion'),
           content: Text(
@@ -3840,19 +3896,20 @@ class _ControllerPortalScreenState
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogCtx),
               child: const Text('Cancel'),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               onPressed: () async {
+                final messenger = ScaffoldMessenger.of(context);
+                Navigator.pop(dialogCtx);
                 try {
                   await ref
                       .read(programRepositoryProvider)
                       .deleteProgram(program.id);
                   triggerDataRefresh(ref);
-                  if (mounted) Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  messenger.showSnackBar(
                     SnackBar(
                       content: Text(
                         'Program "${program.programName}" deleted successfully.',
@@ -3860,8 +3917,7 @@ class _ControllerPortalScreenState
                     ),
                   );
                 } catch (e) {
-                  if (mounted) Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  messenger.showSnackBar(
                     SnackBar(content: Text('Failed to delete program: $e')),
                   );
                 }
@@ -5776,7 +5832,9 @@ class _ControllerPortalScreenState
     final isGenSectionOrProg = _selectedResultSection == FestSection.general ||
         (selectedProg != null && (selectedProg.isGeneral || selectedProg.section == FestSection.general));
     final sectionStudents = selectedProg != null
-        ? students.where((s) => s.section == selectedProg.section).toList()
+        ? (isGenSectionOrProg
+            ? students
+            : students.where((s) => s.section == selectedProg.section).toList())
         : students;
 
     final candidateStudents = (_showAllSectionStudents || registeredStudents.isEmpty)
@@ -6052,22 +6110,20 @@ class _ControllerPortalScreenState
                 ),
                 const SizedBox(height: 10),
                 AppDropdown<String>(
-                  label: isGenSectionOrProg
-                      ? '3. Select Group / Team (${displayedStudents.length} of ${candidateStudents.length} available)'
-                      : '3. Select Student (${displayedStudents.length} of ${candidateStudents.length} available)',
+                  label: '3. Select Student (${displayedStudents.length} of ${candidateStudents.length} available)',
                   value: currentStudentId,
                   items: displayedStudents.isEmpty
                       ? [
-                          DropdownMenuItem(
+                          const DropdownMenuItem(
                             value: null,
-                            child: Text(isGenSectionOrProg ? 'No groups match your search' : 'No students match your search'),
+                            child: Text('No students match your search'),
                           ),
                         ]
                       : displayedStudents.map((s) {
                           final team = teams.where((t) => t.id == s.teamId || t.teamCode.toLowerCase() == s.teamId.toLowerCase()).firstOrNull;
                           final teamName = team?.teamName.trim() ?? '';
-                          final labelText = isGenSectionOrProg && teamName.isNotEmpty
-                              ? '$teamName (${s.chaseNumber})'
+                          final labelText = teamName.isNotEmpty
+                              ? '${s.name} (${s.chaseNumber}) - $teamName'
                               : '${s.name} (${s.chaseNumber})';
                           return DropdownMenuItem(
                             value: s.id,
@@ -6696,14 +6752,16 @@ class _ControllerPortalScreenState
               icon: const Icon(Icons.delete_forever, size: 18),
               label: const Text('Delete Result'),
               onPressed: () async {
+                final messenger = ScaffoldMessenger.of(context);
+                final nav = Navigator.of(context);
                 await ref
                     .read(resultRepositoryProvider)
                     .deleteResult(result.id);
                 final scoring = ref.read(scoringServiceProvider);
                 await scoring.recalculateTeamScoresAndRanks();
                 triggerDataRefresh(ref);
-                if (mounted) Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
+                nav.pop();
+                messenger.showSnackBar(
                   const SnackBar(
                     content: Text(
                       'Result deleted successfully. Team scores updated.',
@@ -7587,7 +7645,7 @@ class _ControllerPortalScreenState
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Broadcast live fest visuals, 15s auto-rotating slides, and interactive stage result announcements.',
+                    'Broadcast live fest visuals, 30s auto-rotating slides, and interactive stage result announcements.',
                     style: GoogleFonts.inter(
                       fontSize: 13,
                       color: AppTheme.inkSoft,
@@ -7675,13 +7733,13 @@ class _ControllerPortalScreenState
                         // Button 1: Auto Rotate With Scoreboard
                         _buildModeButton(
                           title: '1. Auto Rotate With Scoreboard',
-                          subtitle: 'Rotates Main, Scoreboard & Results (15s)',
+                          subtitle: 'Rotates Main, Results & Scoreboard (30s)',
                           icon: Icons.scoreboard_rounded,
                           isActive: currentMode == 'AUTO_WITH_SCOREBOARD',
                           activeColor: Colors.deepOrange,
                           onTap: () {
                             tvService.setScreenMode('AUTO_WITH_SCOREBOARD');
-                            tvService.updateSlideDuration(15);
+                            tvService.updateSlideDuration(30);
                             tvService.setAutoRotate(true);
                           },
                         ),
@@ -7689,13 +7747,13 @@ class _ControllerPortalScreenState
                         // Button 2: Auto Rotate Without Scoreboard
                         _buildModeButton(
                           title: '2. Auto Rotate Without Scoreboard',
-                          subtitle: 'Rotates Main Screen & Results only (15s)',
+                          subtitle: 'Rotates Main Screen & Results only (30s)',
                           icon: Icons.view_carousel_rounded,
                           isActive: currentMode == 'AUTO_WITHOUT_SCOREBOARD',
                           activeColor: Colors.indigo,
                           onTap: () {
                             tvService.setScreenMode('AUTO_WITHOUT_SCOREBOARD');
-                            tvService.updateSlideDuration(15);
+                            tvService.updateSlideDuration(30);
                             tvService.setAutoRotate(true);
                           },
                         ),
@@ -7812,9 +7870,9 @@ class _ControllerPortalScreenState
   String _getModeLabel(String mode) {
     switch (mode) {
       case 'AUTO_WITH_SCOREBOARD':
-        return 'Auto Rotate With Scoreboard (15s)';
+        return 'Auto Rotate With Scoreboard (30s)';
       case 'AUTO_WITHOUT_SCOREBOARD':
-        return 'Auto Rotate Without Scoreboard (15s)';
+        return 'Auto Rotate Without Scoreboard (30s)';
       case 'ANNOUNCE_RESULT':
         return 'Result Announcement Poster';
       case 'ONLY_MAIN':
@@ -12458,7 +12516,1054 @@ class _ControllerPortalScreenState
       },
     );
   }
+
+  Widget _buildTotalSection(
+    AsyncValue<List<Student>> studentsAsync,
+    AsyncValue<List<Team>> teamsAsync,
+    AsyncValue<List<Result>> resultsAsync,
+    AsyncValue<List<Program>> programsAsync,
+  ) {
+    if (studentsAsync.isLoading ||
+        teamsAsync.isLoading ||
+        resultsAsync.isLoading ||
+        programsAsync.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final students = studentsAsync.value ?? [];
+    final teams = teamsAsync.value ?? [];
+    final results = resultsAsync.value ?? [];
+    final programs = programsAsync.value ?? [];
+
+    final Map<String, String> teamNamesMap = {};
+    for (final t in teams) {
+      teamNamesMap[t.id] = t.teamName;
+      if (t.teamCode.isNotEmpty) {
+        teamNamesMap[t.teamCode.trim().toLowerCase()] = t.teamName;
+      }
+    }
+
+    final Map<String, Program> programsMap = {
+      for (final p in programs) p.id: p
+    };
+
+    final validResults = results
+        .where((r) => r.status == ResultStatus.published)
+        .toList();
+
+    final Map<String, List<Result>> studentResultsMap = {};
+    for (final res in validResults) {
+      studentResultsMap.putIfAbsent(res.studentId, () => []).add(res);
+    }
+
+    final List<StudentTotalSummary> allSummaries = [];
+
+    for (final student in students) {
+      final studentIdKey = student.id;
+      final chaseKey = student.chaseNumber.trim().toLowerCase();
+
+      final directResults = studentResultsMap[studentIdKey] ?? [];
+      final chaseResults = studentResultsMap[chaseKey] ?? [];
+      final combinedResults = <Result>{...directResults, ...chaseResults}.toList();
+
+      double totalMarks = 0.0;
+      int totalPoints = 0;
+
+      for (final r in combinedResults) {
+        totalMarks += r.marks;
+        totalPoints += r.points;
+      }
+
+      final teamName = teamNamesMap[student.teamId] ??
+          teamNamesMap[student.teamId.toLowerCase()] ??
+          'Team ${student.teamId}';
+
+      allSummaries.add(
+        StudentTotalSummary(
+          student: student,
+          teamName: teamName,
+          totalMarks: totalMarks,
+          totalPoints: totalPoints,
+          programCount: combinedResults.length,
+          results: combinedResults,
+        ),
+      );
+    }
+
+    allSummaries.sort((a, b) {
+      final markCmp = b.totalMarks.compareTo(a.totalMarks);
+      if (markCmp != 0) return markCmp;
+      return b.totalPoints.compareTo(a.totalPoints);
+    });
+
+    for (int i = 0; i < allSummaries.length; i++) {
+      allSummaries[i].overallRank = i + 1;
+    }
+
+    if (allSummaries.isNotEmpty && allSummaries.first.totalMarks > 0) {
+      allSummaries.first.isOverallTop1 = true;
+    }
+
+    final Map<FestSection, List<StudentTotalSummary>> sectionMap = {};
+    for (final section in FestSection.values) {
+      sectionMap[section] = allSummaries
+          .where((s) => s.student.section == section)
+          .toList();
+
+      sectionMap[section]!.sort((a, b) {
+        final markCmp = b.totalMarks.compareTo(a.totalMarks);
+        if (markCmp != 0) return markCmp;
+        return b.totalPoints.compareTo(a.totalPoints);
+      });
+
+      for (int i = 0; i < sectionMap[section]!.length; i++) {
+        final item = sectionMap[section]![i];
+        item.sectionRank = i + 1;
+        if (i == 0 && item.totalMarks > 0) {
+          item.isSectionTop1 = true;
+        } else if (i == 1 && item.totalMarks > 0) {
+          item.isSectionTop2 = true;
+        }
+      }
+    }
+
+    List<StudentTotalSummary> filteredSummaries = allSummaries.where((item) {
+      if (_totalSectionFilter != 'ALL') {
+        final matchSec = item.student.section.name == _totalSectionFilter ||
+            item.student.section.label.toLowerCase() == _totalSectionFilter.toLowerCase();
+        if (!matchSec) return false;
+      }
+
+      if (_totalSearchQuery.isNotEmpty) {
+        final q = _totalSearchQuery.toLowerCase();
+        final matchChase = item.student.chaseNumber.toLowerCase().contains(q);
+        final matchName = item.student.name.toLowerCase().contains(q);
+        final matchTeam = item.teamName.toLowerCase().contains(q);
+        if (!matchChase && !matchName && !matchTeam) return false;
+      }
+
+      return true;
+    }).toList();
+
+    if (_totalSortBy == 'chase') {
+      filteredSummaries.sort((a, b) => a.student.chaseNumber.compareTo(b.student.chaseNumber));
+    } else if (_totalSortBy == 'name') {
+      filteredSummaries.sort((a, b) => a.student.name.compareTo(b.student.name));
+    } else if (_totalSortBy == 'points') {
+      filteredSummaries.sort((a, b) => b.totalPoints.compareTo(a.totalPoints));
+    }
+
+    final overallTopScorer = allSummaries.isNotEmpty && allSummaries.first.totalMarks > 0
+        ? allSummaries.first
+        : null;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Total Marks & Section Standings',
+                    style: GoogleFonts.outfit(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.wood,
+                    ),
+                  ),
+                  Text(
+                    'Aggregated student totals, top section rankers, and exportable reports',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.green,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                icon: const Icon(Icons.file_download_rounded),
+                label: const Text(
+                  'Download Excel',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                onPressed: () => _exportStudentTotalsExcel(allSummaries),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          if (overallTopScorer != null) ...[
+            _buildOverallTopScorerHeroCard(overallTopScorer, programsMap),
+            const SizedBox(height: 24),
+          ],
+
+          Text(
+            'Top 2 Performers by Section',
+            style: GoogleFonts.outfit(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.wood,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildSectionTopPerformersRow(sectionMap, programsMap),
+          const SizedBox(height: 28),
+
+          Card(
+            elevation: 1,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: TextField(
+                      controller: _totalSearchController,
+                      decoration: InputDecoration(
+                        hintText: 'Search by Chase No, Student Name, or Team...',
+                        prefixIcon: const Icon(Icons.search),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        isDense: true,
+                      ),
+                      onChanged: (val) {
+                        setState(() {
+                          _totalSearchQuery = val;
+                        });
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    flex: 2,
+                    child: DropdownButtonFormField<String>(
+                      value: _totalSectionFilter,
+                      decoration: InputDecoration(
+                        labelText: 'Section Filter',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        isDense: true,
+                      ),
+                      items: [
+                        const DropdownMenuItem(value: 'ALL', child: Text('All Sections')),
+                        ...FestSection.values.map(
+                          (sec) => DropdownMenuItem(
+                            value: sec.name,
+                            child: Text(sec.label),
+                          ),
+                        ),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) {
+                          setState(() {
+                            _totalSectionFilter = val;
+                          });
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    flex: 2,
+                    child: DropdownButtonFormField<String>(
+                      value: _totalSortBy,
+                      decoration: InputDecoration(
+                        labelText: 'Sort By',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        isDense: true,
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'marks', child: Text('Total Marks (High to Low)')),
+                        DropdownMenuItem(value: 'points', child: Text('Total Points (High to Low)')),
+                        DropdownMenuItem(value: 'chase', child: Text('Chase Number')),
+                        DropdownMenuItem(value: 'name', child: Text('Student Name')),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) {
+                          setState(() {
+                            _totalSortBy = val;
+                          });
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E293B),
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Student Totals List (${filteredSummaries.length})',
+                        style: GoogleFonts.outfit(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        'Click "SEE BIG" to view individual mark sheet breakdown',
+                        style: GoogleFonts.inter(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
+                    headingRowColor: WidgetStateProperty.all(Colors.grey.shade100),
+                    columns: const [
+                      DataColumn(label: Text('Overall Rank', style: TextStyle(fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('Sec Rank', style: TextStyle(fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('Chase No', style: TextStyle(fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('Student Name', style: TextStyle(fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('Section', style: TextStyle(fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('Team', style: TextStyle(fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('Programs', style: TextStyle(fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('Total Marks', style: TextStyle(fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('Total Points', style: TextStyle(fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('Highlight', style: TextStyle(fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('Action', style: TextStyle(fontWeight: FontWeight.bold))),
+                    ],
+                    rows: filteredSummaries.map((summary) {
+                      final isTop1 = summary.isSectionTop1 || summary.isOverallTop1;
+                      final isTop2 = summary.isSectionTop2;
+
+                      Color? rowBgColor;
+                      if (summary.isOverallTop1) {
+                        rowBgColor = Colors.amber.shade50;
+                      } else if (isTop1) {
+                        rowBgColor = Colors.yellow.shade50;
+                      } else if (isTop2) {
+                        rowBgColor = Colors.grey.shade50;
+                      }
+
+                      return DataRow(
+                        color: rowBgColor != null ? WidgetStateProperty.all(rowBgColor) : null,
+                        cells: [
+                          DataCell(
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: summary.overallRank == 1
+                                    ? Colors.amber
+                                    : (summary.overallRank == 2
+                                        ? Colors.grey.shade400
+                                        : (summary.overallRank == 3
+                                            ? Colors.brown.shade300
+                                            : Colors.blueGrey.shade100)),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                '#${summary.overallRank}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: summary.overallRank <= 3 ? Colors.white : Colors.black87,
+                                ),
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            Text(
+                              '#${summary.sectionRank}',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          DataCell(
+                            Text(
+                              summary.student.chaseNumber,
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          DataCell(
+                            Text(
+                              summary.student.name,
+                              style: TextStyle(
+                                fontWeight: isTop1 || isTop2 ? FontWeight.bold : FontWeight.normal,
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            Chip(
+                              label: Text(
+                                summary.student.section.label,
+                                style: const TextStyle(fontSize: 11, color: Colors.white),
+                              ),
+                              backgroundColor: const Color(0xFF1E293B),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          ),
+                          DataCell(Text(summary.teamName)),
+                          DataCell(Text('${summary.programCount}')),
+                          DataCell(
+                            Text(
+                              summary.totalMarks.toStringAsFixed(1),
+                              style: GoogleFonts.outfit(
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.green,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            Text(
+                              '${summary.totalPoints} pts',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          DataCell(
+                            summary.topHighlightText != '-'
+                                ? Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: summary.isOverallTop1
+                                          ? Colors.amber.shade200
+                                          : (summary.isSectionTop1
+                                              ? Colors.amber.shade100
+                                              : Colors.blue.shade50),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: summary.isOverallTop1 ? Colors.amber : Colors.blue.shade200,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      summary.topHighlightText,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: summary.isOverallTop1 ? Colors.brown.shade900 : Colors.blue.shade900,
+                                      ),
+                                    ),
+                                  )
+                                : const Text('-'),
+                          ),
+                          DataCell(
+                            ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF1E293B),
+                                foregroundColor: Colors.white,
+                                visualDensity: VisualDensity.compact,
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              ),
+                              icon: const Icon(Icons.open_in_full_rounded, size: 14),
+                              label: const Text('SEE BIG', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                              onPressed: () => _showBigStudentMarksheetModal(summary, programsMap),
+                            ),
+                          ),
+                        ],
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOverallTopScorerHeroCard(
+    StudentTotalSummary topScorer,
+    Map<String, Program> programsMap,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFF1E293B),
+            Color(0xFF0F172A),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.amber.withValues(alpha: 0.3),
+            blurRadius: 15,
+            spreadRadius: 2,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(color: Colors.amber, width: 2),
+      ),
+      padding: const EdgeInsets.all(20.0),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.amber.shade400,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.emoji_events_rounded,
+              size: 44,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.amber,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Text(
+                        '🏆 FEST OVERALL TOP MARK SCORER',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        topScorer.student.section.label,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '${topScorer.student.name} (Chase: ${topScorer.student.chaseNumber})',
+                  style: GoogleFonts.outfit(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  'Team: ${topScorer.teamName}',
+                  style: GoogleFonts.inter(
+                    color: Colors.white70,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${topScorer.totalMarks.toStringAsFixed(1)} Marks',
+                style: GoogleFonts.outfit(
+                  color: Colors.amber,
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                '${topScorer.totalPoints} Points (${topScorer.programCount} Programs)',
+                style: GoogleFonts.inter(
+                  color: Colors.white70,
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 10),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.amber,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                icon: const Icon(Icons.open_in_full_rounded, size: 16),
+                label: const Text(
+                  'SEE BIG (FULL MARKSHEET)',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                onPressed: () => _showBigStudentMarksheetModal(topScorer, programsMap),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionTopPerformersRow(
+    Map<FestSection, List<StudentTotalSummary>> sectionMap,
+    Map<String, Program> programsMap,
+  ) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Wrap(
+          spacing: 16,
+          runSpacing: 16,
+          children: FestSection.values.map((section) {
+            final list = sectionMap[section] ?? [];
+            final top1 = list.isNotEmpty && list[0].totalMarks > 0 ? list[0] : null;
+            final top2 = list.length > 1 && list[1].totalMarks > 0 ? list[1] : null;
+
+            return SizedBox(
+              width: constraints.maxWidth > 900
+                  ? (constraints.maxWidth - 48) / 3
+                  : (constraints.maxWidth > 600 ? (constraints.maxWidth - 16) / 2 : constraints.maxWidth),
+              child: Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(color: Colors.grey.shade300),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            section.label,
+                            style: GoogleFonts.outfit(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: AppTheme.wood,
+                            ),
+                          ),
+                          Chip(
+                            label: Text(
+                              '${list.length} Students',
+                              style: const TextStyle(fontSize: 10, color: Colors.white),
+                            ),
+                            backgroundColor: const Color(0xFF1E293B),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ],
+                      ),
+                      const Divider(height: 16),
+                      if (top1 != null)
+                        _buildTopStudentMiniTile('🥇 1st Top Mark', top1, Colors.amber, programsMap)
+                      else
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8),
+                          child: Text('No rank 1 results yet', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                        ),
+                      const SizedBox(height: 8),
+                      if (top2 != null)
+                        _buildTopStudentMiniTile('🥈 2nd Top Mark', top2, Colors.grey.shade400, programsMap)
+                      else
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8),
+                          child: Text('No rank 2 results yet', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
+  Widget _buildTopStudentMiniTile(
+    String badgeLabel,
+    StudentTotalSummary summary,
+    Color badgeColor,
+    Map<String, Program> programsMap,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: badgeColor.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: badgeColor),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      badgeLabel,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                        color: badgeColor == Colors.amber ? Colors.brown.shade800 : Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '(${summary.student.chaseNumber})',
+                      style: TextStyle(fontSize: 11, color: Colors.grey.shade700, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                Text(
+                  summary.student.name,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  '${summary.teamName} • ${summary.totalMarks.toStringAsFixed(1)} Marks',
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.open_in_full_rounded, size: 18),
+            tooltip: 'SEE BIG (Marksheet)',
+            onPressed: () => _showBigStudentMarksheetModal(summary, programsMap),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showBigStudentMarksheetModal(
+    StudentTotalSummary summary,
+    Map<String, Program> programsMap,
+  ) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Container(
+            width: 750,
+            constraints: const BoxConstraints(maxHeight: 650),
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 30,
+                      backgroundColor: AppTheme.wood,
+                      child: Text(
+                        summary.student.name.isNotEmpty ? summary.student.name[0].toUpperCase() : 'S',
+                        style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                summary.student.name,
+                                style: GoogleFonts.outfit(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.wood,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Chip(
+                                label: Text(
+                                  'Chase: ${summary.student.chaseNumber}',
+                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                                ),
+                                backgroundColor: AppTheme.green,
+                                visualDensity: VisualDensity.compact,
+                              ),
+                            ],
+                          ),
+                          Text(
+                            'Section: ${summary.student.section.label}  •  Team: ${summary.teamName}',
+                            style: GoogleFonts.inter(color: Colors.grey.shade700, fontSize: 14),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 12),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildSummaryMetricBadge(
+                        'Total Marks',
+                        summary.totalMarks.toStringAsFixed(1),
+                        Colors.amber.shade700,
+                        Icons.star_rounded,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildSummaryMetricBadge(
+                        'Total Points',
+                        '${summary.totalPoints} pts',
+                        AppTheme.green,
+                        Icons.military_tech_rounded,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildSummaryMetricBadge(
+                        'Overall Rank',
+                        '#${summary.overallRank}',
+                        Colors.blue.shade700,
+                        Icons.leaderboard_rounded,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildSummaryMetricBadge(
+                        'Section Rank',
+                        '#${summary.sectionRank} in ${summary.student.section.label}',
+                        Colors.purple.shade700,
+                        Icons.workspace_premium_rounded,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                Text(
+                  'Itemized Program Mark Sheet (${summary.results.length} Programs)',
+                  style: GoogleFonts.outfit(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.wood,
+                  ),
+                ),
+                const SizedBox(height: 10),
+
+                Expanded(
+                  child: summary.results.isEmpty
+                      ? const Center(
+                          child: Text('No published program results for this student yet.'),
+                        )
+                      : SingleChildScrollView(
+                          child: Table(
+                            border: TableBorder.all(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(8)),
+                            columnWidths: const {
+                              0: FlexColumnWidth(1.2),
+                              1: FlexColumnWidth(2.5),
+                              2: FlexColumnWidth(1.2),
+                              3: FlexColumnWidth(1.0),
+                              4: FlexColumnWidth(1.0),
+                              5: FlexColumnWidth(1.0),
+                            },
+                            children: [
+                              TableRow(
+                                decoration: BoxDecoration(color: Colors.grey.shade100),
+                                children: const [
+                                  Padding(padding: EdgeInsets.all(10), child: Text('Prog Code', style: TextStyle(fontWeight: FontWeight.bold))),
+                                  Padding(padding: EdgeInsets.all(10), child: Text('Program Name', style: TextStyle(fontWeight: FontWeight.bold))),
+                                  Padding(padding: EdgeInsets.all(10), child: Text('Position', style: TextStyle(fontWeight: FontWeight.bold))),
+                                  Padding(padding: EdgeInsets.all(10), child: Text('Grade', style: TextStyle(fontWeight: FontWeight.bold))),
+                                  Padding(padding: EdgeInsets.all(10), child: Text('Marks', style: TextStyle(fontWeight: FontWeight.bold))),
+                                  Padding(padding: EdgeInsets.all(10), child: Text('Points', style: TextStyle(fontWeight: FontWeight.bold))),
+                                ],
+                              ),
+                              ...summary.results.map((res) {
+                                final prog = programsMap[res.programId];
+                                final code = prog?.programCode ?? res.programId;
+                                final name = prog?.programName ?? 'Program ${res.programId}';
+
+                                String posStr = '-';
+                                if (res.position == 1) posStr = '🥇 1st Place';
+                                if (res.position == 2) posStr = '🥈 2nd Place';
+                                if (res.position == 3) posStr = '🥉 3rd Place';
+
+                                return TableRow(
+                                  children: [
+                                    Padding(padding: const EdgeInsets.all(10), child: Text(code, style: const TextStyle(fontWeight: FontWeight.bold))),
+                                    Padding(padding: const EdgeInsets.all(10), child: Text(name)),
+                                    Padding(
+                                      padding: const EdgeInsets.all(10),
+                                      child: Text(
+                                        posStr,
+                                        style: TextStyle(
+                                          fontWeight: res.position != null ? FontWeight.bold : FontWeight.normal,
+                                          color: res.position == 1 ? Colors.amber.shade800 : (res.position == 2 ? Colors.grey.shade800 : Colors.black87),
+                                        ),
+                                      ),
+                                    ),
+                                    Padding(padding: const EdgeInsets.all(10), child: Text(res.grade.isNotEmpty ? res.grade : '-')),
+                                    Padding(
+                                      padding: const EdgeInsets.all(10),
+                                      child: Text(
+                                        res.marks.toStringAsFixed(1),
+                                        style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.green),
+                                      ),
+                                    ),
+                                    Padding(padding: const EdgeInsets.all(10), child: Text('${res.points} pts')),
+                                  ],
+                                );
+                              }),
+                            ],
+                          ),
+                        ),
+                ),
+
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.red,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('Close Marksheet'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSummaryMetricBadge(String label, String value, Color color, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
+                Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _exportStudentTotalsExcel(List<StudentTotalSummary> summaries) {
+    try {
+      final excelService = ExcelService(
+        studentRepository: ref.read(studentRepositoryProvider),
+        teamRepository: ref.read(teamRepositoryProvider),
+        programRepository: ref.read(programRepositoryProvider),
+        venueRepository: ref.read(venueRepositoryProvider),
+        scheduleRepository: ref.read(scheduleRepositoryProvider),
+        registrationRepository: ref.read(registrationRepositoryProvider),
+      );
+
+      final exportData = summaries.map((s) {
+        return {
+          'overallRank': s.overallRank,
+          'sectionRank': s.sectionRank,
+          'chaseNumber': s.student.chaseNumber,
+          'name': s.student.name,
+          'section': s.student.section.label,
+          'teamName': s.teamName,
+          'totalPrograms': s.programCount,
+          'totalMarks': s.totalMarks,
+          'totalPoints': s.totalPoints,
+          'topHighlight': s.topHighlightText,
+        };
+      }).toList();
+
+      final bytes = excelService.exportStudentTotalsToExcel(
+        studentTotalsData: exportData,
+      );
+
+      Printing.sharePdf(
+        bytes: bytes,
+        filename: 'Fest_Student_Totals_Summary.xlsx',
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Excel summary exported successfully!'),
+          backgroundColor: AppTheme.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error exporting Excel: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 }
+
 
 class TeamScoreCard extends StatelessWidget {
   final int rank;

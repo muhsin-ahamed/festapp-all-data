@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -24,15 +25,23 @@ class _TvPortalScreenState extends ConsumerState<TvPortalScreen> {
   bool _showExitOverlay = false;
   final FocusNode _focusNode = FocusNode();
   DateTime? _lastEscTime;
+  Timer? _dataRefreshTimer;
 
   @override
   void initState() {
     super.initState();
     HardwareKeyboard.instance.addHandler(_handleKeyEvent);
+    // Live refresh data every 5 seconds for TV screen
+    _dataRefreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (mounted) {
+        triggerDataRefresh(ref);
+      }
+    });
   }
 
   @override
   void dispose() {
+    _dataRefreshTimer?.cancel();
     HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
     _focusNode.dispose();
     super.dispose();
@@ -118,17 +127,13 @@ class _TvPortalScreenState extends ConsumerState<TvPortalScreen> {
         );
       }
     } else {
-      // AUTO_WITH_SCOREBOARD or default AUTO (3 slides: 0: Main, 1: Scoreboard, 2: Results)
+      // AUTO_WITH_SCOREBOARD or default AUTO (3 slides: 0: Main, 1: Published Results, 2: Scoreboard)
       switch (tvService.currentSlideIndex % 3) {
         case 0:
           currentWidget = _buildTvPosterScreen(context);
           isPosterShowing = true;
           break;
         case 1:
-          currentWidget = _buildTvScoreboardScreen(context, teamsAsync, isCompact);
-          break;
-        case 2:
-        default:
           currentWidget = _buildTvResultsScreen(
             context,
             publishedResultsAsync,
@@ -138,6 +143,10 @@ class _TvPortalScreenState extends ConsumerState<TvPortalScreen> {
             isCompact,
           );
           break;
+        case 2:
+        default:
+          currentWidget = _buildTvScoreboardScreen(context, teamsAsync, isCompact);
+          break;
       }
     }
 
@@ -146,7 +155,7 @@ class _TvPortalScreenState extends ConsumerState<TvPortalScreen> {
       autofocus: true,
       onKeyEvent: _handleKeyEvent,
       child: Scaffold(
-        backgroundColor: isPosterShowing ? Colors.white : AppTheme.wood,
+        backgroundColor: isPosterShowing ? AppTheme.cream : AppTheme.wood,
       body: Stack(
         children: [
           // Background content switcher
@@ -470,7 +479,7 @@ class _TvPortalScreenState extends ConsumerState<TvPortalScreen> {
   Widget _buildTvPosterScreen(BuildContext context) {
     return Container(
       key: const ValueKey('tv_poster'),
-      color: Colors.white,
+      color: AppTheme.cream,
       width: double.infinity,
       height: double.infinity,
       child: Center(
@@ -1188,12 +1197,41 @@ class _TvPortalScreenState extends ConsumerState<TvPortalScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'LATEST PUBLISHED RESULTS',
-            style: GoogleFonts.rye(
-              fontSize: isCompact ? 22 : 32,
-              color: AppTheme.mustard,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  'LATEST PUBLISHED RESULTS',
+                  style: GoogleFonts.rye(
+                    fontSize: isCompact ? 22 : 32,
+                    color: AppTheme.mustard,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isCompact ? 12 : 18,
+                  vertical: isCompact ? 6 : 9,
+                ),
+                decoration: BoxDecoration(
+                  color: AppTheme.cream2,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: AppTheme.line, width: 1.5),
+                ),
+                child: Text(
+                  'LIVE RESULTS PORTAL',
+                  style: GoogleFonts.workSans(
+                    fontSize: isCompact ? 11 : 13,
+                    fontWeight: FontWeight.w900,
+                    color: AppTheme.ink,
+                    letterSpacing: 1.8,
+                  ),
+                ),
+              ),
+            ],
           ),
           SizedBox(height: isCompact ? 14 : 22),
           Expanded(
@@ -1206,11 +1244,6 @@ class _TvPortalScreenState extends ConsumerState<TvPortalScreen> {
                           r.status == ResultStatus.announced,
                     )
                     .toList();
-                published.sort((a, b) {
-                  final timeA = a.publishedAt ?? a.createdAt;
-                  final timeB = b.publishedAt ?? b.createdAt;
-                  return timeB.compareTo(timeA);
-                });
                 if (published.isEmpty) {
                   return const Center(
                     child: Text(
@@ -1225,78 +1258,141 @@ class _TvPortalScreenState extends ConsumerState<TvPortalScreen> {
                 final students = studentsAsync.value ?? [];
 
                 final progMap = {for (var p in progs) p.id: p};
-                final teamMap = {for (var t in teams) t.id: t.teamName};
-                final studMap = {for (var s in students) s.id: s.name};
+                final teamMap = {for (var t in teams) t.id: t};
+                final studMap = {for (var s in students) s.id: s};
+
+                // Group published results by Program
+                final Map<String, List<Result>> progGroups = {};
+                for (var r in published) {
+                  progGroups.putIfAbsent(r.programId, () => []).add(r);
+                }
+
+                // Sort program groups by published date of newest result
+                final progKeys = progGroups.keys.toList();
+                progKeys.sort((a, b) {
+                  final maxTimeA = progGroups[a]!
+                      .map((r) => r.publishedAt ?? r.createdAt)
+                      .reduce((v, e) => v.isAfter(e) ? v : e);
+                  final maxTimeB = progGroups[b]!
+                      .map((r) => r.publishedAt ?? r.createdAt)
+                      .reduce((v, e) => v.isAfter(e) ? v : e);
+                  return maxTimeB.compareTo(maxTimeA);
+                });
 
                 return ListView.builder(
-                  itemCount: published.length > 4 ? 4 : published.length,
+                  itemCount: progKeys.length > 5 ? 5 : progKeys.length,
                   itemBuilder: (context, idx) {
-                    final res = published[idx];
-                    final prog = progMap[res.programId];
-                    final studName = studMap[res.studentId] ?? 'Student';
-                    final teamName = teamMap[res.teamId] ?? 'Team';
+                    final pId = progKeys[idx];
+                    final prog = progMap[pId];
+                    final rList = progGroups[pId]!;
+                    rList.sort((a, b) => (a.position ?? 99).compareTo(b.position ?? 99));
 
                     return Container(
-                      margin: const EdgeInsets.only(bottom: 16),
-                      padding: EdgeInsets.all(isCompact ? 16 : 24),
+                      margin: const EdgeInsets.only(bottom: 18),
+                      padding: EdgeInsets.all(isCompact ? 16 : 22),
                       decoration: BoxDecoration(
                         color: AppTheme.cream2,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppTheme.line, width: 1.2),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  prog?.programName ?? 'Program',
-                                  style: GoogleFonts.workSans(
-                                    fontSize: isCompact ? 18 : 24,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppTheme.ink,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '$studName ($teamName)',
-                                  style: GoogleFonts.workSans(
-                                    fontSize: isCompact ? 14 : 18,
-                                    color: AppTheme.inkSoft,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ),
+                        borderRadius: BorderRadius.circular(22),
+                        border: Border.all(color: AppTheme.line, width: 1.5),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.12),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
                           ),
-                          const SizedBox(width: 12),
-                          FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Builder(builder: (context) {
-                              final posStr = res.position == 1
-                                  ? '1st Place'
-                                  : res.position == 2
-                                      ? '2nd Place'
-                                      : res.position == 3
-                                          ? '3rd Place'
-                                          : res.position != null
-                                              ? '${res.position}th Place'
-                                              : (res.grade.isNotEmpty
-                                                  ? 'Grade ${res.grade}'
-                                                  : '');
-                              final suffix = posStr.isNotEmpty ? '$posStr • ' : '';
-                              return Text(
-                                '$suffix${res.points} PTS',
-                                style: GoogleFonts.rye(
-                                  fontSize: isCompact ? 16 : 22,
-                                  color: AppTheme.red,
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Program Header (Upload Result / Public Portal design)
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.red.withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: const Icon(
+                                        Icons.emoji_events_rounded,
+                                        color: AppTheme.red,
+                                        size: 22,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            prog?.programName ?? 'Program Name',
+                                            style: GoogleFonts.rye(
+                                              fontSize: isCompact ? 18 : 22,
+                                              color: AppTheme.ink,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          if (prog != null) ...[
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              'Code: ${prog.programCode} • Category: ${prog.category.label}',
+                                              style: GoogleFonts.workSans(
+                                                fontSize: isCompact ? 11.5 : 13.5,
+                                                color: AppTheme.inkSoft,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                 ),
+                              ),
+                              const SizedBox(width: 12),
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: isCompact ? 10 : 14,
+                                  vertical: isCompact ? 5 : 7,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.olive,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  prog?.section.label.toUpperCase() ?? 'SECTION',
+                                  style: GoogleFonts.workSans(
+                                    fontSize: isCompact ? 11 : 12.5,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white,
+                                    letterSpacing: 1.2,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 12),
+                            child: Divider(height: 1, color: AppTheme.line),
+                          ),
+
+                          // Winner Position Cards inside Program
+                          Column(
+                            children: rList.map((r) {
+                              final stud = studMap[r.studentId];
+                              final tm = teamMap[r.teamId];
+                              return _buildTvResultWinnerItem(
+                                result: r,
+                                student: stud,
+                                team: tm,
+                                isCompact: isCompact,
                               );
-                            }),
+                            }).toList(),
                           ),
                         ],
                       ),
@@ -1311,6 +1407,135 @@ class _TvPortalScreenState extends ConsumerState<TvPortalScreen> {
                   style: const TextStyle(color: AppTheme.cream),
                 ),
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTvResultWinnerItem({
+    required Result result,
+    required Student? student,
+    required Team? team,
+    required bool isCompact,
+  }) {
+    final pos = result.position;
+    Color posBg;
+    Color posFg = AppTheme.ink;
+    String posLabel = pos == 1
+        ? '1st'
+        : (pos == 2 ? '2nd' : (pos == 3 ? '3rd' : '${pos ?? 4}th'));
+
+    if (pos == 1) {
+      posBg = AppTheme.mustard;
+    } else if (pos == 2) {
+      posBg = const Color(0xFFB0A898);
+    } else if (pos == 3) {
+      posBg = const Color(0xFFC48858);
+      posFg = Colors.white;
+    } else {
+      posBg = AppTheme.cream;
+      posFg = AppTheme.inkSoft;
+    }
+
+    final studName = student?.name ?? 'Student';
+    final chaseNo = student?.chaseNumber ?? '';
+    final teamName = team?.teamName ?? '';
+
+    final gradeStr = result.grade.isNotEmpty ? ' • Grade ${result.grade}' : '';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: EdgeInsets.symmetric(
+        horizontal: isCompact ? 12 : 16,
+        vertical: isCompact ? 10 : 12,
+      ),
+      decoration: BoxDecoration(
+        color: AppTheme.cream,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: pos == 1 ? AppTheme.mustard : AppTheme.line,
+          width: pos == 1 ? 1.5 : 1.0,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: posBg,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              posLabel,
+              style: GoogleFonts.workSans(
+                color: posFg,
+                fontWeight: FontWeight.w900,
+                fontSize: isCompact ? 12 : 14,
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        studName,
+                        style: GoogleFonts.workSans(
+                          fontWeight: FontWeight.w800,
+                          fontSize: isCompact ? 14 : 17,
+                          color: AppTheme.ink,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (chaseNo.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppTheme.red.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: AppTheme.red.withValues(alpha: 0.3)),
+                        ),
+                        child: Text(
+                          '#$chaseNo',
+                          style: GoogleFonts.workSans(
+                            fontSize: isCompact ? 11 : 12,
+                            fontWeight: FontWeight.w800,
+                            color: AppTheme.red,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                if (teamName.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'Team: $teamName',
+                    style: GoogleFonts.workSans(
+                      fontSize: isCompact ? 12 : 14,
+                      color: AppTheme.inkSoft,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            '${result.points} PTS$gradeStr',
+            style: GoogleFonts.rye(
+              fontSize: isCompact ? 15 : 20,
+              color: AppTheme.red,
             ),
           ),
         ],

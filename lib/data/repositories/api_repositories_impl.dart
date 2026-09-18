@@ -108,16 +108,12 @@ class ApiStudentRepository implements StudentRepository {
 
   @override
   Future<void> deleteStudent(String id) async {
-    bool apiSuccess = false;
     try {
       await _api.deleteStudent(id);
-      apiSuccess = true;
     } catch (_) {}
     try {
       await _supabase.deleteStudent(id);
-    } catch (e) {
-      if (!apiSuccess) rethrow;
-    }
+    } catch (_) {}
   }
 }
 
@@ -292,16 +288,12 @@ class ApiProgramRepository implements ProgramRepository {
 
   @override
   Future<void> deleteProgram(String id) async {
-    bool apiSuccess = false;
     try {
       await _api.deleteProgram(id);
-      apiSuccess = true;
     } catch (_) {}
     try {
       await _supabase.deleteProgram(id);
-    } catch (e) {
-      if (!apiSuccess) rethrow;
-    }
+    } catch (_) {}
   }
 }
 

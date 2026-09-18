@@ -55,11 +55,21 @@ class ScoringService {
     final teams = await teamRepository.getTeams();
     final publishedResults = await resultRepository.getPublishedResults();
 
+    final Map<String, String> teamIdMap = {};
+    for (var t in teams) {
+      teamIdMap[t.id] = t.id;
+      if (t.teamCode.isNotEmpty) {
+        teamIdMap[t.teamCode.trim().toLowerCase()] = t.id;
+      }
+    }
+
     final Map<String, int> teamScores = {for (var t in teams) t.id: 0};
 
     for (final res in publishedResults) {
-      if (teamScores.containsKey(res.teamId)) {
-        teamScores[res.teamId] = (teamScores[res.teamId] ?? 0) + res.points;
+      final key = res.teamId.trim().toLowerCase();
+      final targetTeamId = teamIdMap[res.teamId] ?? teamIdMap[key];
+      if (targetTeamId != null && teamScores.containsKey(targetTeamId)) {
+        teamScores[targetTeamId] = (teamScores[targetTeamId] ?? 0) + res.points;
       }
     }
 

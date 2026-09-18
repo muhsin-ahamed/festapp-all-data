@@ -26,13 +26,20 @@ export class ScoringService {
     const publishedResults = await this.resultRepo.findPublished();
 
     const teamScores: Record<string, number> = {};
+    const teamIdMap: Record<string, string> = {};
     for (const t of teams) {
       teamScores[t.id] = 0;
+      teamIdMap[t.id] = t.id;
+      if (t.teamCode) {
+        teamIdMap[t.teamCode.trim().toLowerCase()] = t.id;
+      }
     }
 
     for (const res of publishedResults) {
-      if (teamScores[res.teamId] !== undefined) {
-        teamScores[res.teamId] += res.points || 0;
+      const key = (res.teamId || '').trim().toLowerCase();
+      const targetTeamId = teamIdMap[res.teamId] || teamIdMap[key];
+      if (targetTeamId && teamScores[targetTeamId] !== undefined) {
+        teamScores[targetTeamId] += res.points || 0;
       }
     }
 

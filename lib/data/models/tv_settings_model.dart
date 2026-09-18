@@ -20,7 +20,7 @@ class TvSettings {
   TvSettings({
     this.id = 'default_tv_settings',
     this.screenMode = 'ONLY_MAIN',
-    this.slideDuration = 15,
+    this.slideDuration = 30,
     this.currentSlide = 0,
     this.autoRotate = true,
     this.showTeamScores = true,
@@ -119,7 +119,7 @@ class TvSettings {
     return TvSettings(
       id: map['id']?.toString() ?? 'default_tv_settings',
       screenMode: map['screenMode']?.toString() ?? 'ONLY_MAIN',
-      slideDuration: (map['slideDuration'] as num?)?.toInt() ?? 15,
+      slideDuration: (map['slideDuration'] as num?)?.toInt() ?? 30,
       currentSlide: (map['currentSlide'] as num?)?.toInt() ?? 0,
       autoRotate: map['autoRotate'] == null ? true : (map['autoRotate'] as bool),
       showTeamScores: map['showTeamScores'] == null ? true : (map['showTeamScores'] as bool),

@@ -511,9 +511,6 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
       position: pos > 0 ? pos : null,
       grade: grade,
     );
-    final isGenProg = _selectedProgram != null &&
-        (_selectedProgram!.isGeneral ||
-            _selectedProgram!.section == FestSection.general);
     final teamsList = ref.watch(teamsProvider).value ?? [];
 
     return AppCard(
@@ -588,9 +585,7 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
 
           // Dropdown: Select Registered Student (Matches screenshot format)
           AppDropdown<String?>(
-            label: isGenProg
-                ? '${slotIdx + 1}. Select Group / Team (${participants.length} registered)'
-                : '${slotIdx + 1}. Select Registered Student (${participants.length} registered)',
+            label: '${slotIdx + 1}. Select Student / Winner (${participants.length} registered)',
             value: slot.studentId,
             items: [
               DropdownMenuItem<String?>(
@@ -613,8 +608,8 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
                           t.teamCode.toLowerCase() == s.teamId.toLowerCase())
                       .firstOrNull;
                   final tmName = tm?.teamName.trim() ?? '';
-                  final displayStr = (isGenProg && tmName.isNotEmpty)
-                      ? '$tmName (${s.chaseNumber})'
+                  final displayStr = tmName.isNotEmpty
+                      ? '${s.name} (${s.chaseNumber}) - $tmName'
                       : '${s.name} (${s.chaseNumber})';
                   return DropdownMenuItem<String?>(
                     value: s.id,

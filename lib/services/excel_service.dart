@@ -1478,4 +1478,46 @@ class ExcelService {
 
     return Uint8List.fromList(excel.save() ?? []);
   }
+
+  Uint8List exportStudentTotalsToExcel({
+    required List<Map<String, dynamic>> studentTotalsData,
+    String title = 'Student Totals Summary',
+  }) {
+    final excel = Excel.createExcel();
+    final sheet = excel['Student_Totals'];
+    if (excel.sheets.containsKey('Sheet1')) {
+      excel.delete('Sheet1');
+    }
+
+    sheet.appendRow([
+      TextCellValue('Overall Rank'),
+      TextCellValue('Section Rank'),
+      TextCellValue('Chase Number'),
+      TextCellValue('Student Name'),
+      TextCellValue('Section'),
+      TextCellValue('Team Name'),
+      TextCellValue('Total Programs'),
+      TextCellValue('Total Marks'),
+      TextCellValue('Total Points'),
+      TextCellValue('Top Highlight'),
+    ]);
+
+    for (final item in studentTotalsData) {
+      sheet.appendRow([
+        IntCellValue(item['overallRank'] as int? ?? 0),
+        IntCellValue(item['sectionRank'] as int? ?? 0),
+        TextCellValue(item['chaseNumber']?.toString() ?? ''),
+        TextCellValue(item['name']?.toString() ?? ''),
+        TextCellValue(item['section']?.toString() ?? ''),
+        TextCellValue(item['teamName']?.toString() ?? ''),
+        IntCellValue(item['totalPrograms'] as int? ?? 0),
+        DoubleCellValue((item['totalMarks'] as num?)?.toDouble() ?? 0.0),
+        IntCellValue(item['totalPoints'] as int? ?? 0),
+        TextCellValue(item['topHighlight']?.toString() ?? ''),
+      ]);
+    }
+
+    return Uint8List.fromList(excel.save() ?? []);
+  }
 }
+

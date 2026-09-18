@@ -64,8 +64,6 @@ class StudentApi {
   }
 
   Future<void> deleteStudent(String id) async {
-    try {
-      await client.delete('/controller/students/$id');
-    } catch (_) {}
+    await client.delete('/controller/students/$id');
   }
 }
