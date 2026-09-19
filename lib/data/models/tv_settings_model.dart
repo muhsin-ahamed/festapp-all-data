@@ -98,6 +98,8 @@ class TvSettings {
       'show_announcements': showAnnouncements,
       'customMessage': serializedCustom,
       'custom_message': serializedCustom,
+      'activeAnnouncementId': serializedCustom,
+      'active_announcement_id': serializedCustom,
       'announcedProgramId': announcedProgramId,
       'announced_program_id': announcedProgramId,
       'announcedResultNumber': announcedResultNumber,
@@ -132,20 +134,20 @@ class TvSettings {
           .toList();
     }
 
-    final rawCustom = map['customMessage'] ?? map['custom_message'] ?? map['activeAnnouncementId'];
+    final rawCustom = map['customMessage'] ?? map['custom_message'] ?? map['activeAnnouncementId'] ?? map['active_announcement_id'];
     if (rawCustom is String && rawCustom.startsWith('{') && rawCustom.endsWith('}')) {
       try {
         final decoded = jsonDecode(rawCustom) as Map<String, dynamic>;
         progId = progId ?? (decoded['announcedProgramId'] ?? decoded['announced_program_id'])?.toString();
         resNum = resNum ?? ((decoded['announcedResultNumber'] ?? decoded['announced_result_number']) as num?)?.toInt();
         if (decoded['screenMode'] != null || decoded['screen_mode'] != null) {
-          modeStr = modeStr ?? (decoded['screenMode'] ?? decoded['screen_mode'])?.toString();
+          modeStr = (decoded['screenMode'] ?? decoded['screen_mode'])?.toString();
         }
         if (decoded['slideDuration'] != null || decoded['slide_duration'] != null) {
-          slideDur = slideDur ?? ((decoded['slideDuration'] ?? decoded['slide_duration']) as num?)?.toInt();
+          slideDur = ((decoded['slideDuration'] ?? decoded['slide_duration']) as num?)?.toInt();
         }
         if (decoded['autoRotate'] != null || decoded['auto_rotate'] != null) {
-          autoRot = autoRot ?? ((decoded['autoRotate'] ?? decoded['auto_rotate']) as bool?);
+          autoRot = ((decoded['autoRotate'] ?? decoded['auto_rotate']) as bool?);
         }
         if (positions.isEmpty) {
           final decPos = decoded['revealedPositions'] ?? decoded['revealed_positions'];

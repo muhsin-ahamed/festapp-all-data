@@ -30,7 +30,7 @@ class TvService extends ChangeNotifier {
     _syncTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
       try {
         if (_lastLocalUpdateTime != null &&
-            DateTime.now().difference(_lastLocalUpdateTime!).inSeconds < 3) {
+            DateTime.now().difference(_lastLocalUpdateTime!).inSeconds < 6) {
           return;
         }
         final remote = await tvSettingsRepository.getSettings();
@@ -140,9 +140,11 @@ class TvService extends ChangeNotifier {
       revealedPositions: [],
     );
     _lastLocalUpdateTime = DateTime.now();
-    await tvSettingsRepository.updateSettings(_settings);
-    _startTimerIfNeeded();
     notifyListeners();
+    _startTimerIfNeeded();
+    try {
+      await tvSettingsRepository.updateSettings(_settings);
+    } catch (_) {}
   }
 
   Future<void> setAnnouncedResultNumber(int number) async {

@@ -7723,19 +7723,19 @@ class _ControllerPortalScreenState
                   builder: (context, constraints) {
                     final isWide = constraints.maxWidth > 800;
                     return GridView.count(
-                      crossAxisCount: isWide ? 4 : 2,
+                      crossAxisCount: isWide ? 3 : 2,
                       crossAxisSpacing: 14,
                       mainAxisSpacing: 14,
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      childAspectRatio: isWide ? 1.5 : 1.25,
+                      childAspectRatio: isWide ? 1.55 : 1.25,
                       children: [
                         // Button 1: Auto Rotate With Scoreboard
                         _buildModeButton(
                           title: '1. Auto Rotate With Scoreboard',
                           subtitle: 'Rotates Main, Results & Scoreboard (30s)',
                           icon: Icons.scoreboard_rounded,
-                          isActive: currentMode == 'AUTO_WITH_SCOREBOARD',
+                          isActive: currentMode == 'AUTO_WITH_SCOREBOARD' || currentMode == 'AUTO',
                           activeColor: Colors.deepOrange,
                           onTap: () {
                             tvService.setScreenMode(
@@ -7783,6 +7783,30 @@ class _ControllerPortalScreenState
                           activeColor: Colors.teal[800]!,
                           onTap: () {
                             tvService.setScreenMode('ONLY_MAIN', autoRotate: false);
+                          },
+                        ),
+
+                        // Button 5: Scoreboard Only
+                        _buildModeButton(
+                          title: '5. Scoreboard Only',
+                          subtitle: 'Displays team leaderboard & standings',
+                          icon: Icons.leaderboard_rounded,
+                          isActive: currentMode == 'SCOREBOARD',
+                          activeColor: Colors.purple[800]!,
+                          onTap: () {
+                            tvService.setScreenMode('SCOREBOARD', autoRotate: false);
+                          },
+                        ),
+
+                        // Button 6: Results Only
+                        _buildModeButton(
+                          title: '6. Results Only',
+                          subtitle: 'Displays published program results list',
+                          icon: Icons.emoji_events_rounded,
+                          isActive: currentMode == 'RESULTS',
+                          activeColor: Colors.blue[800]!,
+                          onTap: () {
+                            tvService.setScreenMode('RESULTS', autoRotate: false);
                           },
                         ),
                       ],

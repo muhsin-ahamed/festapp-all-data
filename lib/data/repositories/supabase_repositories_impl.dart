@@ -941,17 +941,28 @@ class SupabaseTvSettingsRepository implements TvSettingsRepository {
   @override
   Future<void> updateSettings(TvSettings settings) async {
     _cachedSettings = settings;
-    try {
-      await _safeUpsert(_table, settings.toMap());
-    } catch (_) {
+    final map = settings.toMap();
+    final serialized = map['activeAnnouncementId']?.toString() ??
+        map['customMessage']?.toString();
+
+    if (serialized != null && serialized.isNotEmpty) {
       try {
-        // Fallback with minimal standard columns if custom columns do not exist
-        await _safeUpsert(_table, {
-          'id': 'default_tv_settings',
-          'activeAnnouncementId': settings.customMessage,
-        });
-      } catch (_) {}
+        await _client.from(_table).update({
+          'activeAnnouncementId': serialized,
+        }).eq('id', 'default_tv_settings');
+      } catch (_) {
+        try {
+          await _client.from(_table).upsert({
+            'id': 'default_tv_settings',
+            'activeAnnouncementId': serialized,
+          }, onConflict: 'id');
+        } catch (_) {}
+      }
     }
+
+    try {
+      await _safeUpsert(_table, map);
+    } catch (_) {}
   }
 }
 
