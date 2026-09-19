@@ -936,10 +936,14 @@ class ResultCard extends StatelessWidget {
   final String section;
   final String winnerName;
   final String winnerTeam;
+  final String? winnerChaseNo;
   final String secondName;
   final String secondTeam;
+  final String? secondChaseNo;
   final String thirdName;
   final String thirdTeam;
+  final String? thirdChaseNo;
+  final VoidCallback? onViewPoster;
 
   const ResultCard({
     super.key,
@@ -947,10 +951,14 @@ class ResultCard extends StatelessWidget {
     required this.section,
     required this.winnerName,
     required this.winnerTeam,
+    this.winnerChaseNo,
     required this.secondName,
     required this.secondTeam,
+    this.secondChaseNo,
     required this.thirdName,
     required this.thirdTeam,
+    this.thirdChaseNo,
+    this.onViewPoster,
   });
 
   @override
@@ -966,9 +974,8 @@ class ResultCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   programName,
-                  style: GoogleFonts.workSans(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
+                  style: GoogleFonts.rye(
+                    fontSize: 16,
                     color: AppTheme.ink,
                   ),
                   overflow: TextOverflow.ellipsis,
@@ -981,16 +988,16 @@ class ResultCard extends StatelessWidget {
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: AppTheme.cream,
-                  border: Border.all(color: AppTheme.line),
-                  borderRadius: BorderRadius.circular(20),
+                  color: const Color(0xFF748427),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  section,
+                  section.toUpperCase(),
                   style: GoogleFonts.workSans(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.inkSoft,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                    letterSpacing: 1.0,
                   ),
                 ),
               ),
@@ -1000,80 +1007,113 @@ class ResultCard extends StatelessWidget {
             padding: EdgeInsets.symmetric(vertical: 10),
             child: Divider(height: 1, color: AppTheme.line),
           ),
-          _buildRankRow(1, winnerName, winnerTeam),
-          const SizedBox(height: 6),
-          _buildRankRow(2, secondName, secondTeam),
-          const SizedBox(height: 6),
-          _buildRankRow(3, thirdName, thirdTeam),
+          _buildRankRow(1, winnerName, winnerTeam, winnerChaseNo, const Color(0xFF5A8E33)),
+          const SizedBox(height: 8),
+          _buildRankRow(2, secondName, secondTeam, secondChaseNo, const Color(0xFF8B2B38)),
+          const SizedBox(height: 8),
+          _buildRankRow(3, thirdName, thirdTeam, thirdChaseNo, const Color(0xFFDE1F33)),
+          if (onViewPoster != null) ...[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: onViewPoster,
+                icon: const Icon(Icons.image_outlined, size: 16),
+                label: const Text(
+                  'View Result Poster',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                ),
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF748427),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildRankRow(int pos, String name, String team) {
-    Color posBg;
-    Color posFg;
+  Widget _buildRankRow(
+    int pos,
+    String name,
+    String team,
+    String? chaseNo,
+    Color accentColor,
+  ) {
     bool isEmpty = name.isEmpty || name == '—';
-
-    final label = pos == 1 ? '1st' : (pos == 2 ? '2nd' : '3rd');
-
-    if (pos == 1) {
-      posBg = AppTheme.mustard;
-      posFg = AppTheme.ink;
-    } else if (pos == 2) {
-      posBg = const Color(0xFF999486);
-      posFg = AppTheme.ink;
-    } else {
-      posBg = const Color(0xFFF2ECE1);
-      posFg = AppTheme.inkSoft;
-    }
+    final cleanChase = chaseNo?.trim() ?? '';
+    final formattedChase = cleanChase.isNotEmpty
+        ? (cleanChase.startsWith('#') ? cleanChase : '#$cleanChase')
+        : '';
 
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
-          width: 38,
-          height: 24,
+          width: 26,
+          height: 26,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: posBg,
-            borderRadius: BorderRadius.circular(6),
+            color: accentColor,
+            shape: BoxShape.circle,
           ),
           child: Text(
-            label,
+            '$pos',
             style: GoogleFonts.workSans(
-              color: posFg,
-              fontWeight: FontWeight.w800,
-              fontSize: 11,
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+              fontSize: 12,
             ),
           ),
         ),
-        const SizedBox(width: 12),
-        Expanded(
+        const SizedBox(width: 10),
+        Flexible(
           child: Text(
             !isEmpty ? name : '—',
             style: GoogleFonts.workSans(
-              fontWeight: isEmpty ? FontWeight.w600 : FontWeight.w700,
-              fontSize: 13.5,
+              fontWeight: isEmpty ? FontWeight.w600 : FontWeight.w800,
+              fontSize: 14,
               color: isEmpty ? AppTheme.inkSoft : AppTheme.ink,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
         ),
-        const SizedBox(width: 8),
-        Flexible(
-          child: Text(
-            !isEmpty ? team : '—',
+        if (formattedChase.isNotEmpty && !isEmpty) ...[
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: accentColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: accentColor, width: 1.0),
+            ),
+            child: Text(
+              formattedChase,
+              style: GoogleFonts.workSans(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w900,
+                color: accentColor,
+              ),
+            ),
+          ),
+        ],
+        if (team.isNotEmpty && team != '—' && !isEmpty) ...[
+          const SizedBox(width: 8),
+          Text(
+            '• $team',
             style: GoogleFonts.workSans(
-              color: AppTheme.inkSoft,
-              fontSize: 11.5,
-              fontWeight: FontWeight.w600,
+              color: accentColor,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.right,
           ),
-        ),
+        ],
       ],
     );
   }

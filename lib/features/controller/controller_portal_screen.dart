@@ -1,12 +1,15 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:uuid/uuid.dart';
+import 'package:excel/excel.dart' hide Border;
 import '../../core/constants/app_constants.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_ui_components.dart';
+import '../../core/widgets/fest_result_poster.dart';
 import '../../data/models/student_model.dart';
 import '../../data/models/team_model.dart';
 import '../../data/models/team_leader_model.dart';
@@ -147,6 +150,9 @@ class _ControllerPortalScreenState
 
   // Excel Import state
   ExcelImportResult? _importResult;
+  Uint8List? _stagedResultExcelBytes;
+  String? _stagedResultExcelFileName;
+  int? _stagedResultExcelRowCount;
 
   // User Account Management state
   final Set<String> _visiblePasswords = {};
@@ -1968,6 +1974,449 @@ class _ControllerPortalScreenState
           ],
         );
       },
+    );
+  }
+
+  void _showResultExcelFormatDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFF9F5EE),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.help_outline_rounded,
+                  color: Color(0xFF9E2A2B),
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Result Excel Format (8 Columns)',
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 750,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF9F5EE),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: const Color(0xFF9E2A2B),
+                        width: 1.2,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Excel Column Order & Rules:',
+                          style: GoogleFonts.inter(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: const Color(0xFF9E2A2B),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '• Section: Sub Junior, Junior, Senior, Super Senior, General\n'
+                          '• type: stage or non stage\n'
+                          '• Program: Name of the event / program (e.g. Writng Arab)\n'
+                          '• Postistion: 1st, 2nd, 3rd (or 1, 2, 3)\n'
+                          '• name: Student / Participant name (e.g. nihal)\n'
+                          '• chase number: Student chest / chase number (e.g. SB6158)\n'
+                          '• Team: Team name (e.g. Apex)\n'
+                          '• point: Marks / points earned (e.g. 5)',
+                          style: GoogleFonts.inter(
+                            fontSize: 12.5,
+                            color: const Color(0xFF333333),
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    'Sample Data Format (.xlsx or .xls):',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.inkSoft,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Table(
+                      defaultColumnWidth: const IntrinsicColumnWidth(),
+                      border: TableBorder.all(color: Colors.grey.shade300),
+                      children: [
+                        TableRow(
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFF1F5F9),
+                          ),
+                          children: [
+                            for (final h in [
+                              'Section',
+                              'type',
+                              'Program',
+                              'Postistion',
+                              'name',
+                              'chase number',
+                              'Team',
+                              'point'
+                            ])
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                                child: Text(
+                                  h,
+                                  style: GoogleFonts.inter(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        TableRow(
+                          children: [
+                            for (final v in [
+                              'Sub Junior',
+                              'non stage',
+                              'Writng Arab',
+                              '1st',
+                              'nihal',
+                              'SB6158',
+                              'Apex',
+                              '5'
+                            ])
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                                child: Text(
+                                  v,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    color: const Color(0xFF333333),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            OutlinedButton.icon(
+              icon: const Icon(Icons.file_download_outlined),
+              label: const Text('Download Template'),
+              onPressed: () {
+                _downloadResultTemplate();
+              },
+            ),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.upload_file),
+              label: const Text('Upload & Import Now'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.red,
+                foregroundColor: AppTheme.cream,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+                _importResultsFromExcel();
+              },
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _downloadResultTemplate() async {
+    try {
+      final excelService = ref.read(excelServiceProvider);
+      final bytes = excelService.generateResultTemplate();
+      await Printing.sharePdf(
+        bytes: bytes,
+        filename: 'fest_results_template.xlsx',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to download result template: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _selectResultExcelFile() async {
+    try {
+      final files = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['xlsx', 'xls'],
+      );
+
+      if (files.isNotEmpty) {
+        final bytes = await files.first.readAsBytes();
+        final excel = Excel.decodeBytes(bytes);
+        int rowCount = 0;
+        if (excel.tables.isNotEmpty) {
+          final sheet = excel.tables.values.first;
+          rowCount = sheet.maxRows > 0 ? (sheet.maxRows - 1) : 0;
+        }
+        setState(() {
+          _stagedResultExcelBytes = bytes;
+          _stagedResultExcelFileName = files.first.name;
+          _stagedResultExcelRowCount = rowCount;
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Excel file loaded: ${files.first.name} ($rowCount data rows ready to import). Click "Import Results" to proceed!',
+              ),
+              backgroundColor: Colors.green.shade700,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to select Excel file: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _importResultsFromExcel() async {
+    try {
+      Uint8List? bytes = _stagedResultExcelBytes;
+
+      if (bytes == null) {
+        final files = await FilePicker.pickFiles(
+          type: FileType.custom,
+          allowedExtensions: ['xlsx', 'xls'],
+        );
+
+        if (files.isEmpty) return;
+        bytes = await files.first.readAsBytes();
+      }
+
+      if (!mounted) return;
+      _showLoadingDialog(
+        'Importing Results',
+        'Processing Excel file, adding results and updating points table...\nPlease wait.',
+      );
+
+      try {
+        final excelService = ref.read(excelServiceProvider);
+        final importResult = await excelService.importResults(bytes);
+        setState(() {
+          _stagedResultExcelBytes = null;
+          _stagedResultExcelFileName = null;
+          _stagedResultExcelRowCount = null;
+        });
+        triggerDataRefresh(ref);
+
+        if (mounted) {
+          Navigator.of(context, rootNavigator: true).pop();
+          _showImportResultDialog(
+            'Results Excel Import Summary',
+            importResult,
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          Navigator.of(context, rootNavigator: true).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to import Results Excel file: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to process Excel file: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _buildResultExcelUploadCard() {
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.purple.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.table_chart_rounded,
+                  color: Colors.purple,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Bulk Upload & Import Results from Excel',
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Columns: Section  |  type  |  Program  |  Postistion  |  name  |  chase number  |  Team  |  point',
+                      style: GoogleFonts.inter(
+                        color: AppTheme.inkSoft,
+                        fontSize: 12.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (_stagedResultExcelFileName != null) ...[
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.green.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green.shade300),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle_outline, color: Colors.green, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Ready to import: $_stagedResultExcelFileName (${_stagedResultExcelRowCount ?? 0} data rows detected)',
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: Colors.green.shade900,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 18),
+                    tooltip: 'Cancel file',
+                    onPressed: () {
+                      setState(() {
+                        _stagedResultExcelBytes = null;
+                        _stagedResultExcelFileName = null;
+                        _stagedResultExcelRowCount = null;
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 12,
+            runSpacing: 10,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              _buildExcelFormatButton(
+                onTap: _showResultExcelFormatDialog,
+                label: 'Understand Format',
+              ),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.upload_file, size: 18),
+                label: const Text('Upload Excel'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+                onPressed: _selectResultExcelFile,
+              ),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.cloud_upload_rounded, size: 18),
+                label: Text(_stagedResultExcelBytes != null ? 'Import Now' : 'Import Results'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green.shade700,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+                onPressed: _importResultsFromExcel,
+              ),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.file_download_outlined, size: 18),
+                label: const Text('Download Template'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                ),
+                onPressed: _downloadResultTemplate,
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -5926,6 +6375,8 @@ class _ControllerPortalScreenState
             style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
+          _buildResultExcelUploadCard(),
+          const SizedBox(height: 16),
           AppCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -7888,7 +8339,13 @@ class _ControllerPortalScreenState
           ],
 
           // Live TV Screen Preview
-          _buildTvLivePreviewCard(tvService, activeProg),
+          _buildTvLivePreviewCard(
+            tvService: tvService,
+            activeProg: activeProg,
+            allResults: allResults,
+            studentMap: studentMap,
+            teamMap: teamMap,
+          ),
         ],
       ),
     );
@@ -8675,8 +9132,74 @@ class _ControllerPortalScreenState
   }
 
   // --- LIVE TV SCREEN MINIATURE PREVIEW ---
-  Widget _buildTvLivePreviewCard(TvService tvService, Program? activeProg) {
+  Widget _buildTvLivePreviewCard({
+    required TvService tvService,
+    required Program? activeProg,
+    required List<Result> allResults,
+    required Map<String, Student> studentMap,
+    required Map<String, Team> teamMap,
+  }) {
     final mode = tvService.settings.screenMode;
+
+    Widget previewContent;
+    if (mode == 'ANNOUNCE_RESULT') {
+      final progResults = activeProg != null
+          ? allResults.where((r) => r.programId == activeProg.id).toList()
+          : <Result>[];
+      final res1 = progResults.where((r) => r.position == 1).firstOrNull;
+      final res2 = progResults.where((r) => r.position == 2).firstOrNull;
+      final res3 = progResults.where((r) => r.position == 3).firstOrNull;
+
+      final s1 = res1 != null ? studentMap[res1.studentId] : null;
+      final t1 = res1 != null ? teamMap[res1.teamId] : null;
+      final s2 = res2 != null ? studentMap[res2.studentId] : null;
+      final t2 = res2 != null ? teamMap[res2.teamId] : null;
+      final s3 = res3 != null ? studentMap[res3.studentId] : null;
+      final t3 = res3 != null ? teamMap[res3.teamId] : null;
+
+      final resNum = tvService.settings.announcedResultNumber ?? 1;
+      final resNumStr = resNum < 10 ? '0$resNum' : '$resNum';
+
+      previewContent = FestResultPoster(
+        resultNumber: resNumStr,
+        programName: activeProg?.programName ?? 'CHAMPIONSHIP RESULT',
+        sectionLabel: activeProg?.section.label ?? 'GENERAL',
+        winner1: s1 != null || res1 != null
+            ? FestResultWinner(
+                position: 1,
+                studentName: s1?.name ?? (res1 != null ? 'Winner' : ''),
+                chaseNumber: s1?.chaseNumber ?? '',
+                teamName: t1?.teamName ?? '',
+                grade: res1?.grade,
+              )
+            : null,
+        winner2: s2 != null || res2 != null
+            ? FestResultWinner(
+                position: 2,
+                studentName: s2?.name ?? (res2 != null ? 'Winner' : ''),
+                chaseNumber: s2?.chaseNumber ?? '',
+                teamName: t2?.teamName ?? '',
+                grade: res2?.grade,
+              )
+            : null,
+        winner3: s3 != null || res3 != null
+            ? FestResultWinner(
+                position: 3,
+                studentName: s3?.name ?? (res3 != null ? 'Winner' : ''),
+                chaseNumber: s3?.chaseNumber ?? '',
+                teamName: t3?.teamName ?? '',
+                grade: res3?.grade,
+              )
+            : null,
+        revealedPositions: tvService.settings.revealedPositions.toSet(),
+        isRevealMode: true,
+      );
+    } else {
+      previewContent = Image.asset(
+        'assets/images/tv_poster.png',
+        fit: BoxFit.contain,
+      );
+    }
 
     return AppCard(
       child: Column(
@@ -8712,15 +9235,7 @@ class _ControllerPortalScreenState
               child: Center(
                 child: AspectRatio(
                   aspectRatio: 16 / 9,
-                  child: mode == 'ANNOUNCE_RESULT'
-                      ? Image.asset(
-                          'assets/images/announce_result_template.jpg',
-                          fit: BoxFit.contain,
-                        )
-                      : Image.asset(
-                          'assets/images/tv_poster.png',
-                          fit: BoxFit.contain,
-                        ),
+                  child: previewContent,
                 ),
               ),
             ),
@@ -9197,6 +9712,10 @@ class _ControllerPortalScreenState
               ],
             ),
           ),
+          const SizedBox(height: 16),
+
+          // 5. Results Bulk Upload Card
+          _buildResultExcelUploadCard(),
 
           if (_importResult != null) ...[
             const SizedBox(height: 24),

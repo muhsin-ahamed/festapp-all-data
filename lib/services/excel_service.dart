@@ -9,8 +9,10 @@ import '../data/models/schedule_model.dart';
 import '../data/models/registration_model.dart';
 import '../data/models/jury_model.dart';
 import '../data/models/user_model.dart';
+import '../data/models/result_model.dart';
 import '../data/repositories/app_repositories.dart';
 import 'qr_service.dart';
+import 'scoring_service.dart';
 import 'package:uuid/uuid.dart';
 
 class ExcelImportResult<T> {
@@ -42,6 +44,7 @@ class ExcelService {
   final RegistrationRepository registrationRepository;
   final JuryRepository? juryRepository;
   final UserRepository? userRepository;
+  final ResultRepository? resultRepository;
 
   ExcelService({
     required this.studentRepository,
@@ -52,6 +55,7 @@ class ExcelService {
     required this.registrationRepository,
     this.juryRepository,
     this.userRepository,
+    this.resultRepository,
   });
 
   Future<ExcelImportResult<Student>> importStudents(Uint8List bytes) async {
@@ -1518,6 +1522,515 @@ class ExcelService {
     }
 
     return Uint8List.fromList(excel.save() ?? []);
+  }
+
+  Uint8List generateResultTemplate() {
+    final excel = Excel.createExcel();
+    final sheet = excel['Results_Template'];
+    if (excel.sheets.containsKey('Sheet1')) {
+      excel.delete('Sheet1');
+    }
+
+    sheet.appendRow([
+      TextCellValue('Section'),
+      TextCellValue('type'),
+      TextCellValue('Program'),
+      TextCellValue('Postistion'),
+      TextCellValue('name'),
+      TextCellValue('chase number'),
+      TextCellValue('Team'),
+      TextCellValue('point'),
+    ]);
+
+    sheet.appendRow([
+      TextCellValue('Sub Junior'),
+      TextCellValue('non stage'),
+      TextCellValue('Writng Arab'),
+      TextCellValue('1st'),
+      TextCellValue('nihal'),
+      TextCellValue('SB6158'),
+      TextCellValue('Apex'),
+      IntCellValue(5),
+    ]);
+
+    return Uint8List.fromList(excel.save() ?? []);
+  }
+
+  Future<ExcelImportResult<Result>> importResults(
+    Uint8List bytes, {
+    bool publishImmediately = true,
+  }) async {
+    final excel = Excel.decodeBytes(bytes);
+    if (excel.tables.isEmpty) {
+      return ExcelImportResult<Result>(
+        totalRows: 0,
+        validRows: 0,
+        invalidRows: 0,
+        duplicateRows: 0,
+        importedRows: 0,
+        errors: ['Excel file contains no valid sheets.'],
+        validItems: [],
+      );
+    }
+    final sheet = excel.tables.values.first;
+
+    int total = 0;
+    int valid = 0;
+    int invalid = 0;
+    int duplicate = 0;
+    final List<String> errors = [];
+    final List<Result> validResults = [];
+
+    if (sheet.maxRows == 0) {
+      return ExcelImportResult<Result>(
+        totalRows: 0,
+        validRows: 0,
+        invalidRows: 0,
+        duplicateRows: 0,
+        importedRows: 0,
+        errors: ['Excel sheet is empty.'],
+        validItems: [],
+      );
+    }
+
+    if (resultRepository == null) {
+      return ExcelImportResult<Result>(
+        totalRows: 0,
+        validRows: 0,
+        invalidRows: 0,
+        duplicateRows: 0,
+        importedRows: 0,
+        errors: ['Result repository is not initialized.'],
+        validItems: [],
+      );
+    }
+
+    final programs = List<Program>.from(await programRepository.getPrograms());
+    final students = List<Student>.from(await studentRepository.getStudents());
+    final teams = List<Team>.from(await teamRepository.getTeams());
+    final existingResults = await resultRepository!.getResults();
+    final registrations = await registrationRepository.getRegistrations();
+
+    final Map<String, Result> existingResultMap = {
+      for (var r in existingResults) '${r.programId}_${r.studentId}': r,
+    };
+    final Set<String> existingRegistrationCombos = registrations
+        .map((r) => '${r.studentId}_${r.programId}')
+        .toSet();
+
+    final List<Team> newTeamsToSave = [];
+    final List<Student> newStudentsToSave = [];
+    final List<Program> newProgramsToSave = [];
+    final List<Registration> newRegistrationsToSave = [];
+
+    // Columns: Section, type, Program, Postistion, name, chase number, Team, point
+    int secCol = 0;
+    int typeCol = 1;
+    int progCol = 2;
+    int posCol = 3;
+    int nameCol = 4;
+    int chaseCol = 5;
+    int teamCol = 6;
+    int pointCol = 7;
+
+    final headerRow = sheet.row(0);
+    bool hasHeader = false;
+    for (int col = 0; col < headerRow.length; col++) {
+      final val = headerRow[col]?.value?.toString().trim().toLowerCase() ?? '';
+      if (val.contains('postistion') ||
+          val.contains('position') ||
+          val.contains('pos') ||
+          val.contains('rank') ||
+          val.contains('place')) {
+        posCol = col;
+        hasHeader = true;
+      } else if (val.contains('chase') ||
+          val.contains('chest') ||
+          val.contains('chse')) {
+        chaseCol = col;
+        hasHeader = true;
+      } else if (val.contains('program') ||
+          val.contains('item') ||
+          val.contains('prog') ||
+          val.contains('event')) {
+        progCol = col;
+        hasHeader = true;
+      } else if (val.contains('section') ||
+          val.contains('sec') ||
+          val.contains('setion') ||
+          val.contains('category')) {
+        secCol = col;
+        hasHeader = true;
+      } else if (val.contains('team') ||
+          val.contains('group') ||
+          val.contains('house')) {
+        teamCol = col;
+        hasHeader = true;
+      } else if (val.contains('point') ||
+          val.contains('points') ||
+          val.contains('mark') ||
+          val.contains('score')) {
+        pointCol = col;
+        hasHeader = true;
+      } else if (val.contains('type') || val.contains('stage')) {
+        typeCol = col;
+        hasHeader = true;
+      } else if (val.contains('name') || val.contains('student')) {
+        nameCol = col;
+        hasHeader = true;
+      }
+    }
+
+    final startRow = hasHeader ? 1 : 0;
+
+    for (int i = startRow; i < sheet.maxRows; i++) {
+      final row = sheet.row(i);
+      if (row.isEmpty ||
+          row.every((cell) =>
+              cell?.value == null || cell!.value.toString().trim().isEmpty)) {
+        continue;
+      }
+      total++;
+
+      try {
+        final secRaw = (secCol < row.length
+                ? row[secCol]?.value?.toString().trim()
+                : '') ??
+            '';
+        final typeRaw = (typeCol < row.length
+                ? row[typeCol]?.value?.toString().trim()
+                : '') ??
+            '';
+        final progRaw = (progCol < row.length
+                ? row[progCol]?.value?.toString().trim()
+                : '') ??
+            '';
+        final posRaw = (posCol < row.length
+                ? row[posCol]?.value?.toString().trim()
+                : '') ??
+            '';
+        final nameRaw = (nameCol < row.length
+                ? row[nameCol]?.value?.toString().trim()
+                : '') ??
+            '';
+        final chaseRaw = (chaseCol < row.length
+                ? row[chaseCol]?.value?.toString().trim()
+                : '') ??
+            '';
+        final teamRaw = (teamCol < row.length
+                ? row[teamCol]?.value?.toString().trim()
+                : '') ??
+            '';
+        final pointRaw = (pointCol < row.length
+                ? row[pointCol]?.value?.toString().trim()
+                : '') ??
+            '';
+
+        if (progRaw.isEmpty) {
+          invalid++;
+          errors.add('Row ${i + 1}: Missing Program name.');
+          continue;
+        }
+
+        if (chaseRaw.isEmpty && nameRaw.isEmpty) {
+          invalid++;
+          errors.add('Row ${i + 1}: Missing both Chase Number and Student Name.');
+          continue;
+        }
+
+        final section = FestSection.fromString(secRaw, chaseRaw);
+        final isNonStage = typeRaw.toLowerCase().contains('non') ||
+            typeRaw.toLowerCase().contains('off');
+        final isStage = !isNonStage &&
+            (typeRaw.toLowerCase().contains('stage') ||
+                typeRaw.toLowerCase().contains('on'));
+
+        // 1. Resolve Team
+        Team? matchedTeam;
+        if (teamRaw.isNotEmpty) {
+          for (final t in teams) {
+            if (t.teamName.trim().toLowerCase() == teamRaw.toLowerCase() ||
+                t.teamCode.trim().toLowerCase() == teamRaw.toLowerCase()) {
+              matchedTeam = t;
+              break;
+            }
+          }
+          if (matchedTeam == null) {
+            final teamCodeClean =
+                teamRaw.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
+            matchedTeam = Team(
+              id: 'team_${const Uuid().v4()}',
+              teamName: teamRaw,
+              teamCode: 'T-${teamCodeClean.isNotEmpty ? teamCodeClean : "NEW"}',
+            );
+            teams.add(matchedTeam);
+            newTeamsToSave.add(matchedTeam);
+          }
+        }
+        final teamId = matchedTeam?.id ??
+            (teams.isNotEmpty ? teams.first.id : 'default_team');
+
+        // 2. Resolve Student
+        Student? student;
+        if (chaseRaw.isNotEmpty) {
+          final cleanChase = chaseRaw.toLowerCase();
+          for (final s in students) {
+            if (s.chaseNumber.trim().toLowerCase() == cleanChase) {
+              student = s;
+              break;
+            }
+          }
+        }
+        if (student == null && nameRaw.isNotEmpty) {
+          final cleanName = nameRaw.toLowerCase();
+          for (final s in students) {
+            if (s.name.trim().toLowerCase() == cleanName &&
+                s.section == section) {
+              student = s;
+              break;
+            }
+          }
+        }
+
+        if (student == null) {
+          final assignedChase = chaseRaw.isNotEmpty
+              ? chaseRaw
+              : 'CH-${const Uuid().v4().substring(0, 6).toUpperCase()}';
+          student = Student(
+            id: const Uuid().v4(),
+            chaseNumber: assignedChase,
+            name: nameRaw.isNotEmpty ? nameRaw : 'Student $assignedChase',
+            gender: 'Male',
+            dateOfBirth: '2010-01-01',
+            section: section,
+            teamId: teamId,
+            phone: '',
+            className: '',
+            schoolName: '',
+            qrCode: assignedChase,
+          );
+          students.add(student);
+          newStudentsToSave.add(student);
+        } else {
+          bool needsUpdate = false;
+          String updatedName = student.name;
+          String updatedTeam = student.teamId;
+          if (nameRaw.isNotEmpty &&
+              (student.name.startsWith('Student ') || student.name.isEmpty)) {
+            updatedName = nameRaw;
+            needsUpdate = true;
+          }
+          if (matchedTeam != null &&
+              (student.teamId.isEmpty ||
+                  student.teamId == 'default_team')) {
+            updatedTeam = matchedTeam.id;
+            needsUpdate = true;
+          }
+          if (needsUpdate) {
+            student = student.copyWith(
+              name: updatedName,
+              teamId: updatedTeam,
+            );
+            final idx = students.indexWhere((s) => s.id == student!.id);
+            if (idx != -1) students[idx] = student;
+          }
+        }
+
+        // 3. Resolve Program
+        Program? program;
+        final cleanProgName = progRaw.toLowerCase();
+        for (final p in programs) {
+          if (p.programName.trim().toLowerCase() == cleanProgName &&
+              (p.section == section || p.isGeneral)) {
+            program = p;
+            break;
+          }
+        }
+        if (program == null) {
+          for (final p in programs) {
+            if (p.programName.trim().toLowerCase() == cleanProgName) {
+              program = p;
+              break;
+            }
+          }
+        }
+
+        if (program == null) {
+          final secPrefix = section.name.length >= 2
+              ? section.name.substring(0, 2).toUpperCase()
+              : 'PR';
+          final progCode =
+              'P-$secPrefix-${(programs.length + newProgramsToSave.length + 1).toString().padLeft(3, '0')}';
+          program = Program(
+            id: 'prog_${const Uuid().v4()}',
+            programCode: progCode,
+            programName: progRaw,
+            section: section,
+            category: section == FestSection.general
+                ? ProgramCategory.general
+                : (isStage ? ProgramCategory.stage : ProgramCategory.nonStage),
+            isStageProgram: isStage,
+            isGeneral: section == FestSection.general,
+          );
+          programs.add(program);
+          newProgramsToSave.add(program);
+        }
+
+        // 4. Ensure Registration exists
+        final regKey = '${student.id}_${program.id}';
+        if (!existingRegistrationCombos.contains(regKey)) {
+          final reg = Registration(
+            id: 'reg_${const Uuid().v4()}',
+            registrationNumber:
+                'REG-${student.chaseNumber}-${program.programCode}',
+            programId: program.id,
+            studentId: student.id,
+            teamId: student.teamId.isNotEmpty ? student.teamId : teamId,
+            status: RegistrationStatus.approved,
+          );
+          newRegistrationsToSave.add(reg);
+          existingRegistrationCombos.add(regKey);
+        }
+
+        // 5. Parse Position
+        int? position;
+        final cleanPos = posRaw.toLowerCase().trim();
+        if (cleanPos.contains('1st') ||
+            cleanPos.contains('first') ||
+            cleanPos == '1' ||
+            cleanPos == 'ist') {
+          position = 1;
+        } else if (cleanPos.contains('2nd') ||
+            cleanPos.contains('second') ||
+            cleanPos == '2' ||
+            cleanPos == 'iind') {
+          position = 2;
+        } else if (cleanPos.contains('3rd') ||
+            cleanPos.contains('third') ||
+            cleanPos == '3' ||
+            cleanPos == 'iiird') {
+          position = 3;
+        } else {
+          final m = RegExp(r'\d+').firstMatch(cleanPos);
+          if (m != null) {
+            position = int.tryParse(m.group(0)!);
+          }
+        }
+
+        // 6. Parse Point / Marks
+        int points = 0;
+        final cleanPoint = RegExp(r'\d+').firstMatch(pointRaw);
+        if (cleanPoint != null) {
+          points = int.tryParse(cleanPoint.group(0)!) ?? 0;
+        } else if (position != null) {
+          if (position == 1) {
+            points = AppConstants.pointsFirst;
+          } else if (position == 2) {
+            points = AppConstants.pointsSecond;
+          } else if (position == 3) {
+            points = AppConstants.pointsThird;
+          }
+        }
+
+        // Grade
+        String grade = '';
+        if (position == 1) {
+          grade = 'A';
+        } else if (position == 2) {
+          grade = 'A';
+        } else if (position == 3) {
+          grade = 'B';
+        } else if (points >= 5) {
+          grade = 'A';
+        } else if (points >= 3) {
+          grade = 'B';
+        } else if (points > 0) {
+          grade = 'C';
+        }
+
+        final double marks = (points > 0)
+            ? (points * 10.0 + 35.0).clamp(50.0, 98.0)
+            : 75.0;
+
+        final resultKey = '${program.id}_${student.id}';
+        final existingRes = existingResultMap[resultKey];
+
+        final result = Result(
+          id: existingRes?.id ?? 'res_${const Uuid().v4()}',
+          programId: program.id,
+          studentId: student.id,
+          teamId: student.teamId.isNotEmpty ? student.teamId : teamId,
+          marks: marks,
+          grade: grade,
+          position: position,
+          points: points,
+          remarks:
+              'Excel Import (${position != null ? "$position Place" : "Points: $points"})',
+          status:
+              publishImmediately ? ResultStatus.published : ResultStatus.draft,
+          publishedAt: publishImmediately ? DateTime.now() : null,
+        );
+
+        if (existingRes != null) {
+          duplicate++;
+        }
+        existingResultMap[resultKey] = result;
+        validResults.add(result);
+        valid++;
+      } catch (e) {
+        invalid++;
+        errors.add('Row ${i + 1}: Parsing error ($e).');
+      }
+    }
+
+    // Persist new teams, students, programs, registrations
+    if (newTeamsToSave.isNotEmpty) {
+      await teamRepository.addTeams(newTeamsToSave);
+    }
+    if (newStudentsToSave.isNotEmpty) {
+      await studentRepository.addStudents(newStudentsToSave);
+    }
+    if (newProgramsToSave.isNotEmpty) {
+      await programRepository.addPrograms(newProgramsToSave);
+    }
+    if (newRegistrationsToSave.isNotEmpty) {
+      for (final reg in newRegistrationsToSave) {
+        await registrationRepository.addRegistration(reg);
+      }
+    }
+
+    // Persist results
+    const batchSize = 15;
+    for (int b = 0; b < validResults.length; b += batchSize) {
+      final chunk = validResults.sublist(
+        b,
+        (b + batchSize > validResults.length)
+            ? validResults.length
+            : b + batchSize,
+      );
+      await Future.wait(
+        chunk.map((res) => resultRepository!.saveResult(res)),
+      );
+    }
+
+    // Recalculate team scores and ranks
+    try {
+      final scoringService = ScoringService(
+        resultRepository: resultRepository!,
+        teamRepository: teamRepository,
+      );
+      await scoringService.recalculateTeamScoresAndRanks();
+    } catch (_) {}
+
+    return ExcelImportResult<Result>(
+      totalRows: total,
+      validRows: valid,
+      invalidRows: invalid,
+      duplicateRows: duplicate,
+      importedRows: validResults.length,
+      errors: errors,
+      validItems: validResults,
+    );
   }
 }
 

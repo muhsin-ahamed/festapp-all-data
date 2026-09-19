@@ -7,6 +7,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_ui_components.dart';
+import '../../core/widgets/fest_result_poster.dart';
 import '../../data/models/student_model.dart';
 import '../../data/models/team_model.dart';
 import '../../data/models/program_model.dart';
@@ -747,14 +748,53 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
                   winnerTeam: firstRes != null
                       ? (teamMap[firstRes.teamId]?.teamName ?? "—")
                       : "—",
+                  winnerChaseNo: firstStud?.chaseNumber,
                   secondName: secondStud?.name ?? '—',
                   secondTeam: secondRes != null
                       ? (teamMap[secondRes.teamId]?.teamName ?? "—")
                       : "—",
+                  secondChaseNo: secondStud?.chaseNumber,
                   thirdName: thirdStud?.name ?? '—',
                   thirdTeam: thirdRes != null
                       ? (teamMap[thirdRes.teamId]?.teamName ?? '—')
                       : '—',
+                  thirdChaseNo: thirdStud?.chaseNumber,
+                  onViewPoster: () {
+                    final codeDigits = prog?.programCode.replaceAll(RegExp(r'[^0-9]'), '') ?? '';
+                    _showPosterDialog(
+                      context,
+                      codeDigits.isNotEmpty ? codeDigits : '',
+                      prog?.programName ?? 'RESULT',
+                      prog?.section.label ?? 'GENERAL',
+                      firstStud != null || firstRes != null
+                          ? FestResultWinner(
+                              position: 1,
+                              studentName: firstStud?.name ?? 'Winner',
+                              chaseNumber: firstStud?.chaseNumber ?? '',
+                              teamName: firstRes != null ? (teamMap[firstRes.teamId]?.teamName ?? '') : '',
+                              grade: firstRes?.grade,
+                            )
+                          : null,
+                      secondStud != null || secondRes != null
+                          ? FestResultWinner(
+                              position: 2,
+                              studentName: secondStud?.name ?? 'Winner',
+                              chaseNumber: secondStud?.chaseNumber ?? '',
+                              teamName: secondRes != null ? (teamMap[secondRes.teamId]?.teamName ?? '') : '',
+                              grade: secondRes?.grade,
+                            )
+                          : null,
+                      thirdStud != null || thirdRes != null
+                          ? FestResultWinner(
+                              position: 3,
+                              studentName: thirdStud?.name ?? 'Winner',
+                              chaseNumber: thirdStud?.chaseNumber ?? '',
+                              teamName: thirdRes != null ? (teamMap[thirdRes.teamId]?.teamName ?? '') : '',
+                              grade: thirdRes?.grade,
+                            )
+                          : null,
+                    );
+                  },
                 ),
               );
             }).toList(),
@@ -783,6 +823,62 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
           child: Text('Error loading results: $e'),
         ),
       ),
+    );
+  }
+
+  void _showPosterDialog(
+    BuildContext context,
+    String resultNumber,
+    String programName,
+    String sectionLabel,
+    FestResultWinner? w1,
+    FestResultWinner? w2,
+    FestResultWinner? w3,
+  ) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 860),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: FestResultPoster(
+                      resultNumber: resultNumber,
+                      programName: programName,
+                      sectionLabel: sectionLabel,
+                      winner1: w1,
+                      winner2: w2,
+                      winner3: w3,
+                      revealedPositions: const {1, 2, 3},
+                      isRevealMode: false,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: -12,
+                  right: -12,
+                  child: Material(
+                    color: Colors.black.withValues(alpha: 0.8),
+                    shape: const CircleBorder(),
+                    child: IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white, size: 20),
+                      onPressed: () => Navigator.of(ctx).pop(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
