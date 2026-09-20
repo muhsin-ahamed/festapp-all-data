@@ -152,5 +152,18 @@ void main() {
       expect(telos.rank, equals(1));
       expect(apex.rank, equals(2));
     });
+
+    test('Deleting all published results resets team scores to 0', () {
+      final teams = <Team>[
+        Team(id: 't1', teamName: 'Telos', teamCode: 'TL', totalPoints: 10, rank: 1),
+        Team(id: 't2', teamName: 'Apex', teamCode: 'AP', totalPoints: 6, rank: 2),
+      ];
+
+      // Simulating all published results deleted (empty list)
+      final List<Result> emptyPublishedResults = [];
+      final resetTeams = scoringService.calculateTeamScoresFromResults(teams, emptyPublishedResults, []);
+
+      expect(resetTeams.every((t) => t.totalPoints == 0), isTrue);
+    });
   });
 }

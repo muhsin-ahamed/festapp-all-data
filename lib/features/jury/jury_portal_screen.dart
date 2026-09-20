@@ -1013,6 +1013,10 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
                               .toSet();
 
                           for (final ex in allExistingResults) {
+                            if (ex.status == ResultStatus.published ||
+                                ex.status == ResultStatus.announced) {
+                              continue;
+                            }
                             if (isGroup) {
                               if (!currentAssignedIds.contains(ex.teamId)) {
                                 await ref

@@ -416,6 +416,13 @@ class AppDropdown<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasMatchingItem = value != null && items.any((i) => i.value == value);
+    final effectiveValue = hasMatchingItem
+        ? value
+        : (items.any((i) => i.value == null)
+            ? null
+            : (items.isNotEmpty ? items.first.value : null));
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -429,9 +436,11 @@ class AppDropdown<T> extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         DropdownButtonFormField<T>(
-          initialValue: value,
+          key: ValueKey('${label}_${effectiveValue}_${items.length}'),
+          initialValue: effectiveValue,
           items: items,
           onChanged: onChanged,
+          isExpanded: true,
           dropdownColor: AppTheme.cream,
           style: GoogleFonts.workSans(
             color: AppTheme.ink,
