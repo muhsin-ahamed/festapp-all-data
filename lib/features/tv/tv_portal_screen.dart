@@ -139,6 +139,7 @@ class _TvPortalScreenState extends ConsumerState<TvPortalScreen> {
         studentsAsync,
         isCompact,
       );
+      isPosterShowing = true;
     } else if (mode == 'AUTO_WITHOUT_SCOREBOARD') {
       // 2 slides: 0 -> Main Poster, 1 -> Results
       if (tvService.currentSlideIndex % 2 == 0) {
@@ -153,6 +154,7 @@ class _TvPortalScreenState extends ConsumerState<TvPortalScreen> {
           studentsAsync,
           isCompact,
         );
+        isPosterShowing = true;
       }
     } else {
       // AUTO_WITH_SCOREBOARD or default AUTO (3 slides: 0: Main, 1: Published Results, 2: Scoreboard)
@@ -170,6 +172,7 @@ class _TvPortalScreenState extends ConsumerState<TvPortalScreen> {
             studentsAsync,
             isCompact,
           );
+          isPosterShowing = true;
           break;
         case 2:
         default:
@@ -1195,14 +1198,11 @@ class _TvPortalScreenState extends ConsumerState<TvPortalScreen> {
     if (resultsAsync.isLoading && results == null) {
       return Container(
         key: const ValueKey('tv_results'),
-        padding: EdgeInsets.fromLTRB(
-          isCompact ? 20 : 44,
-          isCompact ? 90 : 110,
-          isCompact ? 20 : 44,
-          isCompact ? 20 : 28,
-        ),
+        color: const Color(0xFFF8F6E7),
+        width: double.infinity,
+        height: double.infinity,
         child: const Center(
-          child: CircularProgressIndicator(color: AppTheme.mustard),
+          child: CircularProgressIndicator(color: AppTheme.red),
         ),
       );
     }
@@ -1210,16 +1210,13 @@ class _TvPortalScreenState extends ConsumerState<TvPortalScreen> {
     if (resultsAsync.hasError && results == null) {
       return Container(
         key: const ValueKey('tv_results'),
-        padding: EdgeInsets.fromLTRB(
-          isCompact ? 20 : 44,
-          isCompact ? 90 : 110,
-          isCompact ? 20 : 44,
-          isCompact ? 20 : 28,
-        ),
+        color: const Color(0xFFF8F6E7),
+        width: double.infinity,
+        height: double.infinity,
         child: Center(
           child: Text(
             'Error: ${resultsAsync.error}',
-            style: const TextStyle(color: AppTheme.cream),
+            style: const TextStyle(color: Color(0xFF241A12), fontSize: 18),
           ),
         ),
       );
@@ -1236,60 +1233,17 @@ class _TvPortalScreenState extends ConsumerState<TvPortalScreen> {
     if (published.isEmpty) {
       return Container(
         key: const ValueKey('tv_results'),
-        padding: EdgeInsets.fromLTRB(
-          isCompact ? 20 : 44,
-          isCompact ? 90 : 110,
-          isCompact ? 20 : 44,
-          isCompact ? 20 : 28,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    'RESULTS',
-                    style: GoogleFonts.rye(
-                      fontSize: isCompact ? 22 : 32,
-                      color: AppTheme.mustard,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isCompact ? 12 : 18,
-                    vertical: isCompact ? 6 : 9,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppTheme.cream2,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: AppTheme.line, width: 1.5),
-                  ),
-                  child: Text(
-                    'LIVE RESULTS PORTAL',
-                    style: GoogleFonts.workSans(
-                      fontSize: isCompact ? 11 : 13,
-                      fontWeight: FontWeight.w900,
-                      color: AppTheme.ink,
-                      letterSpacing: 1.8,
-                    ),
-                  ),
-                ),
-              ],
+        color: const Color(0xFFF8F6E7),
+        width: double.infinity,
+        height: double.infinity,
+        child: Center(
+          child: Text(
+            'No published results available yet.',
+            style: GoogleFonts.rye(
+              color: const Color(0xFF241A12),
+              fontSize: isCompact ? 18 : 24,
             ),
-            const Expanded(
-              child: Center(
-                child: Text(
-                  'No published results available yet.',
-                  style: TextStyle(color: AppTheme.cream, fontSize: 20),
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       );
     }
@@ -1322,12 +1276,9 @@ class _TvPortalScreenState extends ConsumerState<TvPortalScreen> {
 
     return Container(
       key: const ValueKey('tv_results'),
-      padding: EdgeInsets.fromLTRB(
-        isCompact ? 20 : 44,
-        isCompact ? 90 : 110,
-        isCompact ? 20 : 44,
-        isCompact ? 20 : 28,
-      ),
+      color: const Color(0xFFF8F6E7),
+      width: double.infinity,
+      height: double.infinity,
       child: TvResultsCarouselView(
         key: _carouselKey,
         progKeys: progKeys,
@@ -1371,6 +1322,8 @@ class TvResultsCarouselViewState extends State<TvResultsCarouselView> {
   int _currentPage = 0;
   Timer? _autoSlideTimer;
   bool _isPaused = false;
+  bool _showControls = false;
+  Timer? _hideControlsTimer;
   static const int _virtualMultiplier = 1000;
 
   int get _initialVirtualPage {
@@ -1404,8 +1357,21 @@ class TvResultsCarouselViewState extends State<TvResultsCarouselView> {
   @override
   void dispose() {
     _autoSlideTimer?.cancel();
+    _hideControlsTimer?.cancel();
     _pageController.dispose();
     super.dispose();
+  }
+
+  void _onUserInteraction() {
+    if (!_showControls) {
+      setState(() => _showControls = true);
+    }
+    _hideControlsTimer?.cancel();
+    _hideControlsTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted && _showControls) {
+        setState(() => _showControls = false);
+      }
+    });
   }
 
   void _startTimer() {
@@ -1460,120 +1426,16 @@ class TvResultsCarouselViewState extends State<TvResultsCarouselView> {
   Widget build(BuildContext context) {
     final hasMultiple = widget.progKeys.length > 1;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Top Header Row: Title 'RESULTS' + controls + 'LIVE RESULTS PORTAL'
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Text(
-                'RESULTS',
-                style: GoogleFonts.rye(
-                  fontSize: widget.isCompact ? 22 : 32,
-                  color: AppTheme.mustard,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(width: 12),
-            if (hasMultiple) ...[
-              // Slide Count Badge
-              Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: widget.isCompact ? 8 : 12,
-                  vertical: widget.isCompact ? 4 : 6,
-                ),
-                decoration: BoxDecoration(
-                  color: AppTheme.wood.withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppTheme.line, width: 1.2),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.view_carousel_rounded,
-                      color: AppTheme.mustard,
-                      size: widget.isCompact ? 14 : 16,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      '${actualIndex + 1} / ${widget.progKeys.length}',
-                      style: GoogleFonts.workSans(
-                        fontSize: widget.isCompact ? 11 : 13,
-                        fontWeight: FontWeight.w800,
-                        color: AppTheme.cream,
-                        letterSpacing: 1.0,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 4),
-              // Prev Button
-              IconButton(
-                icon: const Icon(Icons.chevron_left_rounded),
-                color: AppTheme.cream,
-                iconSize: widget.isCompact ? 20 : 24,
-                tooltip: 'Previous result (Left arrow)',
-                visualDensity: VisualDensity.compact,
-                onPressed: previousSlide,
-              ),
-              // Pause / Play Button
-              IconButton(
-                icon: Icon(
-                  _isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
-                ),
-                color: _isPaused ? AppTheme.mustard : AppTheme.cream,
-                iconSize: widget.isCompact ? 20 : 24,
-                tooltip: _isPaused
-                    ? 'Resume auto-slides'
-                    : 'Pause on this result (Space)',
-                visualDensity: VisualDensity.compact,
-                onPressed: togglePause,
-              ),
-              // Next Button
-              IconButton(
-                icon: const Icon(Icons.chevron_right_rounded),
-                color: AppTheme.cream,
-                iconSize: widget.isCompact ? 20 : 24,
-                tooltip: 'Next result (Right arrow)',
-                visualDensity: VisualDensity.compact,
-                onPressed: nextSlide,
-              ),
-              const SizedBox(width: 6),
-            ],
-            // 'LIVE RESULTS PORTAL' Badge
-            Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: widget.isCompact ? 12 : 18,
-                vertical: widget.isCompact ? 6 : 9,
-              ),
-              decoration: BoxDecoration(
-                color: AppTheme.cream2,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: AppTheme.line, width: 1.5),
-              ),
-              child: Text(
-                'LIVE RESULTS PORTAL',
-                style: GoogleFonts.workSans(
-                  fontSize: widget.isCompact ? 11 : 13,
-                  fontWeight: FontWeight.w900,
-                  color: AppTheme.ink,
-                  letterSpacing: 1.8,
-                ),
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: widget.isCompact ? 14 : 22),
-
-        // Slide PageView Body
-        Expanded(
+    return MouseRegion(
+      onHover: (_) => _onUserInteraction(),
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: _onUserInteraction,
+        child: SizedBox.expand(
           child: Stack(
+            fit: StackFit.expand,
             children: [
+              // 1. Full-Screen PageView for Result Slides
               PageView.builder(
                 controller: _pageController,
                 itemCount: hasMultiple
@@ -1595,50 +1457,50 @@ class TvResultsCarouselViewState extends State<TvResultsCarouselView> {
                         (a.position ?? 99).compareTo(b.position ?? 99),
                   );
 
-                  return Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: hasMultiple
-                          ? (widget.isCompact ? 4 : 8)
-                          : 0,
-                    ),
-                    child: _buildProgramCard(
-                      prog: prog,
-                      rList: rList,
-                      teamMap: widget.teamMap,
-                      studMap: widget.studMap,
-                      isCompact: widget.isCompact,
-                      hasMultiple: hasMultiple,
-                    ),
+                  return _buildProgramCard(
+                    prog: prog,
+                    rList: rList,
+                    teamMap: widget.teamMap,
+                    studMap: widget.studMap,
+                    isCompact: widget.isCompact,
+                    hasMultiple: hasMultiple,
                   );
                 },
               ),
 
-              // Floating Left Chevron
+              // 2. Subtle Floating Left Chevron (Visible on interaction if multiple)
               if (hasMultiple)
                 Positioned(
-                  left: 0,
+                  left: 16,
                   top: 0,
                   bottom: 0,
                   child: Center(
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: previousSlide,
-                        borderRadius: BorderRadius.circular(24),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AppTheme.wood.withValues(alpha: 0.7),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: AppTheme.line,
-                              width: 1.2,
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 250),
+                      opacity: _showControls ? 0.85 : 0.0,
+                      child: IgnorePointer(
+                        ignoring: !_showControls,
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: previousSlide,
+                            borderRadius: BorderRadius.circular(28),
+                            child: Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF241A12).withValues(alpha: 0.6),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.25),
+                                  width: 1.2,
+                                ),
+                              ),
+                              child: Icon(
+                                Icons.chevron_left_rounded,
+                                color: Colors.white,
+                                size: widget.isCompact ? 24 : 32,
+                              ),
                             ),
-                          ),
-                          child: Icon(
-                            Icons.chevron_left_rounded,
-                            color: AppTheme.cream,
-                            size: widget.isCompact ? 22 : 28,
                           ),
                         ),
                       ),
@@ -1646,33 +1508,90 @@ class TvResultsCarouselViewState extends State<TvResultsCarouselView> {
                   ),
                 ),
 
-              // Floating Right Chevron
+              // 3. Subtle Floating Right Chevron (Visible on interaction if multiple)
               if (hasMultiple)
                 Positioned(
-                  right: 0,
+                  right: 16,
                   top: 0,
                   bottom: 0,
                   child: Center(
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: nextSlide,
-                        borderRadius: BorderRadius.circular(24),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AppTheme.wood.withValues(alpha: 0.7),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: AppTheme.line,
-                              width: 1.2,
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 250),
+                      opacity: _showControls ? 0.85 : 0.0,
+                      child: IgnorePointer(
+                        ignoring: !_showControls,
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: nextSlide,
+                            borderRadius: BorderRadius.circular(28),
+                            child: Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF241A12).withValues(alpha: 0.6),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.25),
+                                  width: 1.2,
+                                ),
+                              ),
+                              child: Icon(
+                                Icons.chevron_right_rounded,
+                                color: Colors.white,
+                                size: widget.isCompact ? 24 : 32,
+                              ),
                             ),
                           ),
-                          child: Icon(
-                            Icons.chevron_right_rounded,
-                            color: AppTheme.cream,
-                            size: widget.isCompact ? 22 : 28,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+              // 4. Subtle Slide Counter & Pause Status Pill (Visible on interaction or when paused)
+              if (hasMultiple)
+                Positioned(
+                  top: 16,
+                  right: 16,
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 250),
+                    opacity: (_showControls || _isPaused) ? 0.9 : 0.0,
+                    child: IgnorePointer(
+                      ignoring: !_showControls && !_isPaused,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF241A12).withValues(alpha: 0.75),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            width: 1.0,
                           ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (_isPaused) ...[
+                              const Icon(
+                                Icons.pause_circle_filled_rounded,
+                                color: AppTheme.mustard,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 6),
+                            ],
+                            Text(
+                              '${actualIndex + 1} / ${widget.progKeys.length}',
+                              style: GoogleFonts.workSans(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -1681,38 +1600,7 @@ class TvResultsCarouselViewState extends State<TvResultsCarouselView> {
             ],
           ),
         ),
-
-        // Slide Indicator Dots
-        if (hasMultiple) ...[
-          const SizedBox(height: 12),
-          Center(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(widget.progKeys.length, (i) {
-                  final isActive = i == actualIndex;
-                  return GestureDetector(
-                    onTap: () => goToSlide(i),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      width: isActive ? (widget.isCompact ? 20 : 28) : 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: isActive
-                            ? AppTheme.mustard
-                            : AppTheme.cream.withValues(alpha: 0.3),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                  );
-                }),
-              ),
-            ),
-          ),
-        ],
-      ],
+      ),
     );
   }
 
@@ -1738,63 +1626,39 @@ class TvResultsCarouselViewState extends State<TvResultsCarouselView> {
     final codeDigits = prog?.programCode.replaceAll(RegExp(r'[^0-9]'), '') ?? '';
     final resNum = codeDigits.isNotEmpty ? codeDigits : '';
 
-    return Center(
-      child: Container(
-        margin: EdgeInsets.symmetric(
-          horizontal: hasMultiple ? (isCompact ? 16 : 40) : 0,
-          vertical: 4,
-        ),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(isCompact ? 14 : 20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.35),
-              blurRadius: 22,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(isCompact ? 14 : 20),
-          child: AspectRatio(
-            aspectRatio: 16 / 9,
-            child: FestResultPoster(
-              resultNumber: resNum,
-              programName: prog?.programName ?? 'CHAMPIONSHIP RESULT',
-              sectionLabel: prog?.section.label ?? 'GENERAL',
-              winner1: s1 != null || res1 != null
-                  ? FestResultWinner(
-                      position: 1,
-                      studentName: s1?.name ?? (res1 != null ? 'Winner' : ''),
-                      chaseNumber: s1?.chaseNumber ?? '',
-                      teamName: t1?.teamName ?? '',
-                      grade: res1?.grade,
-                    )
-                  : null,
-              winner2: s2 != null || res2 != null
-                  ? FestResultWinner(
-                      position: 2,
-                      studentName: s2?.name ?? (res2 != null ? 'Winner' : ''),
-                      chaseNumber: s2?.chaseNumber ?? '',
-                      teamName: t2?.teamName ?? '',
-                      grade: res2?.grade,
-                    )
-                  : null,
-              winner3: s3 != null || res3 != null
-                  ? FestResultWinner(
-                      position: 3,
-                      studentName: s3?.name ?? (res3 != null ? 'Winner' : ''),
-                      chaseNumber: s3?.chaseNumber ?? '',
-                      teamName: t3?.teamName ?? '',
-                      grade: res3?.grade,
-                    )
-                  : null,
-              revealedPositions: const {1, 2, 3},
-              isRevealMode: false,
-            ),
-          ),
-        ),
-      ),
+    return FestResultPoster(
+      resultNumber: resNum,
+      programName: prog?.programName ?? 'CHAMPIONSHIP RESULT',
+      sectionLabel: prog?.section.label ?? 'GENERAL',
+      winner1: s1 != null || res1 != null
+          ? FestResultWinner(
+              position: 1,
+              studentName: s1?.name ?? (res1 != null ? 'Winner' : ''),
+              chaseNumber: s1?.chaseNumber ?? '',
+              teamName: t1?.teamName ?? '',
+              grade: res1?.grade,
+            )
+          : null,
+      winner2: s2 != null || res2 != null
+          ? FestResultWinner(
+              position: 2,
+              studentName: s2?.name ?? (res2 != null ? 'Winner' : ''),
+              chaseNumber: s2?.chaseNumber ?? '',
+              teamName: t2?.teamName ?? '',
+              grade: res2?.grade,
+            )
+          : null,
+      winner3: s3 != null || res3 != null
+          ? FestResultWinner(
+              position: 3,
+              studentName: s3?.name ?? (res3 != null ? 'Winner' : ''),
+              chaseNumber: s3?.chaseNumber ?? '',
+              teamName: t3?.teamName ?? '',
+              grade: res3?.grade,
+            )
+          : null,
+      revealedPositions: const {1, 2, 3},
+      isRevealMode: false,
     );
   }
 }
