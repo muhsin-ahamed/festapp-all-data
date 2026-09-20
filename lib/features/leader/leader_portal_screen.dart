@@ -125,7 +125,7 @@ class _LeaderPortalScreenState extends ConsumerState<LeaderPortalScreen>
           // 2. Program Registration with Limits Enforcement
           _buildRegistrationTab(myStudents, allPrograms, allRegs, teamId),
           // 3. Team Results
-          _buildTeamResultsTab(myResults, allPrograms, allStudents),
+          _buildTeamResultsTab(myResults, allPrograms, allStudents, currentTeam),
         ],
       ),
     );
@@ -1658,6 +1658,7 @@ class _LeaderPortalScreenState extends ConsumerState<LeaderPortalScreen>
     List<Result> myResults,
     List<Program> allPrograms,
     List<Student> allStudents,
+    Team currentTeam,
   ) {
     final progMap = {for (var p in allPrograms) p.id: p.programName};
     final studMap = {for (var s in allStudents) s.id: s.name};
@@ -1677,10 +1678,13 @@ class _LeaderPortalScreenState extends ConsumerState<LeaderPortalScreen>
               itemCount: myResults.length,
               itemBuilder: (context, idx) {
                 final r = myResults[idx];
+                final recipientName = r.studentId.isNotEmpty
+                    ? (studMap[r.studentId] ?? "Student")
+                    : "${currentTeam.teamName} (Group Award)";
                 return Card(
                   child: ListTile(
                     title: Text(
-                      '${progMap[r.programId] ?? "Program"} - ${studMap[r.studentId] ?? "Student"}',
+                      '${progMap[r.programId] ?? "Program"} - $recipientName',
                     ),
                     subtitle: Text('Grade: ${r.grade} • Marks: ${r.marks}'),
                     trailing: Text(

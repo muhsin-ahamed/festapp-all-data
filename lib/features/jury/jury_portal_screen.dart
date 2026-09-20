@@ -428,19 +428,19 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
       final pos3 = progResults.where((r) => r.position == 3).toList();
 
       if (pos1.isNotEmpty) {
-        _prizeSlots![0].studentId = pos1[0].studentId;
+        _prizeSlots![0].studentId = pos1[0].studentId.isNotEmpty ? pos1[0].studentId : pos1[0].teamId;
         _prizeSlots![0].marksController.text =
             pos1[0].marks.toInt().toString();
         _prizeSlots![0].gradeController.text = pos1[0].grade;
       }
       if (pos2.isNotEmpty) {
-        _prizeSlots![1].studentId = pos2[0].studentId;
+        _prizeSlots![1].studentId = pos2[0].studentId.isNotEmpty ? pos2[0].studentId : pos2[0].teamId;
         _prizeSlots![1].marksController.text =
             pos2[0].marks.toInt().toString();
         _prizeSlots![1].gradeController.text = pos2[0].grade;
       }
       if (pos3.isNotEmpty) {
-        _prizeSlots![2].studentId = pos3[0].studentId;
+        _prizeSlots![2].studentId = pos3[0].studentId.isNotEmpty ? pos3[0].studentId : pos3[0].teamId;
         _prizeSlots![2].marksController.text =
             pos3[0].marks.toInt().toString();
         _prizeSlots![2].gradeController.text = pos3[0].grade;
@@ -448,19 +448,19 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
 
       // Check for tie (second recipient of pos 1, 2, or 3)
       if (pos1.length > 1) {
-        _prizeSlots![3].studentId = pos1[1].studentId;
+        _prizeSlots![3].studentId = pos1[1].studentId.isNotEmpty ? pos1[1].studentId : pos1[1].teamId;
         _prizeSlots![3].position = 1;
         _prizeSlots![3].marksController.text =
             pos1[1].marks.toInt().toString();
         _prizeSlots![3].gradeController.text = pos1[1].grade;
       } else if (pos2.length > 1) {
-        _prizeSlots![3].studentId = pos2[1].studentId;
+        _prizeSlots![3].studentId = pos2[1].studentId.isNotEmpty ? pos2[1].studentId : pos2[1].teamId;
         _prizeSlots![3].position = 2;
         _prizeSlots![3].marksController.text =
             pos2[1].marks.toInt().toString();
         _prizeSlots![3].gradeController.text = pos2[1].grade;
       } else if (pos3.length > 1) {
-        _prizeSlots![3].studentId = pos3[1].studentId;
+        _prizeSlots![3].studentId = pos3[1].studentId.isNotEmpty ? pos3[1].studentId : pos3[1].teamId;
         _prizeSlots![3].position = 3;
         _prizeSlots![3].marksController.text =
             pos3[1].marks.toInt().toString();
@@ -504,6 +504,7 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
     required _PrizeSlotData slot,
     required List<Student> participants,
     required ScoringService scoring,
+    required bool isGroup,
   }) {
     final pos = slot.position;
     final grade = slot.gradeController.text.trim().toUpperCase();
@@ -583,50 +584,84 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
           ),
           const SizedBox(height: 14),
 
-          // Dropdown: Select Registered Student (Matches screenshot format)
-          AppDropdown<String?>(
-            label: '${slotIdx + 1}. Select Student / Winner (${participants.length} registered)',
-            value: slot.studentId,
-            items: [
-              DropdownMenuItem<String?>(
-                value: null,
-                child: Text(
-                  slot.isTieSlot
-                      ? 'None / No Tie Awarded'
-                      : '-- Select Winner (${participants.length} registered) --',
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontStyle: FontStyle.italic,
+          // Dropdown: Select Registered Student OR Group
+          if (isGroup)
+            AppDropdown<String?>(
+              label: '${slotIdx + 1}. Select Group (Apex or Telos)',
+              value: slot.studentId,
+              items: [
+                DropdownMenuItem<String?>(
+                  value: null,
+                  child: Text(
+                    slot.isTieSlot
+                        ? 'None / No Tie Awarded'
+                        : '-- Select Group Winner --',
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontStyle: FontStyle.italic,
+                    ),
                   ),
                 ),
-              ),
-              ...participants.map(
-                (s) {
-                  final tm = teamsList
-                      .where((t) =>
-                          t.id == s.teamId ||
-                          t.teamCode.toLowerCase() == s.teamId.toLowerCase())
-                      .firstOrNull;
-                  final tmName = tm?.teamName.trim() ?? '';
-                  final displayStr = tmName.isNotEmpty
-                      ? '${s.name} (${s.chaseNumber}) - $tmName'
-                      : '${s.name} (${s.chaseNumber})';
+                ...teamsList.map((tm) {
                   return DropdownMenuItem<String?>(
-                    value: s.id,
-                    child: Text(displayStr),
+                    value: tm.id,
+                    child: Text(
+                      tm.teamName,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
                   );
-                },
-              ),
-            ],
-            onChanged: (val) {
-              setState(() {
-                slot.studentId = val;
-              });
-            },
-          ),
+                }),
+              ],
+              onChanged: (val) {
+                setState(() {
+                  slot.studentId = val;
+                });
+              },
+            )
+          else
+            AppDropdown<String?>(
+              label: '${slotIdx + 1}. Select Student / Winner (${participants.length} registered)',
+              value: slot.studentId,
+              items: [
+                DropdownMenuItem<String?>(
+                  value: null,
+                  child: Text(
+                    slot.isTieSlot
+                        ? 'None / No Tie Awarded'
+                        : '-- Select Winner (${participants.length} registered) --',
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+                ...participants.map(
+                  (s) {
+                    final tm = teamsList
+                        .where((t) =>
+                            t.id == s.teamId ||
+                            t.teamCode.toLowerCase() == s.teamId.toLowerCase())
+                        .firstOrNull;
+                    final tmName = tm?.teamName.trim() ?? '';
+                    final displayStr = tmName.isNotEmpty
+                        ? '${s.name} (${s.chaseNumber}) - $tmName'
+                        : '${s.name} (${s.chaseNumber})';
+                    return DropdownMenuItem<String?>(
+                      value: s.id,
+                      child: Text(displayStr),
+                    );
+                  },
+                ),
+              ],
+              onChanged: (val) {
+                setState(() {
+                  slot.studentId = val;
+                });
+              },
+            ),
           const SizedBox(height: 12),
 
-          // 3 Fields Layout: Marks / Points Value, Grade (A, B, C), Position (1 Position per Student)
+          // 3 Fields Layout: Marks / Points Value, Grade (A, B, C), Position (1 Position per Student/Group)
           LayoutBuilder(
             builder: (context, constraints) {
               final marksField = AppTextField(
@@ -643,7 +678,9 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
               );
 
               final posDropdown = AppDropdown<int>(
-                label: 'Position (1 Position per Student)',
+                label: isGroup
+                    ? 'Position (1 Position per Group)'
+                    : 'Position (1 Position per Student)',
                 value: slot.position,
                 items: slot.isTieSlot
                     ? const [
@@ -747,8 +784,13 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
     }
 
     final scoring = ref.read(scoringServiceProvider);
-    final isGroup =
-        program.maxParticipants > 1 || program.section == FestSection.group;
+    final isGroup = program.maxParticipants > 1 ||
+        program.section == FestSection.group ||
+        program.section == FestSection.general ||
+        program.isGeneral ||
+        program.category == ProgramCategory.general ||
+        program.programName.toUpperCase().contains('GROUP') ||
+        program.programName.toUpperCase().contains('GENERAL');
 
     return Scaffold(
       appBar: AppBar(
@@ -818,14 +860,14 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
                             : Colors.green.shade50,
                         labelStyle: TextStyle(
                           color: isGroup
-                              ? Colors.purple.shade900
-                              : Colors.green.shade900,
+                            ? Colors.purple.shade900
+                            : Colors.green.shade900,
                           fontWeight: FontWeight.w600,
                           fontSize: 12,
                         ),
                       ),
                       Chip(
-                        label: Text('${participants.length} Registered'),
+                        label: Text(isGroup ? 'Group Program' : '${participants.length} Registered'),
                         backgroundColor: Colors.grey.shade200,
                         labelStyle: const TextStyle(
                           fontWeight: FontWeight.w600,
@@ -840,7 +882,7 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
             const SizedBox(height: 20),
 
             Text(
-              'Enter Student Marks & Positions',
+              isGroup ? 'Enter Group Marks & Positions (Apex or Telos)' : 'Enter Student Marks & Positions',
               style: GoogleFonts.inter(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -848,7 +890,7 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
             ),
             const SizedBox(height: 12),
 
-            if (participants.isEmpty) ...[
+            if (participants.isEmpty && !isGroup) ...[
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
@@ -885,6 +927,7 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
                   slot: _prizeSlots![i],
                   participants: participants,
                   scoring: scoring,
+                  isGroup: isGroup,
                 ),
                 const SizedBox(height: 14),
               ],
@@ -907,13 +950,12 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
                           final sId = _prizeSlots![i].studentId;
                           if (sId != null && sId.isNotEmpty) {
                             if (selectedStudentIds.contains(sId)) {
-                              final stud = allStudents
-                                  .where((s) => s.id == sId)
-                                  .firstOrNull;
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text(
-                                    'Duplicate student: "${stud?.name ?? sId}" is selected for multiple prize slots! Each student can only be awarded once.',
+                                    isGroup
+                                        ? 'Duplicate group selected in slots! Each group can only be assigned once.'
+                                        : 'Duplicate student selected in slots! A student can only be awarded one position.',
                                   ),
                                   backgroundColor: Colors.redAccent,
                                 ),
@@ -929,7 +971,25 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text(
-                                'Please select at least one student before submitting.',
+                                'Please select at least one winner before submitting.',
+                              ),
+                              backgroundColor: Colors.orange,
+                            ),
+                          );
+                          return;
+                        }
+
+                        // Validate unique positions among regular (non-tie) slots
+                        final assignedPositions = assignedSlots
+                            .where((idx) => !_prizeSlots![idx].isTieSlot)
+                            .map((idx) => _prizeSlots![idx].position)
+                            .toList();
+                        final uniquePositions = assignedPositions.toSet();
+                        if (assignedPositions.length != uniquePositions.length) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Duplicate position detected! Each prize slot must have a unique position.',
                               ),
                               backgroundColor: Colors.redAccent,
                             ),
@@ -937,53 +997,40 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
                           return;
                         }
 
-                        // Validate position counts: max 2 recipients per position (allowing ties)
-                        final positionCounts = <int, int>{};
-                        for (final slotIdx in assignedSlots) {
-                          final pos = _prizeSlots![slotIdx].position;
-                          if (pos > 0) {
-                            positionCounts[pos] =
-                                (positionCounts[pos] ?? 0) + 1;
-                            if (positionCounts[pos]! > 2) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    'Position $pos has been assigned more than twice! At most two students can share a position (tie).',
-                                  ),
-                                  backgroundColor: Colors.redAccent,
-                                ),
-                              );
-                              return;
-                            }
-                          }
-                        }
-
-                        setState(() => _isSubmitting = true);
+                        setState(() {
+                          _isSubmitting = true;
+                        });
 
                         try {
-                          final allExistingResults = await ref
-                              .read(resultRepositoryProvider)
-                              .getByProgram(program.id);
-
-                          // Delete any existing results for this program that are no longer assigned
-                          final currentStudentIds = assignedSlots
-                              .map((idx) => _prizeSlots![idx].studentId)
-                              .whereType<String>()
-                              .toSet();
-                          for (final ex in allExistingResults) {
-                            if (!currentStudentIds.contains(ex.studentId)) {
+                          final allExistingResults =
                               await ref
                                   .read(resultRepositoryProvider)
-                                  .deleteResult(ex.id);
+                                  .getByProgram(program.id);
+
+                          final currentAssignedIds = assignedSlots
+                              .map((idx) => _prizeSlots![idx].studentId)
+                              .where((id) => id != null && id.isNotEmpty)
+                              .toSet();
+
+                          for (final ex in allExistingResults) {
+                            if (isGroup) {
+                              if (!currentAssignedIds.contains(ex.teamId)) {
+                                await ref
+                                    .read(resultRepositoryProvider)
+                                    .deleteResult(ex.id);
+                              }
+                            } else {
+                              if (!currentAssignedIds.contains(ex.studentId)) {
+                                await ref
+                                    .read(resultRepositoryProvider)
+                                    .deleteResult(ex.id);
+                              }
                             }
                           }
 
                           for (final slotIdx in assignedSlots) {
                             final slot = _prizeSlots![slotIdx];
-                            final student = allStudents
-                                .where((s) => s.id == slot.studentId)
-                                .firstOrNull;
-                            if (student == null) continue;
+                            if (slot.studentId == null || slot.studentId!.isEmpty) continue;
 
                             final pos = slot.position;
                             final grade =
@@ -997,6 +1044,43 @@ class _JuryPortalScreenState extends ConsumerState<JuryPortalScreen> {
                               grade: grade,
                               marks: marks,
                             );
+
+                            if (isGroup) {
+                              final team = (ref.read(teamsProvider).value ?? [])
+                                  .where((t) => t.id == slot.studentId)
+                                  .firstOrNull;
+                              if (team == null) continue;
+
+                              final existing = allExistingResults
+                                  .where((r) => r.teamId == team.id && (r.studentId.isEmpty || r.studentId == team.id))
+                                  .firstOrNull;
+
+                              final result = Result(
+                                id: existing?.id ?? 'res_${const Uuid().v4()}',
+                                programId: program.id,
+                                studentId: '', // NO student ID for group program
+                                teamId: team.id,
+                                juryId: juryId,
+                                marks: marks,
+                                grade: grade,
+                                position: pos > 0 ? pos : null,
+                                points: pts,
+                                remarks: slot.isTieSlot && pos > 0
+                                    ? 'Shared / Tie Position $pos awarded by Jury to ${team.teamName} (Draft)'
+                                    : 'Awarded by Jury to ${team.teamName} ($pos Place - Draft)',
+                                status: ResultStatus.draft,
+                                publishedAt: null,
+                              );
+                              await ref
+                                  .read(resultRepositoryProvider)
+                                  .saveResult(result);
+                              continue;
+                            }
+
+                            final student = allStudents
+                                .where((s) => s.id == slot.studentId)
+                                .firstOrNull;
+                            if (student == null) continue;
 
                             final existing = allExistingResults
                                 .where((r) => r.studentId == student.id)

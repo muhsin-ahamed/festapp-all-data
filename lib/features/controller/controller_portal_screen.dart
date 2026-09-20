@@ -87,12 +87,34 @@ class _ControllerPortalScreenState
   FestSection? _selectedResultSection;
   String? _selectedResultProgId;
   String? _selectedResultStudentId;
+  String? _selectedResultTeamId;
   final _resultMarksController = TextEditingController();
   final _resultGradeController = TextEditingController();
   final _resultStudentSearchController = TextEditingController();
   int _resultPosition = 1;
   String _resultsReviewFilter = 'ALL';
   bool _showAllSectionStudents = false;
+
+  bool _isGroupOrGeneralProgram(Program? prog, [FestSection? sectionFilter]) {
+    if (sectionFilter == FestSection.general || sectionFilter == FestSection.group) {
+      return true;
+    }
+    if (prog == null) return false;
+    final upperName = prog.programName.trim().toUpperCase();
+    return prog.isGeneral ||
+        prog.section == FestSection.general ||
+        prog.section == FestSection.group ||
+        prog.category == ProgramCategory.general ||
+        prog.maxParticipants > 1 ||
+        upperName.contains('GROUP') ||
+        upperName.contains('GENERAL') ||
+        upperName.contains('TABLOID') ||
+        upperName.contains('PODCAST') ||
+        upperName.contains('BRANDING') ||
+        upperName.contains('MALAPPATU') ||
+        upperName.contains('QASEEDA') ||
+        upperName.contains('QAWALI');
+  }
 
   // Published Results Management State
   String _pubResultSearchQuery = '';
@@ -2156,7 +2178,7 @@ class _ControllerPortalScreenState
               ),
               onPressed: () {
                 Navigator.pop(context);
-                _importResultsFromExcel();
+                _showResultExcelImportChoiceDialog();
               },
             ),
             TextButton(
@@ -2189,6 +2211,379 @@ class _ControllerPortalScreenState
     }
   }
 
+  void _showResultExcelImportChoiceDialog() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final hasStagedFile = _stagedResultExcelBytes != null;
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.table_chart_rounded,
+                      color: AppTheme.primaryColor,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Upload Results Excel',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: 480,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: hasStagedFile
+                            ? Colors.green.withValues(alpha: 0.08)
+                            : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: hasStagedFile
+                              ? Colors.green.shade300
+                              : Colors.grey.shade300,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            hasStagedFile
+                                ? Icons.check_circle_rounded
+                                : Icons.file_present_rounded,
+                            color: hasStagedFile
+                                ? Colors.green.shade700
+                                : AppTheme.inkSoft,
+                            size: 24,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  hasStagedFile
+                                      ? _stagedResultExcelFileName!
+                                      : 'No file selected yet',
+                                  style: GoogleFonts.inter(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                    color: hasStagedFile
+                                        ? Colors.green.shade900
+                                        : AppTheme.ink,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  hasStagedFile
+                                      ? '${_stagedResultExcelRowCount ?? 0} data rows ready to import'
+                                      : 'Click Browse or choose Publish / Draft below to select file',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 11.5,
+                                    color: AppTheme.inkSoft,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          TextButton.icon(
+                            icon: Icon(
+                              hasStagedFile ? Icons.swap_horiz : Icons.folder_open,
+                              size: 16,
+                            ),
+                            label: Text(
+                              hasStagedFile ? 'Change' : 'Browse',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                            onPressed: () async {
+                              final files = await FilePicker.pickFiles(
+                                type: FileType.custom,
+                                allowedExtensions: ['xlsx', 'xls'],
+                              );
+                              if (files.isNotEmpty) {
+                                final bytes = await files.first.readAsBytes();
+                                final excel = Excel.decodeBytes(bytes);
+                                int rowCount = 0;
+                                if (excel.tables.isNotEmpty) {
+                                  final sheet = excel.tables.values.first;
+                                  rowCount =
+                                      sheet.maxRows > 0 ? (sheet.maxRows - 1) : 0;
+                                }
+                                setDialogState(() {
+                                  _stagedResultExcelBytes = bytes;
+                                  _stagedResultExcelFileName = files.first.name;
+                                  _stagedResultExcelRowCount = rowCount;
+                                });
+                                setState(() {});
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Choose how to import the results:',
+                      style: GoogleFonts.inter(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    // Option 1: Publish
+                    InkWell(
+                      onTap: () {
+                        Navigator.pop(dialogContext);
+                        _importResultsFromExcel(publishImmediately: true);
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withValues(alpha: 0.07),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.green.shade400,
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.green.shade100,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.publish_rounded,
+                                color: Colors.green.shade800,
+                                size: 24,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Text(
+                                        'Publish',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.green.shade900,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.green.shade200,
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          'LIVE',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.green.shade900,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Publish results live immediately. Scores, ranks, and TV displays will update now.',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 11.5,
+                                      color: Colors.green.shade800,
+                                      height: 1.3,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Icon(
+                              Icons.arrow_forward_ios_rounded,
+                              size: 14,
+                              color: Colors.green.shade700,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    // Option 2: Draft
+                    InkWell(
+                      onTap: () {
+                        Navigator.pop(dialogContext);
+                        _importResultsFromExcel(publishImmediately: false);
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.amber.shade500,
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.amber.shade100,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.edit_note_rounded,
+                                color: Colors.amber.shade900,
+                                size: 24,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Text(
+                                        'Draft',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.amber.shade900,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.amber.shade200,
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          'REVIEW',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.amber.shade900,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Save results as draft without publishing. You can review, verify, and publish them individually later.',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 11.5,
+                                      color: Colors.amber.shade900,
+                                      height: 1.3,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Icon(
+                              Icons.arrow_forward_ios_rounded,
+                              size: 14,
+                              color: Colors.amber.shade700,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.edit_note_rounded, size: 18),
+                  label: const Text('Draft'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.amber.shade700,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(dialogContext);
+                    _importResultsFromExcel(publishImmediately: false);
+                  },
+                ),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.publish_rounded, size: 18),
+                  label: const Text('Publish'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green.shade700,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(dialogContext);
+                    _importResultsFromExcel(publishImmediately: true);
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   Future<void> _selectResultExcelFile() async {
     try {
       final files = await FilePicker.pickFiles(
@@ -2211,14 +2606,7 @@ class _ControllerPortalScreenState
         });
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Excel file loaded: ${files.first.name} ($rowCount data rows ready to import). Click "Import Results" to proceed!',
-              ),
-              backgroundColor: Colors.green.shade700,
-            ),
-          );
+          _showResultExcelImportChoiceDialog();
         }
       }
     } catch (e) {
@@ -2233,7 +2621,7 @@ class _ControllerPortalScreenState
     }
   }
 
-  Future<void> _importResultsFromExcel() async {
+  Future<void> _importResultsFromExcel({bool publishImmediately = true}) async {
     try {
       Uint8List? bytes = _stagedResultExcelBytes;
 
@@ -2249,13 +2637,18 @@ class _ControllerPortalScreenState
 
       if (!mounted) return;
       _showLoadingDialog(
-        'Importing Results',
-        'Processing Excel file, adding results and updating points table...\nPlease wait.',
+        publishImmediately ? 'Publishing Results' : 'Saving Results as Draft',
+        publishImmediately
+            ? 'Processing Excel file, publishing results and updating live scoreboard...\nPlease wait.'
+            : 'Processing Excel file and saving results to draft for review...\nPlease wait.',
       );
 
       try {
         final excelService = ref.read(excelServiceProvider);
-        final importResult = await excelService.importResults(bytes);
+        final importResult = await excelService.importResults(
+          bytes,
+          publishImmediately: publishImmediately,
+        );
         setState(() {
           _stagedResultExcelBytes = null;
           _stagedResultExcelFileName = null;
@@ -2266,8 +2659,21 @@ class _ControllerPortalScreenState
         if (mounted) {
           Navigator.of(context, rootNavigator: true).pop();
           _showImportResultDialog(
-            'Results Excel Import Summary',
+            publishImmediately
+                ? 'Results Excel Import Summary (Published Live)'
+                : 'Results Excel Import Summary (Saved as Draft)',
             importResult,
+          );
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                publishImmediately
+                    ? 'Results imported and published live successfully! Scoreboard updated.'
+                    : 'Results imported and saved as Draft! You can review and verify them in the Results tab.',
+              ),
+              backgroundColor:
+                  publishImmediately ? Colors.green.shade700 : Colors.amber.shade800,
+            ),
           );
         }
       } catch (e) {
@@ -2393,7 +2799,7 @@ class _ControllerPortalScreenState
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 ),
-                onPressed: _selectResultExcelFile,
+                onPressed: _showResultExcelImportChoiceDialog,
               ),
               ElevatedButton.icon(
                 icon: const Icon(Icons.cloud_upload_rounded, size: 18),
@@ -2403,7 +2809,7 @@ class _ControllerPortalScreenState
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 ),
-                onPressed: _importResultsFromExcel,
+                onPressed: _showResultExcelImportChoiceDialog,
               ),
               OutlinedButton.icon(
                 icon: const Icon(Icons.file_download_outlined, size: 18),
@@ -6278,6 +6684,16 @@ class _ControllerPortalScreenState
         .toList();
 
     final selectedProg = progs.where((p) => p.id == currentProgId).firstOrNull;
+    final isGroupOrGeneral = _isGroupOrGeneralProgram(selectedProg, _selectedResultSection);
+
+    // Resolve current selected Group / Team ID
+    String? currentTeamId = _selectedResultTeamId;
+    if (currentTeamId != null && !teams.any((t) => t.id == currentTeamId)) {
+      currentTeamId = teams.isNotEmpty ? teams.first.id : null;
+    } else if (currentTeamId == null && teams.isNotEmpty) {
+      currentTeamId = teams.first.id;
+    }
+
     final isGenSectionOrProg = _selectedResultSection == FestSection.general ||
         (selectedProg != null && (selectedProg.isGeneral || selectedProg.section == FestSection.general));
     final sectionStudents = selectedProg != null
@@ -6411,6 +6827,7 @@ class _ControllerPortalScreenState
                       _selectedResultSection = val;
                       _selectedResultProgId = null;
                       _selectedResultStudentId = null;
+                      _selectedResultTeamId = null;
                     });
                   },
                 ),
@@ -6439,31 +6856,31 @@ class _ControllerPortalScreenState
                     setState(() {
                       _selectedResultProgId = val;
                       _selectedResultStudentId = null;
+                      _selectedResultTeamId = null;
                     });
                   },
                 ),
                 const SizedBox(height: 12),
 
-                // 3rd Dropdown: Registered Student Selection (Filtered by Program)
-                // 3rd Dropdown: Student Selection (Filtered by Program / Section)
-                if (currentProgId != null && registeredStudents.isEmpty)
+                // 3rd Dropdown: Group Selection OR Student Selection
+                if (isGroupOrGeneral) ...[
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.blue.withValues(alpha: 0.08),
-                        border: Border.all(color: Colors.blue.shade300),
+                        color: Colors.purple.withValues(alpha: 0.08),
+                        border: Border.all(color: Colors.purple.shade300),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.info_outline, color: Colors.blue),
+                          const Icon(Icons.groups_rounded, color: Colors.purple),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'No pre-registered students found for this program. Showing all ${candidateStudents.length} students in ${selectedProg?.section.label ?? "this section"} so you can enter results directly.',
+                              'Group / General Program: Points are assigned directly to the selected Group (Apex or Telos) and NOT to individual students.',
                               style: GoogleFonts.inter(
                                 color: AppTheme.ink,
                                 fontWeight: FontWeight.w600,
@@ -6474,116 +6891,170 @@ class _ControllerPortalScreenState
                         ],
                       ),
                     ),
-                  )
-                else if (currentProgId != null && registeredStudents.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Row(
-                      children: [
-                        Text(
-                          'Student Source: ',
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.inkSoft,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        ChoiceChip(
-                          label: Text('Registered (${registeredStudents.length})'),
-                          selected: !_showAllSectionStudents,
-                          onSelected: (val) {
-                            if (val) {
-                              setState(() {
-                                _showAllSectionStudents = false;
-                                _selectedResultStudentId = null;
-                              });
-                            }
-                          },
-                        ),
-                        const SizedBox(width: 8),
-                        ChoiceChip(
-                          label: Text('All in Section (${sectionStudents.length})'),
-                          selected: _showAllSectionStudents,
-                          onSelected: (val) {
-                            if (val) {
-                              setState(() {
-                                _showAllSectionStudents = true;
-                                _selectedResultStudentId = null;
-                              });
-                            }
-                          },
-                        ),
-                      ],
-                    ),
                   ),
-
-                TextField(
-                  controller: _resultStudentSearchController,
-                  decoration: InputDecoration(
-                    hintText: 'Search by Chest No (e.g. SB7882) or Name...',
-                    prefixIcon: const Icon(Icons.search, size: 20),
-                    suffixIcon: _resultStudentSearchController.text.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear, size: 18),
-                            onPressed: () {
-                              setState(() {
-                                _resultStudentSearchController.clear();
-                              });
+                  AppDropdown<String>(
+                    label: '3. Select Group (Apex or Telos)',
+                    value: currentTeamId,
+                    items: teams.isEmpty
+                        ? [
+                            const DropdownMenuItem(
+                              value: null,
+                              child: Text('No groups available'),
+                            ),
+                          ]
+                        : teams.map((t) {
+                            return DropdownMenuItem(
+                              value: t.id,
+                              child: Text(
+                                t.teamName,
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            );
+                          }).toList(),
+                    onChanged: (val) =>
+                        setState(() => _selectedResultTeamId = val),
+                  ),
+                ] else ...[
+                  // Registered Student Selection (Filtered by Program)
+                  if (currentProgId != null && registeredStudents.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withValues(alpha: 0.08),
+                          border: Border.all(color: Colors.blue.shade300),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.info_outline, color: Colors.blue),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'No pre-registered students found for this program. Showing all ${candidateStudents.length} students in ${selectedProg?.section.label ?? "this section"} so you can enter results directly.',
+                                style: GoogleFonts.inter(
+                                  color: AppTheme.ink,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12.5,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  else if (currentProgId != null && registeredStudents.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Row(
+                        children: [
+                          Text(
+                            'Student Source: ',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.inkSoft,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          ChoiceChip(
+                            label: Text('Registered (${registeredStudents.length})'),
+                            selected: !_showAllSectionStudents,
+                            onSelected: (val) {
+                              if (val) {
+                                setState(() {
+                                  _showAllSectionStudents = false;
+                                  _selectedResultStudentId = null;
+                                });
+                              }
                             },
-                          )
-                        : null,
-                    isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  onChanged: (val) {
-                    setState(() {
-                      final q = val.trim().toLowerCase();
-                      final qClean = q.replaceAll(RegExp(r'[^a-z0-9]'), '');
-                      final autoMatch = displayedStudents.where((s) {
-                        final sChase = s.chaseNumber.trim().toLowerCase();
-                        final sChaseClean =
-                            sChase.replaceAll(RegExp(r'[^a-z0-9]'), '');
-                        return sChase == q ||
-                            (qClean.isNotEmpty && sChaseClean == qClean);
-                      }).firstOrNull;
-                      if (autoMatch != null) {
-                        _selectedResultStudentId = autoMatch.id;
-                      }
-                    });
-                  },
-                ),
-                const SizedBox(height: 10),
-                AppDropdown<String>(
-                  label: '3. Select Student (${displayedStudents.length} of ${candidateStudents.length} available)',
-                  value: currentStudentId,
-                  items: displayedStudents.isEmpty
-                      ? [
-                          const DropdownMenuItem(
-                            value: null,
-                            child: Text('No students match your search'),
                           ),
-                        ]
-                      : displayedStudents.map((s) {
-                          final team = teams.where((t) => t.id == s.teamId || t.teamCode.toLowerCase() == s.teamId.toLowerCase()).firstOrNull;
-                          final teamName = team?.teamName.trim() ?? '';
-                          final labelText = teamName.isNotEmpty
-                              ? '${s.name} (${s.chaseNumber}) - $teamName'
-                              : '${s.name} (${s.chaseNumber})';
-                          return DropdownMenuItem(
-                            value: s.id,
-                            child: Text(labelText),
-                          );
-                        }).toList(),
-                  onChanged: (val) =>
-                      setState(() => _selectedResultStudentId = val),
-                ),
+                          const SizedBox(width: 8),
+                          ChoiceChip(
+                            label: Text('All in Section (${sectionStudents.length})'),
+                            selected: _showAllSectionStudents,
+                            onSelected: (val) {
+                              if (val) {
+                                setState(() {
+                                  _showAllSectionStudents = true;
+                                  _selectedResultStudentId = null;
+                                });
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  TextField(
+                    controller: _resultStudentSearchController,
+                    decoration: InputDecoration(
+                      hintText: 'Search by Chest No (e.g. SB7882) or Name...',
+                      prefixIcon: const Icon(Icons.search, size: 20),
+                      suffixIcon: _resultStudentSearchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 18),
+                              onPressed: () {
+                                setState(() {
+                                  _resultStudentSearchController.clear();
+                                });
+                              },
+                            )
+                          : null,
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    onChanged: (val) {
+                      setState(() {
+                        final q = val.trim().toLowerCase();
+                        final qClean = q.replaceAll(RegExp(r'[^a-z0-9]'), '');
+                        final autoMatch = displayedStudents.where((s) {
+                          final sChase = s.chaseNumber.trim().toLowerCase();
+                          final sChaseClean =
+                              sChase.replaceAll(RegExp(r'[^a-z0-9]'), '');
+                          return sChase == q ||
+                              (qClean.isNotEmpty && sChaseClean == qClean);
+                        }).firstOrNull;
+                        if (autoMatch != null) {
+                          _selectedResultStudentId = autoMatch.id;
+                        }
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  AppDropdown<String>(
+                    label: '3. Select Student (${displayedStudents.length} of ${candidateStudents.length} available)',
+                    value: currentStudentId,
+                    items: displayedStudents.isEmpty
+                        ? [
+                            const DropdownMenuItem(
+                              value: null,
+                              child: Text('No students match your search'),
+                            ),
+                          ]
+                        : displayedStudents.map((s) {
+                            final team = teams.where((t) => t.id == s.teamId || t.teamCode.toLowerCase() == s.teamId.toLowerCase()).firstOrNull;
+                            final teamName = team?.teamName.trim() ?? '';
+                            final labelText = teamName.isNotEmpty
+                                ? '${s.name} (${s.chaseNumber}) - $teamName'
+                                : '${s.name} (${s.chaseNumber})';
+                            return DropdownMenuItem(
+                              value: s.id,
+                              child: Text(labelText),
+                            );
+                          }).toList(),
+                    onChanged: (val) =>
+                        setState(() => _selectedResultStudentId = val),
+                  ),
+                ],
                 const SizedBox(height: 12),
                 LayoutBuilder(
                   builder: (context, constraints) {
@@ -6614,7 +7085,9 @@ class _ControllerPortalScreenState
                         onChanged: (_) => setState(() {}),
                       ),
                       AppDropdown<int>(
-                        label: 'Position (1 Position per Student)',
+                        label: isGroupOrGeneral
+                            ? 'Position (1 Position per Group)'
+                            : 'Position (1 Position per Student)',
                         value: _resultPosition,
                         items: const [
                           DropdownMenuItem(value: 1, child: Text('1st Place')),
@@ -6675,6 +7148,9 @@ class _ControllerPortalScreenState
                         asDraft: false,
                         currentProgId: currentProgId,
                         currentStudentId: currentStudentId,
+                        currentTeamId: currentTeamId,
+                        isGroupOrGeneral: isGroupOrGeneral,
+                        teams: teams,
                         students: students,
                         results: results,
                         scoring: scoring,
@@ -6707,6 +7183,9 @@ class _ControllerPortalScreenState
                         asDraft: true,
                         currentProgId: currentProgId,
                         currentStudentId: currentStudentId,
+                        currentTeamId: currentTeamId,
+                        isGroupOrGeneral: isGroupOrGeneral,
+                        teams: teams,
                         students: students,
                         results: results,
                         scoring: scoring,
@@ -6817,9 +7296,12 @@ class _ControllerPortalScreenState
                     progs.where((p) => p.id == r.programId).firstOrNull;
                 final tm = teams.where((t) => t.id == r.teamId).firstOrNull;
 
+                final isProgGroupOrGeneral = _isGroupOrGeneralProgram(prog, null);
                 final studentTitle = stud != null
                     ? '${stud.name} (${stud.chaseNumber})'
-                    : r.studentId;
+                    : (isProgGroupOrGeneral || r.studentId.isEmpty
+                        ? '${tm?.teamName ?? "Group"} (Group Award)'
+                        : (r.studentId.isNotEmpty ? r.studentId : (tm?.teamName ?? 'Group')));
                 final programTitle = prog != null
                     ? '${prog.programName} [${prog.programCode}]'
                     : r.programId;
@@ -7023,11 +7505,128 @@ class _ControllerPortalScreenState
     required bool asDraft,
     required String? currentProgId,
     required String? currentStudentId,
+    required String? currentTeamId,
+    required bool isGroupOrGeneral,
+    required List<Team> teams,
     required List<Student> students,
     required List<Result> results,
     required ScoringService scoring,
   }) async {
-    if (currentStudentId == null || currentProgId == null) {
+    if (currentProgId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a program first.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    if (isGroupOrGeneral) {
+      if (currentTeamId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please select a Group (Apex or Telos) first.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        return;
+      }
+
+      final selectedTeam = teams.where((t) => t.id == currentTeamId).firstOrNull ??
+          Team(id: currentTeamId, teamName: currentTeamId, teamCode: currentTeamId);
+
+      // Position Uniqueness Validation per program
+      final progResults =
+          results.where((r) => r.programId == currentProgId).toList();
+
+      if (_resultPosition > 0 && !asDraft) {
+        final existingPosResults = progResults
+            .where((r) =>
+                r.position == _resultPosition &&
+                r.teamId != currentTeamId &&
+                r.status == ResultStatus.published)
+            .toList();
+        if (existingPosResults.length >= 2) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Position $_resultPosition is already assigned twice in this program (maximum 2 groups for ties).',
+              ),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+          return;
+        }
+      }
+
+      // Check if this team already has a result for this program
+      final existingTeamResult = progResults
+          .where((r) => r.teamId == currentTeamId && (r.studentId.isEmpty || r.studentId == currentTeamId))
+          .firstOrNull;
+
+      final rawMarksSubmitted = double.tryParse(_resultMarksController.text.trim());
+      final points = scoring.calculateResultPoints(
+        position: _resultPosition > 0 ? _resultPosition : null,
+        grade: _resultGradeController.text.trim(),
+        marks: rawMarksSubmitted,
+      );
+
+      final result = Result(
+        id: existingTeamResult?.id ?? 'res_${const Uuid().v4()}',
+        programId: currentProgId,
+        studentId: '', // Crucial: NO student ID! Points not awarded to any individual student
+        teamId: selectedTeam.id,
+        marks: double.tryParse(_resultMarksController.text) ?? 85.0,
+        grade: _resultGradeController.text.trim().toUpperCase(),
+        position: _resultPosition > 0 ? _resultPosition : null,
+        points: points,
+        remarks: asDraft
+            ? 'Draft saved for Group ${selectedTeam.teamName}'
+            : 'Published for Group ${selectedTeam.teamName}',
+        status: asDraft ? ResultStatus.draft : ResultStatus.published,
+        publishedAt: asDraft ? null : DateTime.now(),
+      );
+
+      try {
+        await ref.read(resultRepositoryProvider).saveResult(result);
+        try {
+          await scoring.recalculateTeamScoresAndRanks();
+        } catch (scoringErr) {
+          debugPrint('Team score recalculation warning: $scoringErr');
+        }
+        triggerDataRefresh(ref);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                asDraft
+                    ? (existingTeamResult != null
+                        ? 'Group result for ${selectedTeam.teamName} updated and saved to Draft!'
+                        : 'Group result for ${selectedTeam.teamName} successfully saved to Draft!')
+                    : (existingTeamResult != null
+                        ? 'Group result for ${selectedTeam.teamName} updated and republished!'
+                        : 'Group result for ${selectedTeam.teamName} successfully published!'),
+              ),
+              backgroundColor: asDraft ? Colors.amber.shade800 : Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        debugPrint('Error saving group result: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to save group result: $e'),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        }
+      }
+      return;
+    }
+
+    if (currentStudentId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -7931,7 +8530,10 @@ class _ControllerPortalScreenState
                     children: [
                       Flexible(
                         child: Text(
-                          student?.name ?? 'Student #${result.studentId}',
+                          student?.name ??
+                              (_isGroupOrGeneralProgram(program, null) || result.studentId.isEmpty
+                                  ? '${team?.teamName ?? "Group"} (Group Award)'
+                                  : (result.studentId.isNotEmpty ? 'Student #${result.studentId}' : (team?.teamName ?? 'Group'))),
                           style: GoogleFonts.inter(
                             fontSize: 15,
                             fontWeight: FontWeight.bold,
@@ -8717,7 +9319,10 @@ class _ControllerPortalScreenState
     required VoidCallback onToggle,
   }) {
     final hasStudent = student != null || result != null;
-    final studName = student?.name ?? (result != null ? 'Registered Student' : 'No result entered');
+    final studName = student?.name ??
+        (team != null
+            ? '${team.teamName} (Group)'
+            : (result != null ? 'Winner' : 'No result entered'));
     final chaseNo = student?.chaseNumber ?? '';
     final teamName = team?.teamName ?? '';
 
@@ -9167,27 +9772,27 @@ class _ControllerPortalScreenState
         winner1: s1 != null || res1 != null
             ? FestResultWinner(
                 position: 1,
-                studentName: s1?.name ?? (res1 != null ? 'Winner' : ''),
+                studentName: s1?.name ?? (t1?.teamName.isNotEmpty == true ? t1!.teamName : (res1 != null ? 'Winner' : '')),
                 chaseNumber: s1?.chaseNumber ?? '',
-                teamName: t1?.teamName ?? '',
+                teamName: s1 != null ? (t1?.teamName ?? '') : '',
                 grade: res1?.grade,
               )
             : null,
         winner2: s2 != null || res2 != null
             ? FestResultWinner(
                 position: 2,
-                studentName: s2?.name ?? (res2 != null ? 'Winner' : ''),
+                studentName: s2?.name ?? (t2?.teamName.isNotEmpty == true ? t2!.teamName : (res2 != null ? 'Winner' : '')),
                 chaseNumber: s2?.chaseNumber ?? '',
-                teamName: t2?.teamName ?? '',
+                teamName: s2 != null ? (t2?.teamName ?? '') : '',
                 grade: res2?.grade,
               )
             : null,
         winner3: s3 != null || res3 != null
             ? FestResultWinner(
                 position: 3,
-                studentName: s3?.name ?? (res3 != null ? 'Winner' : ''),
+                studentName: s3?.name ?? (t3?.teamName.isNotEmpty == true ? t3!.teamName : (res3 != null ? 'Winner' : '')),
                 chaseNumber: s3?.chaseNumber ?? '',
-                teamName: t3?.teamName ?? '',
+                teamName: s3 != null ? (t3?.teamName ?? '') : '',
                 grade: res3?.grade,
               )
             : null,
@@ -13094,7 +13699,14 @@ class _ControllerPortalScreenState
     };
 
     final validResults = results
-        .where((r) => r.status == ResultStatus.published)
+        .where((r) {
+          if (r.status != ResultStatus.published) return false;
+          if (r.studentId.trim().isEmpty) return false;
+          final prog = programsMap[r.programId];
+          // In Group and General programs, points are not assigned to students (only to the group)
+          if (_isGroupOrGeneralProgram(prog, null)) return false;
+          return true;
+        })
         .toList();
 
     final Map<String, List<Result>> studentResultsMap = {};

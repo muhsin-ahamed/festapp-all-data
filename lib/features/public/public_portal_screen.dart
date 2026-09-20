@@ -744,20 +744,29 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
                 child: ResultCard(
                   programName: prog?.programName ?? 'Unknown Program',
                   section: prog?.section.label ?? '—',
-                  winnerName: firstStud?.name ?? '—',
-                  winnerTeam: firstRes != null
-                      ? (teamMap[firstRes.teamId]?.teamName ?? "—")
-                      : "—",
+                  winnerName: firstStud?.name ??
+                      (firstRes != null && teamMap[firstRes.teamId] != null
+                          ? teamMap[firstRes.teamId]!.teamName
+                          : '—'),
+                  winnerTeam: firstStud != null
+                      ? (firstRes != null ? (teamMap[firstRes.teamId]?.teamName ?? '—') : '—')
+                      : '',
                   winnerChaseNo: firstStud?.chaseNumber,
-                  secondName: secondStud?.name ?? '—',
-                  secondTeam: secondRes != null
-                      ? (teamMap[secondRes.teamId]?.teamName ?? "—")
-                      : "—",
+                  secondName: secondStud?.name ??
+                      (secondRes != null && teamMap[secondRes.teamId] != null
+                          ? teamMap[secondRes.teamId]!.teamName
+                          : '—'),
+                  secondTeam: secondStud != null
+                      ? (secondRes != null ? (teamMap[secondRes.teamId]?.teamName ?? '—') : '—')
+                      : '',
                   secondChaseNo: secondStud?.chaseNumber,
-                  thirdName: thirdStud?.name ?? '—',
-                  thirdTeam: thirdRes != null
-                      ? (teamMap[thirdRes.teamId]?.teamName ?? '—')
-                      : '—',
+                  thirdName: thirdStud?.name ??
+                      (thirdRes != null && teamMap[thirdRes.teamId] != null
+                          ? teamMap[thirdRes.teamId]!.teamName
+                          : '—'),
+                  thirdTeam: thirdStud != null
+                      ? (thirdRes != null ? (teamMap[thirdRes.teamId]?.teamName ?? '—') : '—')
+                      : '',
                   thirdChaseNo: thirdStud?.chaseNumber,
                   onViewPoster: () {
                     final codeDigits = prog?.programCode.replaceAll(RegExp(r'[^0-9]'), '') ?? '';
@@ -769,27 +778,42 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
                       firstStud != null || firstRes != null
                           ? FestResultWinner(
                               position: 1,
-                              studentName: firstStud?.name ?? 'Winner',
+                              studentName: firstStud?.name ??
+                                  (firstRes != null && teamMap[firstRes.teamId] != null
+                                      ? teamMap[firstRes.teamId]!.teamName
+                                      : 'Winner'),
                               chaseNumber: firstStud?.chaseNumber ?? '',
-                              teamName: firstRes != null ? (teamMap[firstRes.teamId]?.teamName ?? '') : '',
+                              teamName: firstStud != null && firstRes != null
+                                  ? (teamMap[firstRes.teamId]?.teamName ?? '')
+                                  : '',
                               grade: firstRes?.grade,
                             )
                           : null,
                       secondStud != null || secondRes != null
                           ? FestResultWinner(
                               position: 2,
-                              studentName: secondStud?.name ?? 'Winner',
+                              studentName: secondStud?.name ??
+                                  (secondRes != null && teamMap[secondRes.teamId] != null
+                                      ? teamMap[secondRes.teamId]!.teamName
+                                      : 'Winner'),
                               chaseNumber: secondStud?.chaseNumber ?? '',
-                              teamName: secondRes != null ? (teamMap[secondRes.teamId]?.teamName ?? '') : '',
+                              teamName: secondStud != null && secondRes != null
+                                  ? (teamMap[secondRes.teamId]?.teamName ?? '')
+                                  : '',
                               grade: secondRes?.grade,
                             )
                           : null,
                       thirdStud != null || thirdRes != null
                           ? FestResultWinner(
                               position: 3,
-                              studentName: thirdStud?.name ?? 'Winner',
+                              studentName: thirdStud?.name ??
+                                  (thirdRes != null && teamMap[thirdRes.teamId] != null
+                                      ? teamMap[thirdRes.teamId]!.teamName
+                                      : 'Winner'),
                               chaseNumber: thirdStud?.chaseNumber ?? '',
-                              teamName: thirdRes != null ? (teamMap[thirdRes.teamId]?.teamName ?? '') : '',
+                              teamName: thirdStud != null && thirdRes != null
+                                  ? (teamMap[thirdRes.teamId]?.teamName ?? '')
+                                  : '',
                               grade: thirdRes?.grade,
                             )
                           : null,

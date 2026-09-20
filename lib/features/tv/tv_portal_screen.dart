@@ -584,27 +584,27 @@ class _TvPortalScreenState extends ConsumerState<TvPortalScreen> {
         winner1: s1 != null || res1 != null
             ? FestResultWinner(
                 position: 1,
-                studentName: s1?.name ?? (res1 != null ? 'Winner' : ''),
+                studentName: s1?.name ?? (t1?.teamName.isNotEmpty == true ? t1!.teamName : (res1 != null ? 'Winner' : '')),
                 chaseNumber: s1?.chaseNumber ?? '',
-                teamName: t1?.teamName ?? '',
+                teamName: s1 != null ? (t1?.teamName ?? '') : '',
                 grade: res1?.grade,
               )
             : null,
         winner2: s2 != null || res2 != null
             ? FestResultWinner(
                 position: 2,
-                studentName: s2?.name ?? (res2 != null ? 'Winner' : ''),
+                studentName: s2?.name ?? (t2?.teamName.isNotEmpty == true ? t2!.teamName : (res2 != null ? 'Winner' : '')),
                 chaseNumber: s2?.chaseNumber ?? '',
-                teamName: t2?.teamName ?? '',
+                teamName: s2 != null ? (t2?.teamName ?? '') : '',
                 grade: res2?.grade,
               )
             : null,
         winner3: s3 != null || res3 != null
             ? FestResultWinner(
                 position: 3,
-                studentName: s3?.name ?? (res3 != null ? 'Winner' : ''),
+                studentName: s3?.name ?? (t3?.teamName.isNotEmpty == true ? t3!.teamName : (res3 != null ? 'Winner' : '')),
                 chaseNumber: s3?.chaseNumber ?? '',
-                teamName: t3?.teamName ?? '',
+                teamName: s3 != null ? (t3?.teamName ?? '') : '',
                 grade: res3?.grade,
               )
             : null,
@@ -1633,27 +1633,27 @@ class TvResultsCarouselViewState extends State<TvResultsCarouselView> {
       winner1: s1 != null || res1 != null
           ? FestResultWinner(
               position: 1,
-              studentName: s1?.name ?? (res1 != null ? 'Winner' : ''),
+              studentName: s1?.name ?? (t1?.teamName.isNotEmpty == true ? t1!.teamName : (res1 != null ? 'Winner' : '')),
               chaseNumber: s1?.chaseNumber ?? '',
-              teamName: t1?.teamName ?? '',
+              teamName: s1 != null ? (t1?.teamName ?? '') : '',
               grade: res1?.grade,
             )
           : null,
       winner2: s2 != null || res2 != null
           ? FestResultWinner(
               position: 2,
-              studentName: s2?.name ?? (res2 != null ? 'Winner' : ''),
+              studentName: s2?.name ?? (t2?.teamName.isNotEmpty == true ? t2!.teamName : (res2 != null ? 'Winner' : '')),
               chaseNumber: s2?.chaseNumber ?? '',
-              teamName: t2?.teamName ?? '',
+              teamName: s2 != null ? (t2?.teamName ?? '') : '',
               grade: res2?.grade,
             )
           : null,
       winner3: s3 != null || res3 != null
           ? FestResultWinner(
               position: 3,
-              studentName: s3?.name ?? (res3 != null ? 'Winner' : ''),
+              studentName: s3?.name ?? (t3?.teamName.isNotEmpty == true ? t3!.teamName : (res3 != null ? 'Winner' : '')),
               chaseNumber: s3?.chaseNumber ?? '',
-              teamName: t3?.teamName ?? '',
+              teamName: s3 != null ? (t3?.teamName ?? '') : '',
               grade: res3?.grade,
             )
           : null,

@@ -298,5 +298,23 @@ void main() {
       expect(res.studentId, equals(students.first.id));
       expect(res.programId, equals(programs.first.id));
     });
+
+    test('importResults with publishImmediately: false sets status to draft', () async {
+      final templateBytes = excelService.generateResultTemplate();
+      final importResult = await excelService.importResults(
+        templateBytes,
+        publishImmediately: false,
+      );
+
+      expect(importResult.totalRows, equals(1));
+      expect(importResult.validRows, equals(1));
+      expect(importResult.invalidRows, equals(0));
+
+      final results = await resultRepo.getResults();
+      expect(results.isNotEmpty, isTrue);
+      final draftRes = results.first;
+      expect(draftRes.status, equals(ResultStatus.draft));
+      expect(draftRes.publishedAt, isNull);
+    });
   });
 }
