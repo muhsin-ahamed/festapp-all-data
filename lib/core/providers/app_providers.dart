@@ -140,21 +140,6 @@ final dataRefreshSignalProvider = StateProvider<int>((ref) => 0);
 
 void triggerDataRefresh(WidgetRef ref) {
   ref.read(dataRefreshSignalProvider.notifier).state++;
-<<<<<<< HEAD
-=======
-  ref.invalidate(programsProvider);
-  ref.invalidate(studentsProvider);
-  ref.invalidate(teamsProvider);
-  ref.invalidate(registrationsProvider);
-  ref.invalidate(resultsProvider);
-  ref.invalidate(publishedResultsProvider);
-  ref.invalidate(venuesProvider);
-  ref.invalidate(schedulesProvider);
-  ref.invalidate(announcementsProvider);
-  ref.invalidate(usersProvider);
-  ref.invalidate(leadersProvider);
-  ref.invalidate(juriesProvider);
->>>>>>> 9a2c01b5f1943a460c15ade7aa7c995583758614
 }
 
 // --- Dynamic Data Stream / Future Providers ---
@@ -172,13 +157,8 @@ final teamsProvider = FutureProvider<List<Team>>((ref) async {
   try {
     final repo = ref.watch(teamRepositoryProvider);
     final rawTeams = await repo.getTeams();
-<<<<<<< HEAD
     final publishedResults = ref.watch(publishedResultsProvider).valueOrNull ?? [];
     final students = ref.watch(studentsProvider).valueOrNull ?? [];
-=======
-    final publishedResults = await ref.watch(publishedResultsProvider.future);
-    final students = await ref.watch(studentsProvider.future);
->>>>>>> 9a2c01b5f1943a460c15ade7aa7c995583758614
     final scoring = ref.watch(scoringServiceProvider);
 
     final updatedTeams = scoring.calculateTeamScoresFromResults(
