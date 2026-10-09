@@ -16,6 +16,7 @@ export class ScoringService {
     if (position === 3) total += 1;
 
     const cleanGrade = (grade || '').trim().toUpperCase();
+<<<<<<< HEAD
     if (
       cleanGrade !== 'AB' &&
       cleanGrade !== 'ABSENT' &&
@@ -29,6 +30,11 @@ export class ScoringService {
       else if (cleanGrade === 'B' || cleanGrade === 'B+' || cleanGrade.startsWith('B')) total += 3;
       else if (cleanGrade === 'C' || cleanGrade === 'C+' || cleanGrade.startsWith('C')) total += 1;
     }
+=======
+    if (cleanGrade.includes('A')) total += 5;
+    if (cleanGrade.includes('B')) total += 3;
+    if (cleanGrade.includes('C')) total += 1;
+>>>>>>> 9a2c01b5f1943a460c15ade7aa7c995583758614
 
     return total;
   }

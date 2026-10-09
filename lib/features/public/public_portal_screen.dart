@@ -431,7 +431,10 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
 
                 // Live VS Scoreboard Widget
                 teamsAsync.when(
+<<<<<<< HEAD
                   skipLoadingOnRefresh: true,
+=======
+>>>>>>> 9a2c01b5f1943a460c15ade7aa7c995583758614
                   data: (teams) {
                     final leader = teams.isNotEmpty
                         ? {
@@ -475,7 +478,10 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
                 ),
                 const SizedBox(height: 12),
                 schedulesAsync.when(
+<<<<<<< HEAD
                   skipLoadingOnRefresh: true,
+=======
+>>>>>>> 9a2c01b5f1943a460c15ade7aa7c995583758614
                   data: (schedules) {
                     if (schedules.isEmpty) {
                       return Container(
@@ -614,7 +620,10 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
     String? searchQuery,
   }) {
     return resultsAsync.when(
+<<<<<<< HEAD
       skipLoadingOnRefresh: true,
+=======
+>>>>>>> 9a2c01b5f1943a460c15ade7aa7c995583758614
       data: (results) {
         final published = results
             .where(

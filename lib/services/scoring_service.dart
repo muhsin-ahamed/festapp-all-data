@@ -33,6 +33,7 @@ class ScoringService {
 
     // Grade points
     final cleanGrade = (grade ?? '').trim().toUpperCase();
+<<<<<<< HEAD
     if (cleanGrade != 'AB' &&
         cleanGrade != 'ABSENT' &&
         cleanGrade != 'NIL' &&
@@ -48,6 +49,11 @@ class ScoringService {
         total += customGradeC;
       }
     }
+=======
+    if (cleanGrade.contains('A')) total += customGradeA;
+    if (cleanGrade.contains('B')) total += customGradeB;
+    if (cleanGrade.contains('C')) total += customGradeC;
+>>>>>>> 9a2c01b5f1943a460c15ade7aa7c995583758614
 
     // Fallback based on raw marks if position and grade yielded no points
     if (total == 0 && marks != null && marks > 0) {
@@ -91,12 +97,15 @@ class ScoringService {
     }
 
     final Map<String, int> teamScores = {for (var t in teams) t.id: 0};
+<<<<<<< HEAD
     final Map<String, int> teamGradeA = {for (var t in teams) t.id: 0};
     final Map<String, int> teamGradeB = {for (var t in teams) t.id: 0};
     final Map<String, int> teamGradeC = {for (var t in teams) t.id: 0};
     final Map<String, int> teamFirsts = {for (var t in teams) t.id: 0};
     final Map<String, int> teamSeconds = {for (var t in teams) t.id: 0};
     final Map<String, int> teamThirds = {for (var t in teams) t.id: 0};
+=======
+>>>>>>> 9a2c01b5f1943a460c15ade7aa7c995583758614
 
     for (final res in publishedResults) {
       final key = res.teamId.trim().toLowerCase();
@@ -112,6 +121,7 @@ class ScoringService {
       }
 
       if (targetTeamId != null && teamScores.containsKey(targetTeamId)) {
+<<<<<<< HEAD
         final resPoints = res.points > 0
             ? res.points
             : calculateResultPoints(
@@ -147,6 +157,15 @@ class ScoringService {
         gradeB: teamGradeB[id] ?? 0,
         gradeC: teamGradeC[id] ?? 0,
       );
+=======
+        teamScores[targetTeamId] = (teamScores[targetTeamId] ?? 0) + res.points;
+      }
+    }
+
+    // Update total points for teams
+    List<Team> updatedTeams = teams.map((team) {
+      return team.copyWith(totalPoints: teamScores[team.id] ?? 0);
+>>>>>>> 9a2c01b5f1943a460c15ade7aa7c995583758614
     }).toList();
 
     // Sort by points descending
