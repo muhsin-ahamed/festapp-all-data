@@ -1,0 +1,931 @@
+import 'dart:math';
+import 'package:supabase_flutter/supabase_flutter.dart' hide User;
+import '../core/constants/app_constants.dart';
+import '../data/models/student_model.dart';
+import '../data/models/team_model.dart';
+import '../data/models/team_leader_model.dart';
+import '../data/models/program_model.dart';
+import '../data/models/registration_model.dart';
+import '../data/models/result_model.dart';
+import '../data/models/venue_model.dart';
+import '../data/models/schedule_model.dart';
+import '../data/models/jury_model.dart';
+import '../data/models/announcement_model.dart';
+import '../data/models/user_model.dart';
+import '../data/repositories/app_repositories.dart';
+import 'scoring_service.dart';
+
+class DemoDataService {
+  final StudentRepository studentRepository;
+  final TeamRepository teamRepository;
+  final TeamLeaderRepository leaderRepository;
+  final ProgramRepository programRepository;
+  final RegistrationRepository registrationRepository;
+  final ResultRepository resultRepository;
+  final VenueRepository venueRepository;
+  final ScheduleRepository scheduleRepository;
+  final JuryRepository juryRepository;
+  final AnnouncementRepository announcementRepository;
+  final UserRepository userRepository;
+  final ScoringService scoringService;
+
+  DemoDataService({
+    required this.studentRepository,
+    required this.teamRepository,
+    required this.leaderRepository,
+    required this.programRepository,
+    required this.registrationRepository,
+    required this.resultRepository,
+    required this.venueRepository,
+    required this.scheduleRepository,
+    required this.juryRepository,
+    required this.announcementRepository,
+    required this.userRepository,
+    required this.scoringService,
+  });
+
+  Future<void> clearDatabase() async {
+    try {
+      final client = Supabase.instance.client;
+      await client.from('announcements').delete().neq('id', '___none___');
+      await client.from('results').delete().neq('id', '___none___');
+      await client.from('registrations').delete().neq('id', '___none___');
+      await client.from('students').delete().neq('id', '___none___');
+      await client.from('schedules').delete().neq('id', '___none___');
+      await client.from('programs').delete().neq('id', '___none___');
+      await client.from('venues').delete().neq('id', '___none___');
+      await client.from('teams').delete().neq('id', '___none___');
+      await client.from('team_leaders').delete().neq('id', '___none___');
+      await client.from('juries').delete().neq('id', '___none___');
+    } catch (e) {
+      // Fallback if table names vary
+    }
+  }
+
+  Future<void> clearAllData() async {
+    await clearDatabase();
+  }
+
+  Future<void> generateDemoData() async {
+    await clearDatabase();
+
+    // 1. Seed Users & Leaders
+    final controllerUser = User(
+      id: 'usr_controller',
+      username: 'controller',
+      password: 'controller123',
+      name: 'Fest Controller Admin',
+      role: UserRole.festController,
+    );
+    await userRepository.saveUser(controllerUser);
+
+    final tvUser = User(
+      id: 'usr_tv',
+      username: 'tv',
+      password: 'tv123',
+      name: 'Main Stage TV Display',
+      role: UserRole.tvOperator,
+    );
+    await userRepository.saveUser(tvUser);
+
+    // 2. Seed Only 2 Teams: Apex & Telos
+    final teamData = [
+      {
+        'id': 'team_01',
+        'code': 'T-APEX',
+        'name': 'Apex',
+        'leader': 'SHAHIL K',
+        'assistant': 'HASHIM FARHAN',
+        'mentor': 'USTHAD SHAHEER HUDAWI',
+        'username': 'lsmht',
+        'password': 'Lthlsm@9947',
+      },
+      {
+        'id': 'team_02',
+        'code': 'T-TELOS',
+        'name': 'Telos',
+        'leader': 'ALTHAF HUSSAIN',
+        'assistant': 'IHSAN',
+        'mentor': 'USTHAD NIZAM FAIZY',
+        'username': 'halans',
+        'password': 'fshlt@4792',
+      },
+    ];
+
+    List<Team> teams = [];
+    for (int i = 0; i < teamData.length; i++) {
+      final tMap = teamData[i];
+      final teamId = tMap['id']!;
+      final leaderId = 'leader_${i + 1}';
+      final leaderName = tMap['leader']!;
+      final assistantName = tMap['assistant']!;
+      final mentorName = tMap['mentor']!;
+      final username = tMap['username']!;
+      final password = tMap['password']!;
+
+      final leader = TeamLeader(
+        id: leaderId,
+        name: leaderName,
+        phone: '+91 987654321${i + 1}',
+        email: '$username@amiafest.com',
+        username: username,
+        password: password,
+        teamId: teamId,
+      );
+      await leaderRepository.addLeader(leader);
+
+      final userLeader = User(
+        id: 'usr_$leaderId',
+        username: username,
+        password: password,
+        name: leaderName,
+        role: UserRole.teamLeader,
+        teamId: teamId,
+      );
+      await userRepository.saveUser(userLeader);
+
+      final team = Team(
+        id: teamId,
+        teamName: tMap['name']!,
+        teamCode: tMap['code']!,
+        leaderId: leaderId,
+        leaderName: leaderName,
+        assistantLeaderName: assistantName,
+        mentorName: mentorName,
+        totalStudents: 12,
+      );
+      await teamRepository.addTeam(team);
+      teams.add(team);
+    }
+
+    // 3. Seed Venues
+    final venues = [
+      Venue(
+        id: 'ven_s1',
+        name: 'S1',
+        location: 'S1',
+        capacity: 100,
+        description: 'Stage 1',
+      ),
+      Venue(
+        id: 'ven_s2',
+        name: 'S2',
+        location: 'S2',
+        capacity: 100,
+        description: 'Stage 2',
+      ),
+      Venue(
+        id: 'ven_s3',
+        name: 'S3',
+        location: 'S3',
+        capacity: 100,
+        description: 'Stage 3',
+      ),
+      Venue(
+        id: 'ven_s8',
+        name: 'S8',
+        location: 'S8',
+        capacity: 100,
+        description: 'Stage 8',
+      ),
+      Venue(
+        id: 'ven_library',
+        name: 'LIBRARY',
+        location: 'Library',
+        capacity: 50,
+        description: 'Library',
+      ),
+    ];
+    for (final v in venues) {
+      await venueRepository.addVenue(v);
+    }
+
+    // 4. Seed Juries
+    final jury1 = Jury(
+      id: 'jury_1',
+      name: 'Prof. Sarah Jenkins',
+      username: 'jury1',
+      password: 'jury123',
+      juryCode: 'JURY-101',
+      assignedPrograms: ['prog_101', 'prog_102', 'prog_103', 'prog_104'],
+    );
+    final jury2 = Jury(
+      id: 'jury_2',
+      name: 'Dr. Robert Lang',
+      username: 'jury2',
+      password: 'jury2123',
+      juryCode: 'JURY-102',
+      assignedPrograms: ['prog_201', 'prog_202', 'prog_301'],
+    );
+    await juryRepository.addJury(jury1);
+    await juryRepository.addJury(jury2);
+
+    final userJury1 = User(
+      id: 'usr_jury1',
+      username: 'jury1',
+      password: 'jury123',
+      name: jury1.name,
+      role: UserRole.jury,
+      juryId: jury1.id,
+    );
+    final userJury2 = User(
+      id: 'usr_jury2',
+      username: 'jury2',
+      password: 'jury2123',
+      name: jury2.name,
+      role: UserRole.jury,
+      juryId: jury2.id,
+    );
+    await userRepository.saveUser(userJury1);
+    await userRepository.saveUser(userJury2);
+
+    // 5. Seed 20 Programs
+    final programTemplates = [
+      {
+        'code': 'P-101',
+        'name': 'ESSAY ARB',
+        'sec': FestSection.senior,
+        'stage': true,
+        'ven': 'ven_s1',
+        'date': '2026-09-10',
+        'startTime': '6:00',
+        'endTime': '6:45 am',
+      },
+      {
+        'code': 'P-102',
+        'name': 'ESSAY ARB',
+        'sec': FestSection.superSenior,
+        'stage': true,
+        'ven': 'ven_s1',
+        'date': '2026-09-10',
+        'startTime': '6:00',
+        'endTime': '6:45 am',
+      },
+      {
+        'code': 'P-103',
+        'name': 'WRITING ARB',
+        'sec': FestSection.subJunior,
+        'stage': true,
+        'ven': 'ven_s2',
+        'date': '2026-09-10',
+        'startTime': '6:00',
+        'endTime': '6:15 am',
+      },
+      {
+        'code': 'P-104',
+        'name': 'WRITING MLM',
+        'sec': FestSection.subJunior,
+        'stage': true,
+        'ven': 'ven_s1',
+        'date': '2026-09-10',
+        'startTime': '7:00',
+        'endTime': '7:15  AM',
+      },
+      {
+        'code': 'P-105',
+        'name': 'WATER PAINTING',
+        'sec': FestSection.subJunior,
+        'stage': true,
+        'ven': 'ven_s8',
+        'date': '2026-09-10',
+        'startTime': '6:15',
+        'endTime': '7:00 am',
+      },
+      {
+        'code': 'P-106',
+        'name': 'GALLIFREY ARB',
+        'sec': FestSection.senior,
+        'stage': true,
+        'ven': 'ven_s2',
+        'date': '2026-09-10',
+        'startTime': '6:50',
+        'endTime': '7:10 am',
+      },
+      {
+        'code': 'P-107',
+        'name': 'WORD HUNTING ENG',
+        'sec': FestSection.senior,
+        'stage': true,
+        'ven': 'ven_s2',
+        'date': '2026-09-10',
+        'startTime': '7:10',
+        'endTime': '7:20 AM',
+      },
+      {
+        'code': 'P-108',
+        'name': 'GALLIFREY ARB',
+        'sec': FestSection.superSenior,
+        'stage': true,
+        'ven': 'ven_s2',
+        'date': '2026-09-10',
+        'startTime': '6:50',
+        'endTime': '7:10 am',
+      },
+      {
+        'code': 'P-109',
+        'name': 'MATHGENIUS',
+        'sec': FestSection.subJunior,
+        'stage': true,
+        'ven': 'ven_s3',
+        'date': '2026-09-10',
+        'startTime': '5:00',
+        'endTime': '5:20 PM',
+      },
+      {
+        'code': 'P-110',
+        'name': 'VIDEO GRAPHING ARB',
+        'sec': FestSection.senior,
+        'stage': true,
+        'ven': 'ven_s2',
+        'date': '2026-09-10',
+        'startTime': '4:45',
+        'endTime': '5:00 PM',
+      },
+      {
+        'code': 'P-111',
+        'name': 'MEMORY TEST',
+        'sec': FestSection.subJunior,
+        'stage': true,
+        'ven': 'ven_s3',
+        'date': '2026-09-10',
+        'startTime': '5:30',
+        'endTime': '5:40 PM',
+      },
+      {
+        'code': 'P-112',
+        'name': 'VIDEO GRAPHING ARB',
+        'sec': FestSection.superSenior,
+        'stage': true,
+        'ven': 'ven_s1',
+        'date': '2026-09-10',
+        'startTime': '4:45',
+        'endTime': '5:00 PM',
+      },
+      {
+        'code': 'P-113',
+        'name': 'ESSAY MLM',
+        'sec': FestSection.senior,
+        'stage': true,
+        'ven': 'ven_s1',
+        'date': '2026-09-10',
+        'startTime': '5:00',
+        'endTime': '5:45 PM',
+      },
+      {
+        'code': 'P-114',
+        'name': 'ESSAY MLM',
+        'sec': FestSection.superSenior,
+        'stage': true,
+        'ven': 'ven_s2',
+        'date': '2026-09-10',
+        'startTime': '5:00',
+        'endTime': '5:45 PM',
+      },
+      {
+        'code': 'P-115',
+        'name': 'POEM WIRITING MLM',
+        'sec': FestSection.senior,
+        'stage': true,
+        'ven': 'ven_s2',
+        'date': '2026-09-10',
+        'startTime': '5:45',
+        'endTime': '6:15 PM',
+      },
+      {
+        'code': 'P-116',
+        'name': 'POEM WIRITING MLM',
+        'sec': FestSection.superSenior,
+        'stage': true,
+        'ven': 'ven_s3',
+        'date': '2026-09-10',
+        'startTime': '5:45',
+        'endTime': '6:15 PM',
+      },
+      {
+        'code': 'P-117',
+        'name': 'INSTANT  TABLOID MLM',
+        'sec': FestSection.general,
+        'stage': true,
+        'ven': 'ven_library',
+        'date': '2026-09-11',
+        'startTime': '8:00',
+        'endTime': '9:00 AM',
+      },
+      {
+        'code': 'P-118',
+        'name': 'INSTANT  TABLOID ARB',
+        'sec': FestSection.general,
+        'stage': true,
+        'ven': 'ven_library',
+        'date': '2026-09-11',
+        'startTime': '10:00',
+        'endTime': '11:00 AM',
+      },
+      {
+        'code': 'P-119',
+        'name': 'INSTANT  TABLOID ENG',
+        'sec': FestSection.general,
+        'stage': true,
+        'ven': 'ven_library',
+        'date': '2026-09-11',
+        'startTime': '2:30',
+        'endTime': '3:30 PM',
+      },
+      {
+        'code': 'P-120',
+        'name': 'INSTANT  TABLOID URD',
+        'sec': FestSection.general,
+        'stage': true,
+        'ven': 'ven_library',
+        'date': '2026-09-11',
+        'startTime': '5:00',
+        'endTime': '6:00 PM',
+      },
+      {
+        'code': 'P-121',
+        'name': 'POSTER DESIGNING ARB',
+        'sec': FestSection.superSenior,
+        'stage': true,
+        'ven': 'ven_s1',
+        'date': '2026-09-11',
+        'startTime': '7:00',
+        'endTime': '8:00 AM',
+      },
+      {
+        'code': 'P-122',
+        'name': 'NEWS MAKING ENG',
+        'sec': FestSection.senior,
+        'stage': true,
+        'ven': 'ven_s1',
+        'date': '2026-09-12',
+        'startTime': '6:00',
+        'endTime': '6:10 am',
+      },
+      {
+        'code': 'P-123',
+        'name': 'DICTIONARY MAKING ARB',
+        'sec': FestSection.superSenior,
+        'stage': true,
+        'ven': 'ven_s1',
+        'date': '2026-09-12',
+        'startTime': '6:00',
+        'endTime': '6:15 am',
+      },
+      {
+        'code': 'P-124',
+        'name': 'WORD WIZARD',
+        'sec': FestSection.subJunior,
+        'stage': true,
+        'ven': 'ven_s1',
+        'date': '2026-09-12',
+        'startTime': '6:20',
+        'endTime': '6:40 AM',
+      },
+      {
+        'code': 'P-125',
+        'name': 'ESSAY ENG',
+        'sec': FestSection.senior,
+        'stage': true,
+        'ven': 'ven_s2',
+        'date': '2026-09-12',
+        'startTime': '6:15',
+        'endTime': '7:00 am',
+      },
+      {
+        'code': 'P-126',
+        'name': 'ESSAY ENG',
+        'sec': FestSection.superSenior,
+        'stage': true,
+        'ven': 'ven_s2',
+        'date': '2026-09-12',
+        'startTime': '6:15',
+        'endTime': '7:00 am',
+      },
+      {
+        'code': 'P-127',
+        'name': 'TRANSLATION ENG-ARB',
+        'sec': FestSection.senior,
+        'stage': true,
+        'ven': 'ven_s1',
+        'date': '2026-09-12',
+        'startTime': '7:00',
+        'endTime': '7:20 AM',
+      },
+      {
+        'code': 'P-128',
+        'name': 'TRANSLATION ARB-ENG',
+        'sec': FestSection.superSenior,
+        'stage': true,
+        'ven': 'ven_s1',
+        'date': '2026-09-12',
+        'startTime': '7:00',
+        'endTime': '7:20 AM',
+      },
+      {
+        'code': 'P-129',
+        'name': 'PENCIL DRAWING',
+        'sec': FestSection.subJunior,
+        'stage': true,
+        'ven': 'ven_s3',
+        'date': '2026-09-12',
+        'startTime': '5:00',
+        'endTime': '5:45 PM',
+      },
+      {
+        'code': 'P-130',
+        'name': 'ESSAY URD',
+        'sec': FestSection.senior,
+        'stage': true,
+        'ven': 'ven_s2',
+        'date': '2026-09-12',
+        'startTime': '4:45',
+        'endTime': '5:30 PM',
+      },
+      {
+        'code': 'P-131',
+        'name': 'ESSAY URD',
+        'sec': FestSection.superSenior,
+        'stage': true,
+        'ven': 'ven_s2',
+        'date': '2026-09-12',
+        'startTime': '4:45',
+        'endTime': '5:30 PM',
+      },
+      {
+        'code': 'P-132',
+        'name': 'TRANSLATION MLM-URD',
+        'sec': FestSection.senior,
+        'stage': true,
+        'ven': 'ven_s2',
+        'date': '2026-09-12',
+        'startTime': '5:30',
+        'endTime': '5:50 PM',
+      },
+      {
+        'code': 'P-133',
+        'name': 'TRANSLATION ENG-URD',
+        'sec': FestSection.superSenior,
+        'stage': true,
+        'ven': 'ven_s2',
+        'date': '2026-09-12',
+        'startTime': '5:30',
+        'endTime': '5:50 PM',
+      },
+      {
+        'code': 'P-134',
+        'name': 'CAPTION MAKING',
+        'sec': FestSection.senior,
+        'stage': true,
+        'ven': 'ven_s1',
+        'date': '2026-09-12',
+        'startTime': '5:55',
+        'endTime': '6:05 PM',
+      },
+      {
+        'code': 'P-135',
+        'name': 'WRITING URD',
+        'sec': FestSection.subJunior,
+        'stage': true,
+        'ven': 'ven_s2',
+        'date': '2026-09-13',
+        'startTime': '6:00',
+        'endTime': '6:15 am',
+      },
+      {
+        'code': 'P-136',
+        'name': 'BRAINMATICS',
+        'sec': FestSection.senior,
+        'stage': true,
+        'ven': 'ven_s2',
+        'date': '2026-09-13',
+        'startTime': '6:00',
+        'endTime': '6:20 AM',
+      },
+      {
+        'code': 'P-137',
+        'name': 'THRIBASHAPOSHINI',
+        'sec': FestSection.superSenior,
+        'stage': true,
+        'ven': 'ven_s2',
+        'date': '2026-09-13',
+        'startTime': '6:00',
+        'endTime': '6:20 AM',
+      },
+      {
+        'code': 'P-138',
+        'name': 'SLIDE MASTER',
+        'sec': FestSection.senior,
+        'stage': true,
+        'ven': 'ven_library',
+        'date': '2026-09-13',
+        'startTime': '6:20',
+        'endTime': '6:50 AM',
+      },
+      {
+        'code': 'P-139',
+        'name': 'AL-FAQEEH',
+        'sec': FestSection.superSenior,
+        'stage': true,
+        'ven': 'ven_s1',
+        'date': '2026-09-13',
+        'startTime': '6:20',
+        'endTime': '6:50 AM',
+      },
+      {
+        'code': 'P-140',
+        'name': 'CHITHRAPORUL',
+        'sec': FestSection.subJunior,
+        'stage': true,
+        'ven': 'ven_s3',
+        'date': '2026-09-13',
+        'startTime': '5:00',
+        'endTime': '5:20 PM',
+      },
+      {
+        'code': 'P-141',
+        'name': 'AI POSTER DESIGN',
+        'sec': FestSection.senior,
+        'stage': true,
+        'ven': 'ven_library',
+        'date': '2026-09-13',
+        'startTime': '4:45',
+        'endTime': '5:15 PM',
+      },
+      {
+        'code': 'P-142',
+        'name': 'ATHALIL WA TAHRIR',
+        'sec': FestSection.superSenior,
+        'stage': true,
+        'ven': 'ven_s1',
+        'date': '2026-09-13',
+        'startTime': '4:45',
+        'endTime': '5:05 PM',
+      },
+      {
+        'code': 'P-143',
+        'name': 'PROMPT DESIGN',
+        'sec': FestSection.superSenior,
+        'stage': true,
+        'ven': 'ven_library',
+        'date': '2026-09-13',
+        'startTime': '5:15',
+        'endTime': '5:25 PM',
+      },
+      {
+        'code': 'P-144',
+        'name': 'EXCEL MASTER',
+        'sec': FestSection.superSenior,
+        'stage': true,
+        'ven': 'ven_library',
+        'date': '2026-09-13',
+        'startTime': '5:30',
+        'endTime': '6:00 PM',
+      },
+      {
+        'code': 'P-145',
+        'name': 'PODCAST MLM',
+        'sec': FestSection.general,
+        'stage': true,
+        'ven': 'ven_s1',
+        'date': '2026-09-13',
+        'startTime': '9:00',
+        'endTime': '10:00 am',
+      },
+      {
+        'code': 'P-146',
+        'name': 'FEST BRANDING',
+        'sec': FestSection.general,
+        'stage': true,
+        'ven': 'ven_s1',
+        'date': '2026-09-13',
+        'startTime': '9:00',
+        'endTime': '10:00 am',
+      },
+    ];
+
+    final random = Random(42);
+    List<Program> allPrograms = [];
+    for (int i = 0; i < programTemplates.length; i++) {
+      final t = programTemplates[i];
+      final sec = t['sec'] as FestSection;
+      final isGen = sec == FestSection.general;
+      final prog = Program(
+        id: 'prog_${i + 1}',
+        programCode: t['code'] as String,
+        programName: t['name'] as String,
+        section: sec,
+        category: (t['stage'] as bool)
+            ? ProgramCategory.stage
+            : ProgramCategory.nonStage,
+        isStageProgram: t['stage'] as bool,
+        isGeneral: isGen,
+        maxParticipants: isGen ? 10 : (random.nextInt(3) + 1),
+        duration: '${(random.nextInt(4) + 1) * 15} mins',
+        venueId: t['ven'] as String,
+        rules: 'Standard Fest rules apply for ${t['name']}.',
+        status: i < 8 ? 'COMPLETED' : (i < 14 ? 'IN_PROGRESS' : 'UPCOMING'),
+      );
+      await programRepository.addProgram(prog);
+      allPrograms.add(prog);
+
+      // Create a schedule for each program
+      final sch = Schedule(
+        id: 'sch_${i + 1}',
+        programId: prog.id,
+        venueId: t['ven'] as String,
+        date: t['date'] as String? ?? '2026-09-10',
+        startTime: t['startTime'] as String? ?? '09:00',
+        endTime: t['endTime'] as String? ?? '10:00',
+        status: prog.status == 'COMPLETED'
+            ? 'COMPLETED'
+            : (prog.status == 'IN_PROGRESS' ? 'IN_PROGRESS' : 'SCHEDULED'),
+      );
+      await scheduleRepository.addSchedule(sch);
+    }
+
+    // 6. Seed Students (3 students per section per team)
+    final firstNames = [
+      'Aarav',
+      'Ananya',
+      'Rohan',
+      'Diya',
+      'Vihaan',
+      'Isha',
+      'Aditya',
+      'Meera',
+      'Kabeer',
+      'Zara',
+      'Dev',
+      'Sanya',
+      'Arjun',
+      'Priya',
+      'Bilal',
+      'Fatima',
+      'Omar',
+      'Aisha',
+      'Zayan',
+      'Mariam',
+    ];
+    final lastNames = [
+      'Ahmed',
+      'Khan',
+      'Sharma',
+      'Nair',
+      'Verma',
+      'Patel',
+      'Siddiqui',
+      'Menon',
+      'Gupta',
+      'Hassan',
+    ];
+
+    List<Student> allStudents = [];
+    int chaseCounter = 1001;
+
+    for (final team in teams) {
+      final sections = [
+        FestSection.subJunior,
+        FestSection.senior,
+        FestSection.superSenior,
+        FestSection.general,
+      ];
+      for (final sec in sections) {
+        String prefix = 'SB';
+        if (sec == FestSection.subJunior) prefix = 'SB';
+        if (sec == FestSection.senior) prefix = 'SR';
+        if (sec == FestSection.superSenior) prefix = 'SS';
+        if (sec == FestSection.general) prefix = 'GN';
+
+        for (int k = 1; k <= 3; k++) {
+          final fName = firstNames[random.nextInt(firstNames.length)];
+          final lName = lastNames[random.nextInt(lastNames.length)];
+          final chaseNum = '$prefix-$chaseCounter';
+
+          final student = Student(
+            id: 'stud_$chaseCounter',
+            chaseNumber: chaseNum,
+            name: '$fName $lName',
+            gender: k % 2 == 0 ? 'Female' : 'Male',
+            dateOfBirth:
+                '200${8 + random.nextInt(6)}-0${1 + random.nextInt(8)}-15',
+            section: sec,
+            teamId: team.id,
+            phone: '+91 98765$chaseCounter',
+            className: sec == FestSection.subJunior
+                ? 'Class 5'
+                : (sec == FestSection.senior
+                      ? 'Class 9'
+                      : (sec == FestSection.superSenior
+                            ? 'Class 12'
+                            : 'General')),
+            schoolName: 'St. Fest International Academy',
+            qrCode: chaseNum,
+          );
+          await studentRepository.addStudent(student);
+          allStudents.add(student);
+          chaseCounter++;
+        }
+      }
+    }
+
+    // 7. Seed Registrations & Results (Published & Drafts)
+    int regCounter = 1;
+    int resultCounter = 1;
+
+    for (int pIdx = 0; pIdx < allPrograms.length; pIdx++) {
+      final prog = allPrograms[pIdx];
+      // Select 6 eligible students
+      final eligibleStudents = allStudents
+          .where((s) => prog.isGeneral || s.section == prog.section)
+          .take(6)
+          .toList();
+
+      for (int sIdx = 0; sIdx < eligibleStudents.length; sIdx++) {
+        final stud = eligibleStudents[sIdx];
+        final reg = Registration(
+          id: 'reg_$regCounter',
+          studentId: stud.id,
+          programId: prog.id,
+          teamId: stud.teamId,
+          registrationNumber: 'REG-${10000 + regCounter}',
+          status: RegistrationStatus.approved,
+        );
+        await registrationRepository.addRegistration(reg);
+        regCounter++;
+
+        // Generate results for first 4 completed programs
+        if (pIdx < 4) {
+          final pos = (sIdx == 0)
+              ? 1
+              : ((sIdx == 1) ? 2 : ((sIdx == 2) ? 3 : null));
+          final grade = (sIdx <= 1) ? 'A' : ((sIdx <= 3) ? 'B' : 'C');
+          final pts = scoringService.calculateResultPoints(
+            position: pos,
+            grade: grade,
+          );
+
+          final result = Result(
+            id: 'res_$resultCounter',
+            programId: prog.id,
+            studentId: stud.id,
+            teamId: stud.teamId,
+            juryId: 'jury_1',
+            marks: 85.0 - (sIdx * 5),
+            grade: grade,
+            position: pos,
+            points: pts,
+            remarks: pos != null
+                ? 'Outstanding performance in $pos place'
+                : 'Good effort',
+            status: ResultStatus.published,
+            publishedAt: DateTime.now().subtract(Duration(hours: 4 - pIdx)),
+          );
+          await resultRepository.saveResult(result);
+          resultCounter++;
+        } else if (pIdx == 4) {
+          // Draft results submitted by Jury
+          final pos = (sIdx == 0)
+              ? 1
+              : ((sIdx == 1) ? 2 : ((sIdx == 2) ? 3 : null));
+          final grade = 'A';
+          final pts = scoringService.calculateResultPoints(
+            position: pos,
+            grade: grade,
+          );
+
+          final result = Result(
+            id: 'res_$resultCounter',
+            programId: prog.id,
+            studentId: stud.id,
+            teamId: stud.teamId,
+            juryId: 'jury_1',
+            marks: 90.0 - (sIdx * 4),
+            grade: grade,
+            position: pos,
+            points: pts,
+            remarks: 'Submitted by Jury - Pending Controller Review',
+            status: ResultStatus.submitted,
+          );
+          await resultRepository.saveResult(result);
+          resultCounter++;
+        }
+      }
+    }
+
+    // 8. Seed Announcements
+    final announcement = Announcement(
+      id: 'ann_1',
+      programId: 'prog_101',
+      resultId: 'res_1',
+      title: '🎉 RESULT ANNOUNCEMENT 🎉',
+      message:
+          'Sub Junior Arabic Song Solo results have been officially verified and published!',
+      status: 'ANNOUNCED',
+      announcedAt: DateTime.now(),
+    );
+    await announcementRepository.addAnnouncement(announcement);
+
+    // 9. Recalculate team scores and ranks
+    await scoringService.recalculateTeamScoresAndRanks();
+  }
+}

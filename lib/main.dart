@@ -1,0 +1,52 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'core/constants/app_constants.dart';
+import 'core/routing/app_router.dart';
+import 'core/theme/app_theme.dart';
+import 'core/providers/app_providers.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Supabase Client
+  try {
+    await Supabase.initialize(
+      url: 'https://vkhjgrjntdgwsktjxnrm.supabase.co',
+      publishableKey: 'sb_publishable_Q-kwFn0SWM01AvvrEW-l4w_RUzKcwHK',
+    );
+  } catch (e) {
+    debugPrint('Supabase initialization error: $e');
+  }
+
+  final container = ProviderContainer();
+  try {
+    final authService = container.read(authServiceProvider);
+    await authService.init();
+  } catch (e) {
+    debugPrint('Auth initialization error: $e');
+  }
+
+  runApp(UncontrolledProviderScope(
+    container: container,
+    child: const FestApp(),
+  ));
+}
+
+class FestApp extends ConsumerWidget {
+  const FestApp({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final router = ref.watch(appRouterProvider);
+
+    return MaterialApp.router(
+      title: AppConstants.appName,
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: ThemeMode.light,
+      routerConfig: router,
+    );
+  }
+}

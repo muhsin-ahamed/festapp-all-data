@@ -1,0 +1,1833 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/services.dart';
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
+import '../constants/app_constants.dart';
+import '../theme/app_theme.dart';
+import '../../services/sound_service.dart';
+export 'app_sidebar.dart';
+export 'app_responsive_layout.dart';
+
+// --- 1. Askesis Crest Clipper & Brand Mark ---
+class AskesisCrestClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+    path.moveTo(size.width * 0.5, 0);
+    path.lineTo(size.width, size.height * 0.38);
+    path.lineTo(size.width * 0.82, size.height);
+    path.lineTo(size.width * 0.18, size.height);
+    path.lineTo(0, size.height * 0.38);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
+}
+
+class BrandMark extends StatelessWidget {
+  final double size;
+
+  const BrandMark({super.key, this.size = 30});
+
+  @override
+  Widget build(BuildContext context) {
+    return Image.asset(
+      'assets/images/logo.png',
+      width: size,
+      height: size,
+      fit: BoxFit.contain,
+      errorBuilder: (context, error, stackTrace) {
+        return SizedBox(
+          width: size,
+          height: size,
+          child: Icon(Icons.stars, size: size, color: AppTheme.red),
+        );
+      },
+    );
+  }
+}
+
+class AskesisBrandHeader extends StatelessWidget {
+  final List<Widget>? actions;
+
+  const AskesisBrandHeader({super.key, this.actions});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              const BrandMark(size: 32),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Askesis',
+                    style: GoogleFonts.rye(
+                      fontSize: 22,
+                      letterSpacing: 0.5,
+                      height: 1.0,
+                      color: AppTheme.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'ART FEST · 2026',
+                    style: GoogleFonts.workSans(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 2.0,
+                      color: AppTheme.inkSoft,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          if (actions != null) Row(children: actions!),
+        ],
+      ),
+    );
+  }
+}
+
+class ScheduleTabIcon extends StatelessWidget {
+  final Color color;
+  const ScheduleTabIcon({super.key, this.color = AppTheme.inkSoft});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 18,
+      height: 18,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(3),
+        border: Border.all(color: color, width: 1.2),
+      ),
+      child: Column(
+        children: [
+          Container(
+            height: 5,
+            width: double.infinity,
+            color: AppTheme.red,
+            child: const Center(
+              child: Text(
+                'JUL',
+                style: TextStyle(
+                  fontSize: 3.5,
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  height: 1.0,
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Center(
+              child: Text(
+                '17',
+                style: TextStyle(
+                  fontSize: 7.5,
+                  color: color,
+                  fontWeight: FontWeight.bold,
+                  height: 1.0,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// --- 2. PatternStrip Widget ---
+class PatternStrip extends StatelessWidget {
+  final double height;
+
+  const PatternStrip({super.key, this.height = 12});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: height,
+      width: double.infinity,
+      child: CustomPaint(painter: PatternStripPainter()),
+    );
+  }
+}
+
+class PatternStripPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final blockWidth = size.width / 5;
+
+    // 1. Red diagonal stripes
+    _drawStripedBlock(
+      canvas,
+      Rect.fromLTWH(0, 0, blockWidth, size.height),
+      baseColor: const Color(0xFFC0392B),
+      stripeColor: const Color(0xFF8B0000),
+    );
+
+    // 2. Black/White diagonal stripes
+    _drawStripedBlock(
+      canvas,
+      Rect.fromLTWH(blockWidth, 0, blockWidth, size.height),
+      baseColor: const Color(0xFFFFFFFF),
+      stripeColor: const Color(0xFF111111),
+    );
+
+    // 3. Solid Olive Green
+    final paint3 = Paint()..color = const Color(0xFF6E7B3D);
+    canvas.drawRect(
+      Rect.fromLTWH(blockWidth * 2, 0, blockWidth, size.height),
+      paint3,
+    );
+
+    // 4. Yellow/Green diagonal stripes
+    _drawStripedBlock(
+      canvas,
+      Rect.fromLTWH(blockWidth * 3, 0, blockWidth, size.height),
+      baseColor: const Color(0xFFD7A233),
+      stripeColor: const Color(0xFF2D4A27),
+    );
+
+    // 5. Solid Dark Green
+    final paint5 = Paint()..color = const Color(0xFF2D4A27);
+    canvas.drawRect(
+      Rect.fromLTWH(blockWidth * 4, 0, blockWidth, size.height),
+      paint5,
+    );
+  }
+
+  void _drawStripedBlock(
+    Canvas canvas,
+    Rect rect, {
+    required Color baseColor,
+    required Color stripeColor,
+  }) {
+    canvas.save();
+    canvas.clipRect(rect);
+    final basePaint = Paint()..color = baseColor;
+    canvas.drawRect(rect, basePaint);
+
+    final stripePaint = Paint()
+      ..color = stripeColor
+      ..strokeWidth = 3.5
+      ..style = PaintingStyle.stroke;
+
+    const step = 7.0;
+    for (
+      double x = rect.left - rect.height * 2;
+      x < rect.right + rect.height * 2;
+      x += step
+    ) {
+      canvas.drawLine(
+        Offset(x, rect.bottom),
+        Offset(x + rect.height, rect.top),
+        stripePaint,
+      );
+    }
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+// --- 3. AppButton ---
+class AppButton extends StatelessWidget {
+  final String label;
+  final VoidCallback? onPressed;
+  final IconData? icon;
+  final bool isLoading;
+  final bool isOutlined;
+  final Color? color;
+  final double? width;
+
+  const AppButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.icon,
+    this.isLoading = false,
+    this.isOutlined = false,
+    this.color,
+    this.width,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final btnColor = color ?? AppTheme.red;
+
+    Widget child = isLoading
+        ? const SizedBox(
+            height: 20,
+            width: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: AppTheme.cream,
+            ),
+          )
+        : Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 18),
+                const SizedBox(width: 8),
+              ],
+              Text(
+                label,
+                style: GoogleFonts.workSans(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13.5,
+                  letterSpacing: 0.3,
+                ),
+              ),
+            ],
+          );
+
+    final style = ElevatedButton.styleFrom(
+      backgroundColor: isOutlined ? Colors.transparent : btnColor,
+      foregroundColor: isOutlined ? btnColor : AppTheme.cream,
+      side: isOutlined
+          ? BorderSide(color: btnColor, width: 1.5)
+          : BorderSide.none,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      elevation: isOutlined ? 0 : 2,
+    );
+
+    return SizedBox(
+      width: width,
+      child: ElevatedButton(
+        style: style,
+        onPressed: isLoading ? null : onPressed,
+        child: child,
+      ),
+    );
+  }
+}
+
+// --- 4. AppTextField ---
+class AppTextField extends StatelessWidget {
+  final String label;
+  final String? hint;
+  final TextEditingController? controller;
+  final ValueChanged<String>? onChanged;
+  final bool obscureText;
+  final TextInputType keyboardType;
+  final IconData? prefixIcon;
+  final Widget? suffixIcon;
+  final String? Function(String?)? validator;
+  final int maxLines;
+
+  const AppTextField({
+    super.key,
+    required this.label,
+    this.hint,
+    this.controller,
+    this.onChanged,
+    this.obscureText = false,
+    this.keyboardType = TextInputType.text,
+    this.prefixIcon,
+    this.suffixIcon,
+    this.validator,
+    this.maxLines = 1,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.workSans(
+            fontWeight: FontWeight.w700,
+            fontSize: 12.5,
+            color: AppTheme.ink,
+          ),
+        ),
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: controller,
+          onChanged: onChanged,
+          obscureText: obscureText,
+          keyboardType: keyboardType,
+          validator: validator,
+          maxLines: maxLines,
+          style: GoogleFonts.workSans(color: AppTheme.ink, fontSize: 13.5),
+          decoration: InputDecoration(
+            hintText: hint,
+            filled: true,
+            fillColor: AppTheme.cream,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 12,
+            ),
+            prefixIcon: prefixIcon != null
+                ? Icon(prefixIcon, size: 18, color: AppTheme.inkSoft)
+                : null,
+            suffixIcon: suffixIcon,
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: AppTheme.line),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: AppTheme.red, width: 1.5),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// --- 5. AppDropdown ---
+class AppDropdown<T> extends StatelessWidget {
+  final String label;
+  final T? value;
+  final List<DropdownMenuItem<T>> items;
+  final ValueChanged<T?> onChanged;
+
+  const AppDropdown({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.items,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hasMatchingItem = value != null && items.any((i) => i.value == value);
+    final effectiveValue = hasMatchingItem
+        ? value
+        : (items.any((i) => i.value == null)
+            ? null
+            : (items.isNotEmpty ? items.first.value : null));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.workSans(
+            fontWeight: FontWeight.w700,
+            fontSize: 12.5,
+            color: AppTheme.ink,
+          ),
+        ),
+        const SizedBox(height: 6),
+        DropdownButtonFormField<T>(
+          key: ValueKey('${label}_${effectiveValue}_${items.length}'),
+          initialValue: effectiveValue,
+          items: items,
+          onChanged: onChanged,
+          isExpanded: true,
+          dropdownColor: AppTheme.cream,
+          style: GoogleFonts.workSans(
+            color: AppTheme.ink,
+            fontSize: 13.5,
+            fontWeight: FontWeight.w600,
+          ),
+          borderRadius: BorderRadius.circular(12),
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: AppTheme.cream,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 12,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: AppTheme.line),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: AppTheme.red, width: 1.5),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// --- 6. AppCard ---
+class AppCard extends StatelessWidget {
+  final Widget child;
+  final EdgeInsetsGeometry? padding;
+  final VoidCallback? onTap;
+  final Color? color;
+  final Border? border;
+
+  const AppCard({
+    super.key,
+    required this.child,
+    this.padding,
+    this.onTap,
+    this.color,
+    this.border,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: padding ?? const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: color ?? AppTheme.cream2,
+          borderRadius: BorderRadius.circular(14),
+          border: border ?? Border.all(color: AppTheme.line),
+        ),
+        child: child,
+      ),
+    );
+  }
+}
+
+// --- 7. StatCard ---
+class StatCard extends StatelessWidget {
+  final String title;
+  final String value;
+  final IconData icon;
+  final Color color;
+  final VoidCallback? onTap;
+
+  const StatCard({
+    super.key,
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.color,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      onTap: onTap,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.workSans(
+                    fontSize: 11,
+                    color: AppTheme.inkSoft,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    value,
+                    style: GoogleFonts.rye(fontSize: 22, color: AppTheme.ink),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// --- 8. SectionSelector ---
+class SectionSelector extends StatelessWidget {
+  final FestSection selectedSection;
+  final ValueChanged<FestSection> onSelected;
+
+  const SectionSelector({
+    super.key,
+    required this.selectedSection,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: FestSection.values.map((sec) {
+          final isSelected = sec == selectedSection;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: GestureDetector(
+              onTap: () => onSelected(sec),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: isSelected ? AppTheme.red : Colors.transparent,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isSelected ? AppTheme.red : AppTheme.ink,
+                    width: 1.5,
+                  ),
+                ),
+                child: Text(
+                  sec.label,
+                  style: GoogleFonts.workSans(
+                    color: isSelected ? AppTheme.cream : AppTheme.ink,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12.5,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
+// --- 9. SearchBarWidget ---
+class SearchBarWidget extends StatelessWidget {
+  final String hint;
+  final ValueChanged<String> onChanged;
+  final TextEditingController? controller;
+
+  const SearchBarWidget({
+    super.key,
+    this.hint = 'Search by name, chase number, or code...',
+    required this.onChanged,
+    this.controller,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      onChanged: onChanged,
+      style: GoogleFonts.workSans(color: AppTheme.ink, fontSize: 13.5),
+      decoration: InputDecoration(
+        hintText: hint,
+        filled: true,
+        fillColor: AppTheme.cream,
+        prefixIcon: const Icon(Icons.search, size: 20, color: AppTheme.inkSoft),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: AppTheme.line),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: AppTheme.red, width: 1.5),
+        ),
+      ),
+    );
+  }
+}
+
+// --- 10. VsScoreboardWidget ---
+class VsScoreboardWidget extends StatelessWidget {
+  final Map<String, dynamic>? leaderTeam;
+  final Map<String, dynamic>? runnerTeam;
+
+  const VsScoreboardWidget({super.key, this.leaderTeam, this.runnerTeam});
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.center,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _buildTeamCol(
+                rank: 1,
+                teamName: leaderTeam?['name'] ?? 'No Team',
+                leaderName: leaderTeam?['leader'] ?? 'Leader: —',
+                points: leaderTeam?['pts'] ?? 0,
+                isLeader: true,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _buildTeamCol(
+                rank: 2,
+                teamName: runnerTeam?['name'] ?? 'No Team',
+                leaderName: runnerTeam?['leader'] ?? 'Leader: —',
+                points: runnerTeam?['pts'] ?? 0,
+                isLeader: false,
+              ),
+            ),
+          ],
+        ),
+        // Central VS crest badge
+        SizedBox(
+          width: 38,
+          height: 38,
+          child: ClipPath(
+            clipper: AskesisCrestClipper(),
+            child: Container(
+              color: AppTheme.red,
+              alignment: Alignment.center,
+              child: Text(
+                'VS',
+                style: GoogleFonts.rye(
+                  color: AppTheme.cream,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTeamCol({
+    required int rank,
+    required String teamName,
+    required String leaderName,
+    required int points,
+    required bool isLeader,
+  }) {
+    final bg = isLeader
+        ? const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFFFBF3DE), AppTheme.cream2],
+          )
+        : null;
+
+    final initials = teamName.length >= 2
+        ? teamName.substring(0, 2).toUpperCase()
+        : 'T';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+      decoration: BoxDecoration(
+        color: isLeader ? null : AppTheme.cream2,
+        gradient: bg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isLeader ? AppTheme.mustard : AppTheme.line,
+          width: isLeader ? 1.5 : 1.0,
+        ),
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: isLeader ? AppTheme.mustard : AppTheme.ink,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              '#$rank',
+              style: GoogleFonts.workSans(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                color: isLeader ? AppTheme.ink : AppTheme.cream,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          CircleAvatar(
+            radius: 22,
+            backgroundColor: isLeader ? AppTheme.red : AppTheme.olive,
+            child: Text(
+              initials,
+              style: GoogleFonts.rye(color: AppTheme.cream, fontSize: 17),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            teamName,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.workSans(
+              fontWeight: FontWeight.w800,
+              fontSize: 12.5,
+              color: AppTheme.ink,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            leaderName,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.workSans(
+              fontSize: 10.5,
+              color: AppTheme.inkSoft,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            '$points',
+            style: GoogleFonts.rye(
+              fontSize: 30,
+              color: isLeader ? AppTheme.red : AppTheme.ink,
+              height: 1.0,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'PTS',
+            style: GoogleFonts.workSans(
+              fontSize: 9.5,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.5,
+              color: AppTheme.inkSoft,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// --- 10.5 TeamScoreCard ---
+class TeamScoreCard extends StatelessWidget {
+  final int rank;
+  final String teamName;
+  final String teamCode;
+  final String? leaderName;
+  final int points;
+  final bool isHighlight;
+
+  const TeamScoreCard({
+    super.key,
+    required this.rank,
+    required this.teamName,
+    this.teamCode = '',
+    this.leaderName,
+    required this.points,
+    this.isHighlight = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    Color rankColor = AppTheme.inkSoft;
+    if (rank == 1) rankColor = AppTheme.mustard;
+    if (rank == 2) rankColor = const Color(0xFF9C9484);
+    if (rank == 3) rankColor = const Color(0xFFB4703A);
+
+    final leaderText = (leaderName != null && leaderName!.isNotEmpty)
+        ? 'Leader: $leaderName'
+        : '';
+
+    return AppCard(
+      color: isHighlight ? const Color(0xFFFBF3DE) : AppTheme.cream2,
+      border: isHighlight
+          ? Border.all(color: AppTheme.mustard, width: 1.5)
+          : Border.all(color: AppTheme.line),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: rank <= 3 ? rankColor : AppTheme.ink,
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              '#$rank',
+              style: GoogleFonts.workSans(
+                fontWeight: FontWeight.w800,
+                fontSize: 13,
+                color: rank == 1 ? AppTheme.ink : AppTheme.cream,
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  teamName,
+                  style: GoogleFonts.workSans(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14.5,
+                    color: AppTheme.ink,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (leaderText.isNotEmpty)
+                  Text(
+                    leaderText,
+                    style: GoogleFonts.workSans(
+                      fontSize: 11.5,
+                      color: AppTheme.inkSoft,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '$points',
+                style: GoogleFonts.rye(
+                  fontSize: 22,
+                  color: isHighlight ? AppTheme.red : AppTheme.ink,
+                ),
+              ),
+              Text(
+                'PTS',
+                style: GoogleFonts.workSans(
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.inkSoft,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// --- 11. ResultCard ---
+class ResultCard extends StatelessWidget {
+  final String programName;
+  final String section;
+  final String winnerName;
+  final String winnerTeam;
+  final String? winnerChaseNo;
+  final String secondName;
+  final String secondTeam;
+  final String? secondChaseNo;
+  final String thirdName;
+  final String thirdTeam;
+  final String? thirdChaseNo;
+  final VoidCallback? onViewPoster;
+
+  const ResultCard({
+    super.key,
+    required this.programName,
+    required this.section,
+    required this.winnerName,
+    required this.winnerTeam,
+    this.winnerChaseNo,
+    required this.secondName,
+    required this.secondTeam,
+    this.secondChaseNo,
+    required this.thirdName,
+    required this.thirdTeam,
+    this.thirdChaseNo,
+    this.onViewPoster,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  programName,
+                  style: GoogleFonts.rye(
+                    fontSize: 16,
+                    color: AppTheme.ink,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF748427),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  section.toUpperCase(),
+                  style: GoogleFonts.workSans(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 10),
+            child: Divider(height: 1, color: AppTheme.line),
+          ),
+          _buildRankRow(1, winnerName, winnerTeam, winnerChaseNo, const Color(0xFF5A8E33)),
+          const SizedBox(height: 8),
+          _buildRankRow(2, secondName, secondTeam, secondChaseNo, const Color(0xFF8B2B38)),
+          const SizedBox(height: 8),
+          _buildRankRow(3, thirdName, thirdTeam, thirdChaseNo, const Color(0xFFDE1F33)),
+          if (onViewPoster != null) ...[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: onViewPoster,
+                icon: const Icon(Icons.image_outlined, size: 16),
+                label: const Text(
+                  'View Result Poster',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                ),
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF748427),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRankRow(
+    int pos,
+    String name,
+    String team,
+    String? chaseNo,
+    Color accentColor,
+  ) {
+    bool isEmpty = name.isEmpty || name == '—';
+    final cleanChase = chaseNo?.trim() ?? '';
+    final formattedChase = cleanChase.isNotEmpty
+        ? (cleanChase.startsWith('#') ? cleanChase : '#$cleanChase')
+        : '';
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Container(
+          width: 26,
+          height: 26,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: accentColor,
+            shape: BoxShape.circle,
+          ),
+          child: Text(
+            '$pos',
+            style: GoogleFonts.workSans(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+              fontSize: 12,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Flexible(
+          child: Text(
+            !isEmpty ? name : '—',
+            style: GoogleFonts.workSans(
+              fontWeight: isEmpty ? FontWeight.w600 : FontWeight.w800,
+              fontSize: 14,
+              color: isEmpty ? AppTheme.inkSoft : AppTheme.ink,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        if (formattedChase.isNotEmpty && !isEmpty) ...[
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: accentColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: accentColor, width: 1.0),
+            ),
+            child: Text(
+              formattedChase,
+              style: GoogleFonts.workSans(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w900,
+                color: accentColor,
+              ),
+            ),
+          ),
+        ],
+        if (team.isNotEmpty && team != '—' && !isEmpty) ...[
+          const SizedBox(width: 8),
+          Text(
+            '• $team',
+            style: GoogleFonts.workSans(
+              color: accentColor,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+// --- 12. QRScannerWidget ---
+class QRScannerWidget extends StatefulWidget {
+  final ValueChanged<String> onScanned;
+  final double? height;
+
+  const QRScannerWidget({
+    super.key,
+    required this.onScanned,
+    this.height,
+  });
+
+  @override
+  State<QRScannerWidget> createState() => _QRScannerWidgetState();
+}
+
+class _QRScannerWidgetState extends State<QRScannerWidget> {
+  DateTime? _lastScannedTime;
+  String? _lastScannedPayload;
+  bool _isProcessing = false;
+  MobileScannerController? _controller;
+  bool _isTorchOn = false;
+  bool _showManualInput = false;
+  final _manualInputController = TextEditingController();
+
+  bool get _isDesktop => !kIsWeb && (Platform.isWindows || Platform.isLinux);
+
+  @override
+  void initState() {
+    super.initState();
+    if (!_isDesktop) {
+      try {
+        _controller = MobileScannerController(
+          detectionSpeed: DetectionSpeed.noDuplicates,
+          autoStart: true,
+        );
+      } catch (_) {
+        _controller = null;
+      }
+    } else {
+      _showManualInput = true;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    _manualInputController.dispose();
+    super.dispose();
+  }
+
+  void _handleBarcode(String raw) {
+    final clean = raw.trim();
+    if (clean.isEmpty) return;
+
+    final now = DateTime.now();
+    // Cooldown: prevent multiple triggers for the same QR code or rapid-fire frames
+    if (_isProcessing) return;
+    if (_lastScannedTime != null &&
+        now.difference(_lastScannedTime!).inMilliseconds < 1500) {
+      if (_lastScannedPayload == clean) {
+        return;
+      }
+    }
+
+    _isProcessing = true;
+    _lastScannedTime = now;
+    _lastScannedPayload = clean;
+
+    // Play scanner beep sound effect & tactile haptic pulse
+    SoundService.playQrScanSound();
+
+    widget.onScanned(clean);
+
+    Future.delayed(const Duration(milliseconds: 1200), () {
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+        });
+      }
+    });
+  }
+
+  Future<void> _pasteFromClipboard() async {
+    try {
+      final data = await Clipboard.getData(Clipboard.kTextPlain);
+      final text = data?.text?.trim() ?? '';
+      if (text.isNotEmpty) {
+        _manualInputController.text = text;
+        _handleBarcode(text);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Clipboard is empty')),
+          );
+        }
+      }
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: widget.height ?? 300,
+      decoration: BoxDecoration(
+        color: AppTheme.ink,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: _isProcessing
+              ? AppTheme.green
+              : AppTheme.red.withValues(alpha: 0.5),
+          width: 2,
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: _isDesktop || _showManualInput || _controller == null
+            ? _buildManualEntryView()
+            : Stack(
+                alignment: Alignment.center,
+                children: [
+                  MobileScanner(
+                    controller: _controller,
+                    errorBuilder: (context, error) {
+                      return _buildErrorFallback(error.errorCode.name);
+                    },
+                    onDetect: (capture) {
+                      final List<Barcode> barcodes = capture.barcodes;
+                      for (final barcode in barcodes) {
+                        final raw = barcode.rawValue;
+                        if (raw != null && raw.isNotEmpty) {
+                          _handleBarcode(raw);
+                          break;
+                        }
+                      }
+                    },
+                  ),
+                  // Viewfinder Reticle Overlay
+                  _buildScannerOverlay(),
+                  // Top scanner controls (Torch, Switch Camera, Keyboard)
+                  Positioned(
+                    top: 10,
+                    right: 10,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildControlIconButton(
+                          icon: _isTorchOn
+                              ? Icons.flash_on
+                              : Icons.flash_off,
+                          tooltip: 'Toggle Flash',
+                          onPressed: () async {
+                            try {
+                              await _controller?.toggleTorch();
+                              setState(() {
+                                _isTorchOn = !_isTorchOn;
+                              });
+                            } catch (_) {}
+                          },
+                        ),
+                        const SizedBox(width: 6),
+                        _buildControlIconButton(
+                          icon: Icons.flip_camera_ios,
+                          tooltip: 'Switch Camera',
+                          onPressed: () async {
+                            try {
+                              await _controller?.switchCamera();
+                            } catch (_) {}
+                          },
+                        ),
+                        const SizedBox(width: 6),
+                        _buildControlIconButton(
+                          icon: Icons.keyboard,
+                          tooltip: 'Manual Entry',
+                          onPressed: () {
+                            setState(() {
+                              _showManualInput = true;
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Scan confirmation flash badge
+                  if (_isProcessing)
+                    Positioned(
+                      bottom: 16,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.green,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.3),
+                              blurRadius: 8,
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.check_circle,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'QR Scanned!',
+                              style: GoogleFonts.workSans(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  Widget _buildControlIconButton({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onPressed,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.55),
+        shape: BoxShape.circle,
+      ),
+      child: IconButton(
+        icon: Icon(icon, color: Colors.white, size: 18),
+        tooltip: tooltip,
+        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+        padding: EdgeInsets.zero,
+        onPressed: onPressed,
+      ),
+    );
+  }
+
+  Widget _buildErrorFallback(String errorDetails) {
+    return Container(
+      color: AppTheme.ink,
+      padding: const EdgeInsets.all(16),
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.videocam_off_rounded,
+            color: AppTheme.mustard,
+            size: 38,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Camera Unavailable',
+            style: GoogleFonts.workSans(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Permission denied or no camera device found ($errorDetails).',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.workSans(
+              color: Colors.white70,
+              fontSize: 11.5,
+            ),
+          ),
+          const SizedBox(height: 12),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.red,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            ),
+            icon: const Icon(Icons.edit_note, size: 16),
+            label: const Text('Enter QR Payload Manually', style: TextStyle(fontSize: 12)),
+            onPressed: () {
+              setState(() {
+                _showManualInput = true;
+              });
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildManualEntryView() {
+    return Container(
+      color: AppTheme.ink,
+      padding: const EdgeInsets.all(16),
+      alignment: Alignment.center,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  _isDesktop
+                      ? Icons.desktop_windows_rounded
+                      : Icons.qr_code_2_rounded,
+                  color: AppTheme.mustard,
+                  size: 22,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _isDesktop
+                      ? 'Desktop QR Code Input'
+                      : 'Manual QR Code Entry',
+                  style: GoogleFonts.workSans(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _isDesktop
+                  ? 'Camera scanning is not supported on Windows desktop.\nEnter or paste your QR payload string below:'
+                  : 'Enter or paste the QR payload string below:',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.workSans(
+                color: Colors.white70,
+                fontSize: 11.5,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _manualInputController,
+                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                    decoration: InputDecoration(
+                      hintText: 'e.g. fest_jury_login:jury1:pass:...',
+                      hintStyle: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.4),
+                        fontSize: 12,
+                      ),
+                      filled: true,
+                      fillColor: Colors.black.withValues(alpha: 0.35),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: AppTheme.line),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: AppTheme.mustard),
+                      ),
+                    ),
+                    onSubmitted: (val) {
+                      if (val.trim().isNotEmpty) {
+                        _handleBarcode(val);
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton.filled(
+                  icon: const Icon(Icons.paste_rounded, size: 18),
+                  tooltip: 'Paste from clipboard',
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppTheme.mustard,
+                    foregroundColor: AppTheme.ink,
+                  ),
+                  onPressed: _pasteFromClipboard,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.login, size: 16),
+                  label: const Text('Process Code', style: TextStyle(fontSize: 12)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.green,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                  ),
+                  onPressed: () {
+                    final text = _manualInputController.text.trim();
+                    if (text.isNotEmpty) {
+                      _handleBarcode(text);
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Please enter or paste a QR code string'),
+                        ),
+                      );
+                    }
+                  },
+                ),
+                if (!_isDesktop && _controller != null) ...[
+                  const SizedBox(width: 10),
+                  TextButton.icon(
+                    icon: const Icon(Icons.camera_alt, size: 16),
+                    label: const Text('Use Camera', style: TextStyle(fontSize: 12)),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.white70,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _showManualInput = false;
+                      });
+                    },
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildScannerOverlay() {
+    return IgnorePointer(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final boxSize = (constraints.maxHeight * 0.68).clamp(160.0, 220.0);
+          return SizedBox(
+            width: boxSize,
+            height: boxSize,
+            child: Stack(
+              children: [
+                // Corner Brackets
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  child: _buildCorner(isTop: true, isLeft: true),
+                ),
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: _buildCorner(isTop: true, isLeft: false),
+                ),
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  child: _buildCorner(isTop: false, isLeft: true),
+                ),
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: _buildCorner(isTop: false, isLeft: false),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildCorner({required bool isTop, required bool isLeft}) {
+    const size = 22.0;
+    const thickness = 3.5;
+    final color = _isProcessing ? AppTheme.green : AppTheme.red;
+
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        border: Border(
+          top: isTop
+              ? BorderSide(color: color, width: thickness)
+              : BorderSide.none,
+          bottom: !isTop
+              ? BorderSide(color: color, width: thickness)
+              : BorderSide.none,
+          left: isLeft
+              ? BorderSide(color: color, width: thickness)
+              : BorderSide.none,
+          right: !isLeft
+              ? BorderSide(color: color, width: thickness)
+              : BorderSide.none,
+        ),
+      ),
+    );
+  }
+}
+
+// --- 13. StudentQrDisplayDialog ---
+class StudentQrDisplayDialog extends StatelessWidget {
+  final String studentName;
+  final String chaseNumber;
+
+  const StudentQrDisplayDialog({
+    super.key,
+    required this.studentName,
+    required this.chaseNumber,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final qrSize = (screenWidth * 0.45).clamp(140.0, 200.0);
+
+    return AlertDialog(
+      backgroundColor: AppTheme.cream,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: Text(
+        studentName,
+        textAlign: TextAlign.center,
+        style: GoogleFonts.rye(
+          fontWeight: FontWeight.bold,
+          color: AppTheme.ink,
+          fontSize: 18,
+        ),
+      ),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Chase Number: $chaseNumber',
+              style: GoogleFonts.workSans(
+                color: AppTheme.red,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: SizedBox(
+                width: qrSize,
+                height: qrSize,
+                child: QrImageView(
+                  data: chaseNumber,
+                  version: QrVersions.auto,
+                  size: qrSize,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(
+            'Close',
+            style: GoogleFonts.workSans(
+              color: AppTheme.red,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Helper to format raw dates (e.g. '2026-09-10T00:00:00.000Z', '2026-09-10', '2026-09-05')
+/// into "Date Month Year" format, e.g. "10 September 2026" or "10 Sep 2026".
+String formatAppDate(
+  String rawDate, {
+  bool fullMonth = false,
+  bool includeWeekday = false,
+}) {
+  if (rawDate.trim().isEmpty) {
+    return 'Date TBA';
+  }
+  final clean = rawDate.trim();
+  DateTime? parsed = DateTime.tryParse(clean);
+
+  // Fallback regex parsing if DateTime.tryParse fails
+  if (parsed == null) {
+    // Try YYYY-MM-DD or YYYY/MM/DD
+    final ymdRegex = RegExp(r'^(\d{4})[/-](\d{1,2})[/-](\d{1,2})');
+    var match = ymdRegex.firstMatch(clean);
+    if (match != null) {
+      final year = int.parse(match.group(1)!);
+      final month = int.parse(match.group(2)!);
+      final day = int.parse(match.group(3)!);
+      parsed = DateTime(year, month, day);
+    } else {
+      // Try DD/MM/YYYY or DD-MM-YYYY
+      final dmyRegex = RegExp(r'^(\d{1,2})[/-](\d{1,2})[/-](\d{4})');
+      match = dmyRegex.firstMatch(clean);
+      if (match != null) {
+        final day = int.parse(match.group(1)!);
+        final month = int.parse(match.group(2)!);
+        final year = int.parse(match.group(3)!);
+        parsed = DateTime(year, month, day);
+      }
+    }
+  }
+
+  if (parsed != null) {
+    const weekdays = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ];
+    const monthsShort = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    const monthsFull = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+
+    final dayStr = parsed.day.toString().padLeft(2, '0');
+    final monthStr =
+        fullMonth
+            ? monthsFull[parsed.month - 1]
+            : monthsShort[parsed.month - 1];
+    final yearStr = parsed.year.toString();
+
+    String result = '$dayStr $monthStr $yearStr';
+    if (includeWeekday) {
+      final weekdayStr = weekdays[parsed.weekday - 1];
+      result = '$weekdayStr, $result';
+    }
+    return result;
+  }
+
+  return clean;
+}
+
+/// Helper to format raw time strings (e.g. '09:00', '14:30', '09:00:00') into 12-hour AM/PM format (e.g. '09:00 AM', '02:30 PM').
+String formatAppTime(String rawTime) {
+  if (rawTime.trim().isEmpty) return '—';
+  final clean = rawTime.trim();
+
+  // If already contains AM or PM, return cleaned
+  if (clean.toUpperCase().contains('AM') ||
+      clean.toUpperCase().contains('PM')) {
+    return clean;
+  }
+
+  final parts = clean.split(':');
+  if (parts.isNotEmpty) {
+    final hour = int.tryParse(parts[0]);
+    final minute = parts.length > 1 ? int.tryParse(parts[1]) : 0;
+    if (hour != null && minute != null) {
+      final period = hour >= 12 ? 'PM' : 'AM';
+      final h12 = hour % 12 == 0 ? 12 : hour % 12;
+      final hStr = h12.toString().padLeft(2, '0');
+      final mStr = minute.toString().padLeft(2, '0');
+      return '$hStr:$mStr $period';
+    }
+  }
+  return clean;
+}
+
