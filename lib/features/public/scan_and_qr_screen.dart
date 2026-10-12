@@ -477,13 +477,13 @@ class _ScanAndQrScreenState extends ConsumerState<ScanAndQrScreen> {
         final schedulesAsync = ref.watch(schedulesProvider);
         final venuesAsync = ref.watch(venuesProvider);
 
-        final isLoading =
-            studentsAsync.isLoading ||
-            teamsAsync.isLoading ||
-            programsAsync.isLoading ||
-            resultsAsync.isLoading;
+        final isInitialLoading =
+            (studentsAsync.isLoading && !studentsAsync.hasValue) ||
+            (teamsAsync.isLoading && !teamsAsync.hasValue) ||
+            (programsAsync.isLoading && !programsAsync.hasValue) ||
+            (resultsAsync.isLoading && !resultsAsync.hasValue);
 
-        if (isLoading) {
+        if (isInitialLoading) {
           return const Center(child: CircularProgressIndicator());
         }
 

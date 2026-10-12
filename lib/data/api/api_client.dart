@@ -69,13 +69,14 @@ class ApiClient {
 
   Future<dynamic> _wrapRequest(Future<http.Response> Function() fn) async {
     try {
-      final response = await fn();
+      final response = await fn().timeout(const Duration(seconds: 4));
       return _processResponse(response);
     } on ApiException {
       rethrow;
     } catch (e) {
       final errStr = e.toString();
-      if (errStr.contains('Failed to fetch') ||
+      if (errStr.contains('TimeoutException') ||
+          errStr.contains('Failed to fetch') ||
           errStr.contains('ClientException') ||
           errStr.contains('SocketException')) {
         final isLocal = baseUrl.contains('localhost') || baseUrl.contains('127.0.0.1');

@@ -39,8 +39,8 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
     _tabController.addListener(() {
       if (mounted) setState(() {});
     });
-    // Live auto-refresh every 5 seconds so scoreboards & published results update instantly
-    _refreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+    // Live auto-refresh every 10 seconds so scoreboards & published results update seamlessly
+    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       if (mounted) {
         triggerDataRefresh(ref);
       }
@@ -592,7 +592,12 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
                       },
                     );
                   },
-                  loading: () => const CircularProgressIndicator(),
+                  loading: () => const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(24.0),
+                      child: CircularProgressIndicator(),
+                    ),
+                  ),
                   error: (e, _) => Text('Error: $e'),
                 ),
               ],
@@ -613,6 +618,20 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
     AsyncValue<List<Student>> studentsAsync, {
     String? searchQuery,
   }) {
+    final isInitialLoading =
+        (resultsAsync.isLoading && !resultsAsync.hasValue) ||
+        (programsAsync.isLoading && !programsAsync.hasValue) ||
+        (studentsAsync.isLoading && !studentsAsync.hasValue);
+
+    if (isInitialLoading) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(40.0),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return resultsAsync.when(
       skipLoadingOnRefresh: true,
       data: (results) {
@@ -941,6 +960,15 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
     AsyncValue<List<Program>> programsAsync,
     AsyncValue<List<Venue>> venuesAsync,
   ) {
+    if (schedulesAsync.isLoading && !schedulesAsync.hasValue) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(40.0),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     final schedules = schedulesAsync.value ?? [];
     final programs = programsAsync.value ?? [];
     final venues = venuesAsync.value ?? [];

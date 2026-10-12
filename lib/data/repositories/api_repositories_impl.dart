@@ -20,14 +20,16 @@ class ApiStudentRepository implements StudentRepository {
   @override
   Future<List<Student>> getStudents() async {
     try {
-      final list = await _api.getStudents();
-      if (list.isNotEmpty) return list;
+      final supa = await _supabase.getStudents();
+      if (supa.isNotEmpty) return supa;
     } catch (_) {}
-    try {
-      return await _supabase.getStudents();
-    } catch (_) {
-      return [];
+    if (globalApiClient.authToken != null && globalApiClient.authToken!.isNotEmpty) {
+      try {
+        final list = await _api.getStudents();
+        if (list.isNotEmpty) return list;
+      } catch (_) {}
     }
+    return [];
   }
 
   @override
@@ -120,25 +122,24 @@ class ApiStudentRepository implements StudentRepository {
 class ApiTeamRepository implements TeamRepository {
   @override
   Future<List<Team>> getTeams() async {
-    final Map<String, Team> merged = {};
     try {
       final supa = await SupabaseTeamRepository().getTeams();
-      for (final t in supa) {
-        merged[t.id] = t;
+      if (supa.isNotEmpty) {
+        supa.sort((a, b) => b.totalPoints.compareTo(a.totalPoints));
+        return supa;
       }
     } catch (_) {}
     try {
       final res = await globalApiClient.get('/public/teams');
       if (res is List) {
-        for (final e in res) {
-          final t = Team.fromMap(e as Map<String, dynamic>);
-          merged[t.id] = t;
-        }
+        final list = res
+            .map((e) => Team.fromMap(e as Map<String, dynamic>))
+            .toList();
+        list.sort((a, b) => b.totalPoints.compareTo(a.totalPoints));
+        return list;
       }
     } catch (_) {}
-    final list = merged.values.toList();
-    list.sort((a, b) => b.totalPoints.compareTo(a.totalPoints));
-    return list;
+    return [];
   }
 
   @override
@@ -226,14 +227,14 @@ class ApiProgramRepository implements ProgramRepository {
   @override
   Future<List<Program>> getPrograms() async {
     try {
+      final supa = await _supabase.getPrograms();
+      if (supa.isNotEmpty) return supa;
+    } catch (_) {}
+    try {
       final list = await _api.getPrograms();
       if (list.isNotEmpty) return list;
     } catch (_) {}
-    try {
-      return await _supabase.getPrograms();
-    } catch (_) {
-      return [];
-    }
+    return [];
   }
 
   @override
@@ -316,6 +317,10 @@ class ApiRegistrationRepository implements RegistrationRepository {
   @override
   Future<List<Registration>> getRegistrations() async {
     try {
+      final supa = await _supabase.getRegistrations();
+      if (supa.isNotEmpty) return supa;
+    } catch (_) {}
+    try {
       final res = await globalApiClient.get('/public/registrations');
       if (res is List) {
         final list = res
@@ -337,11 +342,7 @@ class ApiRegistrationRepository implements RegistrationRepository {
         }
       }
     } catch (_) {}
-    try {
-      return await _supabase.getRegistrations();
-    } catch (_) {
-      return [];
-    }
+    return [];
   }
 
   @override
@@ -438,46 +439,48 @@ class ApiResultRepository implements ResultRepository {
 
   @override
   Future<List<Result>> getResults() async {
-    final Map<String, Result> merged = {};
     try {
       final supa = await _supabase.getResults();
-      for (final r in supa) {
-        merged[r.id] = r;
+      if (supa.isNotEmpty) {
+        supa.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return supa;
       }
     } catch (_) {}
     try {
       final apiRes = await _api.getResults();
-      for (final r in apiRes) {
-        merged[r.id] = r;
+      if (apiRes.isNotEmpty) {
+        apiRes.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return apiRes;
       }
     } catch (_) {}
-    final list = merged.values.toList();
-    list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    return list;
+    return [];
   }
 
   @override
   Future<List<Result>> getPublishedResults() async {
-    final Map<String, Result> merged = {};
     try {
       final supa = await _supabase.getPublishedResults();
-      for (final r in supa) {
-        merged[r.id] = r;
+      if (supa.isNotEmpty) {
+        supa.sort((a, b) {
+          final timeA = a.publishedAt ?? a.createdAt;
+          final timeB = b.publishedAt ?? b.createdAt;
+          return timeB.compareTo(timeA);
+        });
+        return supa;
       }
     } catch (_) {}
     try {
       final apiRes = await _api.getPublishedResults();
-      for (final r in apiRes) {
-        merged[r.id] = r;
+      if (apiRes.isNotEmpty) {
+        apiRes.sort((a, b) {
+          final timeA = a.publishedAt ?? a.createdAt;
+          final timeB = b.publishedAt ?? b.createdAt;
+          return timeB.compareTo(timeA);
+        });
+        return apiRes;
       }
     } catch (_) {}
-    final list = merged.values.toList();
-    list.sort((a, b) {
-      final timeA = a.publishedAt ?? a.createdAt;
-      final timeB = b.publishedAt ?? b.createdAt;
-      return timeB.compareTo(timeA);
-    });
-    return list;
+    return [];
   }
 
   @override

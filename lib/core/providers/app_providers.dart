@@ -20,8 +20,8 @@ import '../../services/tv_service.dart';
 import '../../services/demo_data_service.dart';
 
 // --- Database Configuration Flags ---
-// Enforce Node.js REST API Backend Architecture (Flutter -> Node.js -> Supabase)
-final useNodeBackendProvider = StateProvider<bool>((ref) => true);
+// Default to Direct Supabase Architecture for fast and reliable data loading
+final useNodeBackendProvider = StateProvider<bool>((ref) => false);
 
 // --- Repositories ---
 final studentRepositoryProvider = Provider<StudentRepository>((ref) {
@@ -157,8 +157,8 @@ final teamsProvider = FutureProvider<List<Team>>((ref) async {
   try {
     final repo = ref.watch(teamRepositoryProvider);
     final rawTeams = await repo.getTeams();
-    final publishedResults = ref.watch(publishedResultsProvider).valueOrNull ?? [];
-    final students = ref.watch(studentsProvider).valueOrNull ?? [];
+    final publishedResults = await ref.watch(publishedResultsProvider.future);
+    final students = await ref.watch(studentsProvider.future);
     final scoring = ref.watch(scoringServiceProvider);
 
     final updatedTeams = scoring.calculateTeamScoresFromResults(
@@ -166,11 +166,6 @@ final teamsProvider = FutureProvider<List<Team>>((ref) async {
       publishedResults,
       students,
     );
-
-    // Asynchronously sync ranks & scores back to repository
-    for (final t in updatedTeams) {
-      repo.updateTeam(t).catchError((_) {});
-    }
 
     return updatedTeams;
   } catch (_) {
