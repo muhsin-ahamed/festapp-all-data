@@ -29,6 +29,7 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
   late TabController _tabController;
   final _searchController = TextEditingController();
   Timer? _refreshTimer;
+  List<Team>? _cachedTeams;
 
   String _publicScheduleDate = 'ALL';
 
@@ -58,6 +59,9 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
   @override
   Widget build(BuildContext context) {
     final teamsAsync = ref.watch(teamsProvider);
+    if (teamsAsync.valueOrNull != null && teamsAsync.valueOrNull!.isNotEmpty) {
+      _cachedTeams = teamsAsync.valueOrNull;
+    }
     final publishedResultsAsync = ref.watch(publishedResultsProvider);
     final programsAsync = ref.watch(programsProvider);
     final schedulesAsync = ref.watch(schedulesProvider);
@@ -129,6 +133,7 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
             programsAsync,
             schedulesAsync,
             venuesAsync,
+            _cachedTeams,
           ),
           // 2. Live Tab
           _buildLiveTab(
@@ -284,6 +289,7 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
     AsyncValue<List<Program>> programsAsync,
     AsyncValue<List<Schedule>> schedulesAsync,
     AsyncValue<List<Venue>> venuesAsync,
+    List<Team>? cachedTeams,
   ) {
     final progs = programsAsync.value ?? [];
     final vens = venuesAsync.value ?? [];
@@ -415,7 +421,7 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
                       ),
                     ),
                     GestureDetector(
-                      onTap: () => _showFullScoreboardDialog(context, teamsAsync.value ?? []),
+                      onTap: () => _showFullScoreboardDialog(context, teamsAsync.valueOrNull ?? cachedTeams ?? []),
                       child: Text(
                         'Full Scoreboard →',
                         style: GoogleFonts.workSans(
@@ -429,38 +435,43 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
                 ),
                 const SizedBox(height: 12),
 
-                // Live VS Scoreboard Widget
-                teamsAsync.when(
-                  skipLoadingOnRefresh: true,
-                  data: (teams) {
-                    final leader = teams.isNotEmpty
-                        ? {
-                            'name': teams[0].teamName,
-                            'leader': 'Leader: ${teams[0].leaderName ?? "—"}',
-                            'pts': teams[0].totalPoints,
-                          }
-                        : {'name': "—", 'leader': '—', 'pts': 0};
-                    final runner = teams.length > 1
-                        ? {
-                            'name': teams[1].teamName,
-                            'leader': 'Leader: ${teams[1].leaderName ?? "—"}',
-                            'pts': teams[1].totalPoints,
-                          }
-                        : {'name': "—", 'leader': '—', 'pts': 0};
+                // Live VS Scoreboard Widget (preserves loaded team scores without reloading flicker)
+                Builder(
+                  builder: (context) {
+                    final teams = teamsAsync.valueOrNull ?? cachedTeams;
+                    if (teams != null && teams.isNotEmpty) {
+                      final leader = {
+                        'name': teams[0].teamName,
+                        'leader': 'Leader: ${teams[0].leaderName ?? "—"}',
+                        'pts': teams[0].totalPoints,
+                      };
+                      final runner = teams.length > 1
+                          ? {
+                              'name': teams[1].teamName,
+                              'leader': 'Leader: ${teams[1].leaderName ?? "—"}',
+                              'pts': teams[1].totalPoints,
+                            }
+                          : {'name': "—", 'leader': '—', 'pts': 0};
 
-                    return VsScoreboardWidget(
-                      leaderTeam: leader,
-                      runnerTeam: runner,
+                      return VsScoreboardWidget(
+                        leaderTeam: leader,
+                        runnerTeam: runner,
+                      );
+                    }
+
+                    // Only show Loading... on the very first cold start before any teams data exists
+                    if (teamsAsync.isLoading && (cachedTeams == null || cachedTeams.isEmpty)) {
+                      return const VsScoreboardWidget(
+                        leaderTeam: {'name': "Loading...", 'leader': '', 'pts': 0},
+                        runnerTeam: {'name': "Loading...", 'leader': '', 'pts': 0},
+                      );
+                    }
+
+                    return const VsScoreboardWidget(
+                      leaderTeam: {'name': "—", 'leader': '—', 'pts': 0},
+                      runnerTeam: {'name': "—", 'leader': '—', 'pts': 0},
                     );
                   },
-                  loading: () => const VsScoreboardWidget(
-                    leaderTeam: {'name': "Loading...", 'leader': '', 'pts': 0},
-                    runnerTeam: {'name': "Loading...", 'leader': '', 'pts': 0},
-                  ),
-                  error: (_, _) => const VsScoreboardWidget(
-                    leaderTeam: {'name': "Error", 'leader': '', 'pts': 0},
-                    runnerTeam: {'name': "Error", 'leader': '', 'pts': 0},
-                  ),
                 ),
 
                 const SizedBox(height: 28),
@@ -476,6 +487,7 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
                 const SizedBox(height: 12),
                 schedulesAsync.when(
                   skipLoadingOnRefresh: true,
+                  skipLoadingOnReload: true,
                   data: (schedules) {
                     if (schedules.isEmpty) {
                       return Container(
@@ -634,6 +646,7 @@ class _PublicPortalScreenState extends ConsumerState<PublicPortalScreen>
 
     return resultsAsync.when(
       skipLoadingOnRefresh: true,
+      skipLoadingOnReload: true,
       data: (results) {
         final published = results
             .where(

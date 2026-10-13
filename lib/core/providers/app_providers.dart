@@ -152,13 +152,15 @@ final studentsProvider = FutureProvider<List<Student>>((ref) async {
   }
 });
 
+List<Team> _lastCalculatedTeams = [];
+
 final teamsProvider = FutureProvider<List<Team>>((ref) async {
   ref.watch(dataRefreshSignalProvider);
   try {
     final repo = ref.watch(teamRepositoryProvider);
     final rawTeams = await repo.getTeams();
-    final publishedResults = await ref.watch(publishedResultsProvider.future);
-    final students = await ref.watch(studentsProvider.future);
+    final publishedResults = await ref.read(publishedResultsProvider.future);
+    final students = await ref.read(studentsProvider.future);
     final scoring = ref.watch(scoringServiceProvider);
 
     final updatedTeams = scoring.calculateTeamScoresFromResults(
@@ -167,9 +169,12 @@ final teamsProvider = FutureProvider<List<Team>>((ref) async {
       students,
     );
 
-    return updatedTeams;
+    if (updatedTeams.isNotEmpty) {
+      _lastCalculatedTeams = updatedTeams;
+    }
+    return updatedTeams.isNotEmpty ? updatedTeams : _lastCalculatedTeams;
   } catch (_) {
-    return [];
+    return _lastCalculatedTeams;
   }
 });
 
